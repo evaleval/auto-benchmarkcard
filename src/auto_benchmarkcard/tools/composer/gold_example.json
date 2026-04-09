@@ -1,0 +1,70 @@
+{
+  "benchmark_details": {
+    "name": "SQuAD 2.0",
+    "overview": "SQuAD 2.0 is a reading comprehension benchmark that tests a model's ability to answer questions based on Wikipedia passages, including questions that have no answer in the given passage. It extends SQuAD 1.1 by combining 100,000 answerable questions with over 50,000 unanswerable questions written by crowdworkers to look similar to answerable ones.",
+    "data_type": "text",
+    "domains": [
+      "reading comprehension",
+      "question answering",
+      "information extraction"
+    ],
+    "languages": [
+      "English"
+    ],
+    "similar_benchmarks": [
+      "SQuAD 1.1",
+      "Natural Questions",
+      "TriviaQA",
+      "QuAC"
+    ],
+    "resources": [
+      "https://rajpurkar.github.io/SQuAD-explorer/",
+      "https://arxiv.org/abs/1806.03822",
+      "https://huggingface.co/datasets/rajpurkar/squad_v2"
+    ]
+  },
+  "purpose_and_intended_users": {
+    "goal": "To test whether models can abstain from answering when no answer is supported by the passage, in addition to selecting correct answers when one exists.",
+    "audience": [
+      "NLP researchers",
+      "Reading comprehension model developers"
+    ],
+    "tasks": [
+      "Extractive question answering",
+      "Answer span selection",
+      "Unanswerable question detection"
+    ],
+    "limitations": "All passages come from English Wikipedia, limiting domain diversity. Questions are crowdsourced and may not reflect natural information-seeking behavior. The extractive format excludes questions requiring free-form or multi-document reasoning.",
+    "out_of_scope_uses": [
+      "Generative or abstractive question answering",
+      "Multilingual reading comprehension",
+      "Multi-document reasoning tasks"
+    ]
+  },
+  "data": {
+    "source": "Questions and answers were crowdsourced via Amazon Mechanical Turk over paragraphs from 536 English Wikipedia articles. Unanswerable questions were written by crowdworkers who were shown the passage and existing answerable questions, then asked to write plausible-looking questions that cannot be answered from the passage.",
+    "size": "150,000+ question-answer pairs across 536 Wikipedia articles",
+    "format": "JSON",
+    "annotation": "Crowdworkers highlighted answer spans in the passage for answerable questions. Each example was validated by additional annotators. Unanswerable questions were verified to ensure no answer exists in the passage."
+  },
+  "methodology": {
+    "methods": [
+      "Extractive question answering over provided passages",
+      "Models must either select an answer span or predict unanswerable"
+    ],
+    "metrics": [
+      "Exact Match",
+      "F1"
+    ],
+    "calculation": "Exact Match measures the percentage of predictions that match any ground-truth answer exactly. F1 measures token-level overlap between prediction and ground truth. Both metrics are macro-averaged over all examples.",
+    "interpretation": "Higher scores indicate better performance. Human performance on SQuAD 2.0 achieves 86.8 EM and 89.5 F1.",
+    "baseline_results": "Human performance: 86.8 EM, 89.5 F1. BiDAF + Self-Attention + ELMo baseline: 64.8 EM, 67.6 F1.",
+    "validation": "Multiple human annotators per question to measure inter-annotator agreement. Human performance is computed by treating each annotator's answer as a prediction and the remaining answers as ground truth."
+  },
+  "ethical_and_legal_considerations": {
+    "privacy_and_anonymity": "The dataset is based on publicly available Wikipedia articles. No private or personally identifiable information was collected from annotators beyond their Mechanical Turk worker IDs.",
+    "data_licensing": "CC BY-SA 4.0, consistent with the Wikipedia source content license.",
+    "consent_procedures": "Crowdworkers on Amazon Mechanical Turk participated voluntarily and were compensated for their work.",
+    "compliance_with_regulations": "The dataset uses only publicly available Wikipedia content. No IRB approval was reported."
+  }
+}
