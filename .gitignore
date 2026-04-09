@@ -68,3 +68,7 @@ notebooks/
 
 # ChromaDB files
 src/auto_benchmarkcard/tools/rag/chroma_db/
+
+# Ruff / mypy
+.ruff_cache/
+.mypy_cache/
