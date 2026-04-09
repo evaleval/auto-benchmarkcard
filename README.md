@@ -64,7 +64,7 @@ Verify with `./external/merlin/bin/merlin --help`.
 
 ```bash
 # From evaluation data (supports multiple benchmarks)
-benchmarkcard generate ./eval_data -b "MMLU,TruthfulQA" -o ./output
+benchmarkcard generate ./external/eee_samples -b "MMLU,TruthfulQA" -o ./output
 
 # From the Unitxt catalog
 benchmarkcard generate-unitxt glue -o ./output
