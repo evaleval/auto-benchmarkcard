@@ -20,11 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-
-[project.urls]
-Repository = "https://github.com/evaleval/auto-benchmarkcard"
-Issues = "https://github.com/evaleval/auto-benchmarkcard/issues"
-
 dependencies = [
     "typer>=0.15.0",
     "rich>=14.0.0",
@@ -62,9 +57,13 @@ dependencies = [
     "filetype>=1.2.0",
     "pgmpy>=0.1.25",
     "networkx>=3.4.0",
-    "fact_reasoner @ git+https://github.com/evaleval/FactReasoner.git",
+    "fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@llm-handler-injection",
     "ai-atlas-nexus",
 ]
+
+[project.urls]
+Repository = "https://github.com/evaleval/auto-benchmarkcard"
+Issues = "https://github.com/evaleval/auto-benchmarkcard/issues"
 
 [project.optional-dependencies]
 ollama = ["ollama>=0.5.0"]
