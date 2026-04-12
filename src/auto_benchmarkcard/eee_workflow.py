@@ -16,9 +16,12 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from auto_benchmarkcard.config import Config
+from collections import defaultdict
+
 from auto_benchmarkcard.tools.eee.eee_tool import (
     scan_eee_folder,
     eee_to_pipeline_inputs,
+    composite_to_pipeline_inputs,
     lookup_unitxt_paper,
 )
 from auto_benchmarkcard.workflow import (
@@ -64,6 +67,9 @@ def build_eee_initial_state(
 
 _CARD_FIELD_ORDER = [
     "benchmark_details",
+    "benchmark_type",
+    "contains",
+    "appears_in",
     "purpose_and_intended_users",
     "data",
     "methodology",
@@ -150,11 +156,24 @@ def process_single_benchmark(
     try:
         final_state = workflow.invoke(initial_state)
 
-        final_card = final_state.get("final_card")
+        final_card = (
+            final_state.get("final_card")
+            or final_state.get("risk_enhanced_card")
+            or final_state.get("composed_card")
+        )
         if final_card and eee_metadata:
             final_card = _enrich_baseline_results(final_card, eee_metadata)
 
             card = final_card.get("benchmark_card", final_card)
+
+            # Inject composite/single metadata
+            btype = eee_metadata.get("benchmark_type", "single")
+            card["benchmark_type"] = btype
+            if btype == "composite" and eee_metadata.get("contains"):
+                card["contains"] = eee_metadata["contains"]
+            if eee_metadata.get("appears_in"):
+                card["appears_in"] = eee_metadata["appears_in"]
+
             ordered_card = _reorder_card_fields(card)
             if "benchmark_card" in final_card:
                 final_card["benchmark_card"] = ordered_card
@@ -184,6 +203,7 @@ def run_eee_pipeline(
     max_files_per_benchmark: int = 50,
     benchmarks_filter: Optional[List[str]] = None,
     debug: bool = False,
+    no_collapse: bool = False,
 ) -> Dict[str, Any]:
     """Scan EEE evaluation data, discover benchmarks, and generate cards for each."""
     setup_logging_suppression(debug_mode=debug)
@@ -192,17 +212,39 @@ def run_eee_pipeline(
                 Config.COMPOSER_MODEL, Config.FACTREASONER_MODEL)
 
     logger.info("Scanning EEE data at: %s", eee_path)
-    scan_result = scan_eee_folder(eee_path, max_files_per_benchmark)
+    scan_result = scan_eee_folder(eee_path, max_files_per_benchmark, no_collapse=no_collapse)
 
     if scan_result.errors:
         for err in scan_result.errors:
             logger.warning("Scan error: %s", err)
 
     benchmarks = scan_result.benchmarks
-    logger.info("Found %d unique benchmarks in %d files", len(benchmarks), scan_result.total_eval_files)
+    logger.info(
+        "Found %d unique benchmarks, %d composite suites in %d files",
+        len(benchmarks), len(scan_result.composites), scan_result.total_eval_files,
+    )
 
+    # Build reverse map: benchmark_name -> composite folders it appears in
+    appears_in_map: Dict[str, List[str]] = defaultdict(list)
+    for folder, comp in scan_result.composites.items():
+        for sub in comp.sub_benchmarks:
+            appears_in_map[sub].append(folder)
+
+    # Apply filter, auto-expanding composite names to include sub-benchmarks
+    filter_set: Optional[set] = None
     if benchmarks_filter:
         filter_set = {b.lower() for b in benchmarks_filter}
+        # Auto-expand: if a filter name matches a composite, add its sub-benchmarks
+        for b in list(filter_set):
+            for folder, comp in scan_result.composites.items():
+                if folder.lower() == b:
+                    sub_names = {n.lower() for n in comp.sub_benchmarks}
+                    logger.info(
+                        "Expanding composite '%s' → also generating: %s",
+                        folder, comp.sub_benchmarks,
+                    )
+                    filter_set.update(sub_names)
+
         benchmarks = {
             k: v for k, v in benchmarks.items()
             if k.lower() in filter_set
@@ -212,18 +254,23 @@ def run_eee_pipeline(
     logger.info("Resolving HuggingFace repos...")
     pipeline_inputs_map: Dict[str, Dict[str, Any]] = {}
     for name, bench in sorted(benchmarks.items()):
-        inputs = eee_to_pipeline_inputs(bench)
+        inputs = eee_to_pipeline_inputs(
+            bench,
+            benchmark_type="single",
+            appears_in=appears_in_map.get(name, []),
+        )
         pipeline_inputs_map[name] = inputs
         hf = inputs.get("hf_repo", "None")
         logger.info("  %s -> hf_repo=%s (%d models)", name, hf, bench.num_models_evaluated)
 
-    summary = {
-        "total_benchmarks": len(pipeline_inputs_map),
+    summary: Dict[str, Any] = {
+        "total_benchmarks": len(pipeline_inputs_map) + len(scan_result.composites),
         "successful": [],
         "failed": [],
         "skipped": [],
     }
 
+    # Process individual benchmarks
     for i, (name, inputs) in enumerate(sorted(pipeline_inputs_map.items()), 1):
         logger.info("[%d/%d] Processing: %s", i, len(pipeline_inputs_map), name)
 
@@ -243,6 +290,27 @@ def run_eee_pipeline(
             summary["successful"].append(name)
         else:
             summary["failed"].append(name)
+
+    # Process composite suites
+    for folder, composite in sorted(scan_result.composites.items()):
+        if filter_set is not None and folder.lower() not in filter_set:
+            continue
+
+        logger.info("Processing composite suite: %s (%d sub-benchmarks)",
+                     folder, len(composite.sub_benchmarks))
+
+        inputs = composite_to_pipeline_inputs(composite, scan_result)
+        card = process_single_benchmark(
+            benchmark_name=folder,
+            pipeline_inputs=inputs,
+            base_output_path=output_path,
+            debug=debug,
+        )
+
+        if card:
+            summary["successful"].append(f"{folder} (composite)")
+        else:
+            summary["failed"].append(f"{folder} (composite)")
 
     logger.info("EEE pipeline complete: success=%d, failed=%d, skipped=%d",
                 len(summary["successful"]), len(summary["failed"]), len(summary["skipped"]))

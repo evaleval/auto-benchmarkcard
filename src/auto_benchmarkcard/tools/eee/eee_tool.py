@@ -7,9 +7,11 @@ per-benchmark metadata compatible with the auto-benchmarkcard pipeline.
 
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 import os
+import random
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
@@ -17,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from huggingface_hub import HfApi
 from pydantic import BaseModel, Field
+from rapidfuzz import fuzz
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +53,9 @@ class EEEBenchmarkInfo(BaseModel):
     """Aggregated benchmark information extracted from EEE evaluation data."""
 
     name: str = Field(description="Benchmark/dataset name from EEE")
-    eee_source_folder: str = Field(description="EEE top-level folder name")
+    eee_source_folders: List[str] = Field(
+        default_factory=list, description="EEE top-level folder names this benchmark appears in",
+    )
     source_type: str = Field(description="'hf_dataset', 'url', or 'other'")
     hf_repo: Optional[str] = Field(None, description="HuggingFace repo if available")
     source_urls: List[str] = Field(default_factory=list, description="Source URLs if available")
@@ -65,6 +70,20 @@ class EEEBenchmarkInfo(BaseModel):
     num_models_evaluated: int = 0
     eval_library: Optional[str] = Field(None, description="Evaluation framework used")
 
+    @property
+    def eee_source_folder(self) -> str:
+        """First source folder (backward compat)."""
+        return self.eee_source_folders[0] if self.eee_source_folders else ""
+
+
+class CompositeInfo(BaseModel):
+    """Metadata about a composite benchmark suite."""
+
+    folder_name: str
+    sub_benchmarks: List[str] = Field(default_factory=list)
+    source_urls: List[str] = Field(default_factory=list)
+    eval_library: Optional[str] = None
+
 
 class EEEScanResult(BaseModel):
     """Result of scanning an EEE data directory."""
@@ -73,12 +92,223 @@ class EEEScanResult(BaseModel):
         default_factory=dict,
         description="benchmark_name -> aggregated info",
     )
+    composites: Dict[str, CompositeInfo] = Field(
+        default_factory=dict,
+        description="folder_name -> composite info (only real suites, not subject-composites)",
+    )
+    folder_metadata: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="folder_name -> aggregate-level metadata (URLs, eval_library)",
+    )
     scan_path: str = ""
     total_eval_files: int = 0
     errors: List[str] = Field(default_factory=list)
 
 
-def scan_eee_folder(eee_path: str | Path, max_files_per_benchmark: int = 50) -> EEEScanResult:
+_HARNESS_PREFIXES = ["helm_", "hf_", "hfopenllm_"]
+
+
+def _derive_benchmark_name(folder: str, bench_names: List[str]) -> str:
+    """Derive a clean benchmark name for a collapsed subject-composite."""
+    normalized = [_normalize_benchmark_name(n) for n in bench_names]
+    prefix = os.path.commonprefix(normalized).rstrip("-").rstrip(" ")
+    if len(prefix) >= 4:
+        return prefix.replace("-", " ").title()
+    # Fallback: strip harness prefix from folder name
+    name = folder
+    for p in _HARNESS_PREFIXES:
+        if name.startswith(p):
+            name = name[len(p):]
+            break
+    return name.replace("_", " ").replace("-", " ").title()
+
+
+def _is_subject_composite(bench_names: List[str], scan_result: EEEScanResult) -> bool:
+    """Heuristic: is this a subject-composite (collapse) or a real suite?
+
+    Returns True if at least 2 of 4 signals fire:
+    1. Shared name prefix >= 4 chars
+    2. All sub-benchmarks share the same paper/source URLs (or all have none)
+    3. All sub-benchmarks share the same HF repo
+    4. Average pairwise name similarity > 70 (rapidfuzz scale 0-100)
+    """
+    signals = 0
+
+    normalized = [_normalize_benchmark_name(n) for n in bench_names]
+
+    # Signal 1: shared prefix
+    prefix = os.path.commonprefix(normalized)
+    if len(prefix) >= 4:
+        signals += 1
+
+    # Signal 2: same paper source (only if at least one URL exists)
+    all_urls: set[str] = set()
+    for name in bench_names:
+        bench = scan_result.benchmarks.get(name)
+        if bench:
+            all_urls.update(bench.source_urls)
+    if all_urls and len(all_urls) == 1:
+        signals += 1
+
+    # Signal 3: same HF repo (only if repo is not None)
+    repos = set()
+    for name in bench_names:
+        bench = scan_result.benchmarks.get(name)
+        if bench:
+            repos.add(bench.hf_repo)
+    repos.discard(None)
+    if repos and len(repos) == 1:
+        signals += 1
+
+    # Signal 4: high average pairwise name similarity
+    pairs = list(itertools.combinations(normalized, 2))
+    if len(pairs) > 20:
+        pairs = random.sample(pairs, 20)
+    if pairs:
+        avg_sim = sum(fuzz.ratio(a, b) for a, b in pairs) / len(pairs)
+        if avg_sim > 70:
+            signals += 1
+
+    return signals >= 2
+
+
+def _collapse_subject_composite(
+    folder: str, bench_names: List[str], result: EEEScanResult,
+) -> None:
+    """Collapse a subject-composite into a single merged benchmark entry."""
+    merged_name = _derive_benchmark_name(folder, bench_names)
+
+    scores_by_model: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    all_metrics: Dict[str, Dict[str, Any]] = {}
+    hf_repo: Optional[str] = None
+    source_urls: List[str] = []
+
+    for name in bench_names:
+        bench = result.benchmarks.get(name)
+        if not bench:
+            continue
+        all_metrics.update(bench.metrics)
+        if bench.hf_repo and not hf_repo:
+            hf_repo = bench.hf_repo
+        source_urls.extend(u for u in bench.source_urls if u not in source_urls)
+        for score_entry in bench.model_scores:
+            scores_by_model[score_entry["model"]].append(score_entry)
+
+    # Build aggregated model_scores: average across subjects per model
+    merged_scores: List[Dict[str, Any]] = []
+    for model, entries in scores_by_model.items():
+        avg = sum(e["score"] for e in entries) / len(entries)
+        merged_scores.append({
+            "model": model,
+            "developer": entries[0].get("developer", ""),
+            "score": avg,
+            "metric": "average_across_subjects",
+            "evaluation_name": merged_name,
+            "subject_scores": [
+                {"subject": e.get("evaluation_name", ""), "score": e["score"]}
+                for e in entries
+            ],
+        })
+
+    # Remove individual sub-benchmark entries
+    for name in bench_names:
+        result.benchmarks.pop(name, None)
+
+    # Create merged entry
+    result.benchmarks[merged_name] = EEEBenchmarkInfo(
+        name=merged_name,
+        eee_source_folders=[folder],
+        source_type="hf_dataset" if hf_repo else "other",
+        hf_repo=hf_repo,
+        source_urls=source_urls,
+        metrics=all_metrics,
+        model_scores=merged_scores,
+        num_models_evaluated=len(scores_by_model),
+        eval_library=result.folder_metadata.get(folder, {}).get("eval_library"),
+    )
+
+    logger.info(
+        "Collapsed %d subjects in '%s' into single benchmark '%s'",
+        len(bench_names), folder, merged_name,
+    )
+
+
+def _detect_intra_benchmark_subjects(result: EEEScanResult) -> None:
+    """Detect benchmarks that contain multiple subjects under one dataset_name.
+
+    When a single benchmark (e.g., helm_mmlu) has scores with many distinct
+    evaluation_name values (e.g., "Abstract Algebra", "Anatomy"), aggregate them
+    into per-model averages with subject_scores detail lists.
+
+    This handles cases like MMLU (35 subjects) and global-mmlu-lite (19 languages)
+    where dataset_name is the same but evaluation_name varies.
+    """
+    for name, bench in list(result.benchmarks.items()):
+        eval_names = set(s.get("evaluation_name", "") for s in bench.model_scores)
+        if len(eval_names) < 3:
+            continue
+
+        # Group scores by model, then aggregate
+        scores_by_model: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for score_entry in bench.model_scores:
+            scores_by_model[score_entry["model"]].append(score_entry)
+
+        merged_scores: List[Dict[str, Any]] = []
+        for model, entries in scores_by_model.items():
+            avg = sum(e["score"] for e in entries) / len(entries)
+            merged_scores.append({
+                "model": model,
+                "developer": entries[0].get("developer", ""),
+                "score": avg,
+                "metric": "average_across_subjects",
+                "evaluation_name": bench.name,
+                "subject_scores": [
+                    {"subject": e.get("evaluation_name", ""), "score": e["score"]}
+                    for e in entries
+                ],
+            })
+
+        bench.model_scores = merged_scores
+        bench.num_models_evaluated = len(scores_by_model)
+        logger.info(
+            "Aggregated %d subjects for '%s' into per-model averages (%d models)",
+            len(eval_names), name, len(scores_by_model),
+        )
+
+
+def _detect_composites(result: EEEScanResult, no_collapse: bool = False) -> None:
+    """Classify folders as composite suites or subject-composites.
+
+    Folders with 2+ benchmarks are either real composite suites (distinct benchmarks)
+    or subject-composites (variants of one benchmark, e.g., MMLU subjects).
+    Subject-composites get collapsed into a single merged benchmark entry.
+    """
+    folder_benchmarks: Dict[str, List[str]] = defaultdict(list)
+    for name, bench in result.benchmarks.items():
+        for folder in bench.eee_source_folders:
+            folder_benchmarks[folder].append(name)
+
+    for folder, bench_names in folder_benchmarks.items():
+        if len(bench_names) < 2:
+            continue
+
+        if not no_collapse and _is_subject_composite(bench_names, result):
+            _collapse_subject_composite(folder, bench_names, result)
+        else:
+            meta = result.folder_metadata.get(folder, {})
+            result.composites[folder] = CompositeInfo(
+                folder_name=folder,
+                sub_benchmarks=sorted(bench_names),
+                source_urls=meta.get("source_urls", []),
+                eval_library=meta.get("eval_library"),
+            )
+
+
+def scan_eee_folder(
+    eee_path: str | Path,
+    max_files_per_benchmark: int = 50,
+    no_collapse: bool = False,
+) -> EEEScanResult:
     """Scan an EEE data directory and aggregate benchmark information.
 
     Reads evaluation JSONs from an EEE benchmark folder (or top-level data/ dir),
@@ -104,12 +334,16 @@ def scan_eee_folder(eee_path: str | Path, max_files_per_benchmark: int = 50) -> 
     result.total_eval_files = len(json_files)
     logger.info("Found %d JSON files in %s", len(json_files), eee_path)
 
-    # Group files by benchmark folder
+    # Group files by source config.
+    # If files are in subfolders (data/helm_capabilities/model/eval.json), use subfolder name.
+    # If files are flat (eee_samples/helm_capabilities.json), use filename stem.
     files_by_folder: Dict[str, list] = defaultdict(list)
     for f in json_files:
-        # Determine the benchmark folder relative to eee_path
         rel = f.relative_to(eee_path)
-        folder = rel.parts[0] if len(rel.parts) > 1 else eee_path.name
+        if len(rel.parts) > 1:
+            folder = rel.parts[0]
+        else:
+            folder = f.stem  # e.g., "helm_capabilities" from helm_capabilities.json
         files_by_folder[folder].append(f)
 
     for folder, files in files_by_folder.items():
@@ -126,6 +360,11 @@ def scan_eee_folder(eee_path: str | Path, max_files_per_benchmark: int = 50) -> 
                 continue
 
             _process_eval_file(data, folder, result)
+
+    if not no_collapse:
+        _detect_intra_benchmark_subjects(result)
+
+    _detect_composites(result, no_collapse=no_collapse)
 
     return result
 
@@ -148,10 +387,19 @@ def _process_eval_file(data: Dict[str, Any], folder: str, result: EEEScanResult)
         if dataset_name == "unknown":
             continue
 
-        # Skip folder-level aggregates
+        # Capture folder-level aggregate metadata before skipping
         metric_desc = eval_result.get("metric_config", {}).get("evaluation_description", "").lower()
         eval_name = eval_result.get("evaluation_name", "").lower()
         if metric_desc in _AGGREGATE_INDICATORS or eval_name in _AGGREGATE_INDICATORS:
+            if folder not in result.folder_metadata:
+                result.folder_metadata[folder] = {"source_urls": [], "eval_library": None}
+            fm = result.folder_metadata[folder]
+            if source_data.get("url"):
+                for url in source_data["url"]:
+                    if url not in fm["source_urls"]:
+                        fm["source_urls"].append(url)
+            if eval_library and not fm["eval_library"]:
+                fm["eval_library"] = eval_library
             continue
 
         # Normalize name to merge variants (MMLU-PRO vs MMLU-Pro)
@@ -168,7 +416,7 @@ def _process_eval_file(data: Dict[str, Any], folder: str, result: EEEScanResult)
             # Use the original casing for the display name
             result.benchmarks[dataset_name] = EEEBenchmarkInfo(
                 name=dataset_name,
-                eee_source_folder=folder,
+                eee_source_folders=[folder],
                 source_type=source_data.get("source_type", "other"),
                 hf_repo=source_data.get("hf_repo"),
                 eval_library=eval_library,
@@ -176,6 +424,10 @@ def _process_eval_file(data: Dict[str, Any], folder: str, result: EEEScanResult)
             existing_key = dataset_name
 
         bench = result.benchmarks[existing_key]
+
+        # Track all folders this benchmark appears in
+        if folder not in bench.eee_source_folders:
+            bench.eee_source_folders.append(folder)
 
         # Collect source URLs
         if source_data.get("url"):
@@ -443,6 +695,8 @@ def lookup_unitxt_paper(hf_repo: str) -> Optional[str]:
 
 def eee_to_pipeline_inputs(
     bench: EEEBenchmarkInfo,
+    benchmark_type: str = "single",
+    appears_in: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Convert an EEEBenchmarkInfo into pipeline-compatible inputs.
 
@@ -450,6 +704,8 @@ def eee_to_pipeline_inputs(
 
     Args:
         bench: Single benchmark info from EEE scan.
+        benchmark_type: "single" or "composite".
+        appears_in: List of composite folder names this benchmark belongs to.
 
     Returns:
         Dictionary with keys: extracted_ids, hf_repo, eee_metadata.
@@ -477,11 +733,56 @@ def eee_to_pipeline_inputs(
         "metrics": {k: v for k, v in bench.metrics.items()},
         "evaluation_summary": eval_summary,
         "num_models_evaluated": bench.num_models_evaluated,
+        "benchmark_type": benchmark_type,
+        "appears_in": appears_in or [],
     }
 
     return {
         "extracted_ids": extracted_ids,
         "hf_repo": hf_repo,
+        "eee_metadata": eee_metadata,
+    }
+
+
+def composite_to_pipeline_inputs(
+    composite: CompositeInfo,
+    scan_result: EEEScanResult,
+) -> Dict[str, Any]:
+    """Build pipeline inputs for a composite benchmark suite card.
+
+    Aggregates metrics and scores from all sub-benchmarks in the composite.
+
+    Args:
+        composite: Composite suite info.
+        scan_result: Full scan result for looking up sub-benchmark data.
+
+    Returns:
+        Dictionary with keys: extracted_ids, hf_repo, eee_metadata.
+    """
+    all_scores: List[Dict[str, Any]] = []
+    all_metrics: Dict[str, Dict[str, Any]] = {}
+    for name in composite.sub_benchmarks:
+        bench = scan_result.benchmarks.get(name)
+        if bench:
+            all_scores.extend(bench.model_scores)
+            all_metrics.update(bench.metrics)
+
+    eee_metadata = {
+        "benchmark_name": composite.folder_name,
+        "eee_source_folder": composite.folder_name,
+        "source_type": "url",
+        "source_urls": composite.source_urls,
+        "eval_library": composite.eval_library,
+        "metrics": all_metrics,
+        "evaluation_summary": {},
+        "num_models_evaluated": len({s["model"] for s in all_scores}),
+        "benchmark_type": "composite",
+        "contains": composite.sub_benchmarks,
+    }
+
+    return {
+        "extracted_ids": {"hf_repo": None, "paper_url": None, "risk_tags": None},
+        "hf_repo": None,
         "eee_metadata": eee_metadata,
     }
 

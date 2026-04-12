@@ -57,6 +57,7 @@ dependencies = [
     "filetype>=1.2.0",
     "pgmpy>=0.1.25",
     "networkx>=3.4.0",
+    "rapidfuzz>=3.0.0",
     "fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@llm-handler-injection",
     "ai-atlas-nexus",
 ]

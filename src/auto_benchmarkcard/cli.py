@@ -551,6 +551,13 @@ def generate(
         bool,
         typer.Option("--debug", help="Enable debug mode"),
     ] = False,
+    no_collapse: Annotated[
+        bool,
+        typer.Option(
+            "--no-collapse",
+            help="Disable subject-composite collapsing (treat all multi-benchmark folders as real composites)",
+        ),
+    ] = False,
 ) -> None:
     """
     Generate benchmark cards from evaluation data.
@@ -565,6 +572,9 @@ def generate(
 
         [dim]# Generate specific benchmarks only[/dim]
         benchmarkcard generate ./eee_data -b "MMLU,TruthfulQA,BBH" -o ./output
+
+        [dim]# Generate a composite suite and all its sub-benchmarks[/dim]
+        benchmarkcard generate ./eee_data -b "helm_capabilities" -o ./output
 
         [dim]# From HuggingFace dataset clone[/dim]
         benchmarkcard generate ~/datasets/EEE_datastore/data -v
@@ -597,6 +607,7 @@ def generate(
             max_files_per_benchmark=max_files,
             benchmarks_filter=benchmarks_filter,
             debug=debug,
+            no_collapse=no_collapse,
         )
 
         execution_time = time.time() - start_time
