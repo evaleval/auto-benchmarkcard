@@ -404,6 +404,16 @@ def extract_deterministic_facts(
         if eee_metadata.get("eval_library"):
             facts["methodology.eval_library"] = eee_metadata["eval_library"]
 
+        # Composite suite context for the LLM
+        if eee_metadata.get("benchmark_type") == "composite":
+            contains = eee_metadata.get("contains", [])
+            facts["benchmark_type"] = "composite"
+            facts["composite_context"] = (
+                f"This is a composite benchmark suite containing the following "
+                f"sub-benchmarks: {', '.join(contains)}. Describe what the suite "
+                f"measures as a whole, not individual sub-benchmarks."
+            )
+
     if extracted_ids:
         if extracted_ids.get("paper_url"):
             facts["benchmark_details.paper_url"] = extracted_ids["paper_url"]

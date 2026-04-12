@@ -44,15 +44,24 @@ __all__ = [
 
 def orchestrator(state: GraphState) -> Dict[str, str]:
     """Determine the next workflow step based on current state."""
+    completed = state.get("completed", [])
+    completed_str = " ".join(completed)
+
+    def _failed(step: str) -> bool:
+        return f"{step} failed" in completed_str
+
     # EEE path bypasses UnitXT and extractor
-    is_eee = state.get("eee_metadata") is not None
+    eee_metadata = state.get("eee_metadata")
+    is_eee = eee_metadata is not None
+    is_composite = is_eee and eee_metadata.get("benchmark_type") == "composite"
+
     if not is_eee:
-        if state["unitxt_json"] is None:
+        if state["unitxt_json"] is None and not _failed("unitxt"):
             return {"next": "unitxt_worker"}
-        if state["extracted_ids"] is None:
+        if state["extracted_ids"] is None and not _failed("id extraction"):
             return {"next": "extractor_worker"}
 
-    if state["hf_repo"] is not None and state["hf_json"] is None:
+    if state["hf_repo"] is not None and state["hf_json"] is None and not _failed("huggingface"):
         return {"next": "hf_worker"}
 
     # Fall back to HF metadata for paper URL if UnitXT didn't provide one
@@ -65,15 +74,20 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
         return {"next": "hf_extractor_worker"}
 
     paper_url = state.get("extracted_ids", {}).get("paper_url")
-    if paper_url and state["docling_output"] is None:
+    if paper_url and state["docling_output"] is None and not _failed("docling"):
         return {"next": "docling_worker"}
-    if state["composed_card"] is None:
+    if state["composed_card"] is None and not _failed("composer"):
         return {"next": "composer_worker"}
-    if state["risk_enhanced_card"] is None:
+    if state["risk_enhanced_card"] is None and not _failed("risk"):
         return {"next": "risk_worker"}
-    if state["rag_results"] is None:
+
+    # Composites have no source docs for RAG/FactReasoner — skip directly to END
+    if is_composite:
+        return {"next": "END"}
+
+    if state["rag_results"] is None and not _failed("rag"):
         return {"next": "rag_worker"}
-    if state["factuality_results"] is None:
+    if state["factuality_results"] is None and not _failed("factreasoner"):
         return {"next": "factreasoner_worker"}
     return {"next": "END"}
 
