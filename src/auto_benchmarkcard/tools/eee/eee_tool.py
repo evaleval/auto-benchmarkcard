@@ -242,7 +242,7 @@ def resolve_hf_repo(benchmark_name: str, existing_hf_repo: Optional[str] = None)
     # Search HuggingFace
     try:
         api = HfApi()
-        results = list(api.list_datasets(search=benchmark_name, sort="downloads", direction=-1, limit=5))
+        results = list(api.list_datasets(search=benchmark_name, sort="downloads", limit=5))
 
         if not results:
             logger.warning("No HF datasets found for '%s'", benchmark_name)
