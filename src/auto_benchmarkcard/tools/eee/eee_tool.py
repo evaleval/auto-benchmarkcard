@@ -3,6 +3,16 @@
 Scans EEE evaluation JSONs, aggregates benchmark information across multiple
 model evaluations, resolves HuggingFace dataset repositories, and produces
 per-benchmark metadata compatible with the auto-benchmarkcard pipeline.
+
+Composite benchmark handling:
+  - A "composite" is a folder containing multiple distinct benchmarks (e.g.,
+    helm_capabilities has BoolQ, HellaSwag, MMLU as separate benchmarks).
+  - A "subject-composite" is a folder where all entries are variants of one
+    benchmark (e.g., MMLU's 35 subjects). These get collapsed into a single
+    benchmark with averaged scores.
+  - Detection uses 4 heuristic signals (prefix, URLs, HF repo, name similarity).
+    At least 2 must fire to classify as subject-composite.
+  - True composites skip RAG/FactReasoner (no single source paper to check against).
 """
 
 from __future__ import annotations
@@ -11,7 +21,6 @@ import itertools
 import json
 import logging
 import os
-import random
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
@@ -43,6 +52,10 @@ HF_REPO_OVERRIDES: Dict[str, str] = {
     "ms marco": "microsoft/ms_marco",
     "ms marco (trec)": "microsoft/ms_marco",
     "wmt 2014": None,  # No good HF equivalent
+    "anthropic rlhf dataset": "Anthropic/hh-rlhf",
+    "best chatgpt prompts": "fka/awesome-chatgpt-prompts",
+    "koala test dataset": "HuggingFaceH4/Koala-test-set",
+    "theory_of_mind": "grimulkan/theory-of-mind",
 }
 
 # Minimum downloads threshold to accept a HF search result as valid
@@ -126,17 +139,20 @@ def _derive_benchmark_name(folder: str, bench_names: List[str]) -> str:
 def _is_subject_composite(bench_names: List[str], scan_result: EEEScanResult) -> bool:
     """Heuristic: is this a subject-composite (collapse) or a real suite?
 
-    Returns True if at least 2 of 4 signals fire:
-    1. Shared name prefix >= 4 chars
+    Returns True if at least 2 of 4 signals fire (majority vote — 2/4 balances
+    false positives vs false negatives):
+
+    1. Shared name prefix >= 4 chars (shorter prefixes match noise like 'a-', 'b-')
     2. All sub-benchmarks share the same paper/source URLs (or all have none)
     3. All sub-benchmarks share the same HF repo
-    4. Average pairwise name similarity > 70 (rapidfuzz scale 0-100)
+    4. Average pairwise name similarity > 70 (rapidfuzz 0-100; tuned on MMLU ~85
+       vs HELM ~40, 70 separates cleanly)
     """
     signals = 0
 
     normalized = [_normalize_benchmark_name(n) for n in bench_names]
 
-    # Signal 1: shared prefix
+    # Signal 1: shared prefix (4+ chars gives meaningful shared roots)
     prefix = os.path.commonprefix(normalized)
     if len(prefix) >= 4:
         signals += 1
@@ -161,9 +177,13 @@ def _is_subject_composite(bench_names: List[str], scan_result: EEEScanResult) ->
         signals += 1
 
     # Signal 4: high average pairwise name similarity
+    # Deterministic sampling: sort then take evenly spaced pairs (20 is enough
+    # for a stable average; more gives diminishing returns)
     pairs = list(itertools.combinations(normalized, 2))
     if len(pairs) > 20:
-        pairs = random.sample(pairs, 20)
+        pairs.sort()
+        step = max(1, len(pairs) // 20)
+        pairs = pairs[::step][:20]
     if pairs:
         avg_sim = sum(fuzz.ratio(a, b) for a, b in pairs) / len(pairs)
         if avg_sim > 70:
@@ -245,6 +265,7 @@ def _detect_intra_benchmark_subjects(result: EEEScanResult) -> None:
     """
     for name, bench in list(result.benchmarks.items()):
         eval_names = set(s.get("evaluation_name", "") for s in bench.model_scores)
+        # 3+ subjects needed: 2 could be coincidence (e.g., train/test split)
         if len(eval_names) < 3:
             continue
 
@@ -479,17 +500,17 @@ def resolve_hf_repo(benchmark_name: str, existing_hf_repo: Optional[str] = None)
     Returns:
         HuggingFace repository ID or None if not resolvable.
     """
-    # If EEE already has an hf_repo, use it
-    if existing_hf_repo:
-        return existing_hf_repo
-
-    # Check manual overrides
+    # Check manual overrides first (they take priority over EEE defaults)
     key = benchmark_name.lower().strip()
     if key in HF_REPO_OVERRIDES:
         override = HF_REPO_OVERRIDES[key]
         if override is None:
             logger.info("No HF repo for '%s' (known unmatchable)", benchmark_name)
         return override
+
+    # If EEE already has a valid hf_repo, use it
+    if existing_hf_repo:
+        return existing_hf_repo
 
     # Search HuggingFace
     try:
@@ -714,9 +735,10 @@ def eee_to_pipeline_inputs(
     hf_repo = resolve_hf_repo(bench.name, bench.hf_repo)
 
     # Build extracted_ids (same format as extractor_tool output)
+    # Paper URL resolution happens later via paper_resolver (Semantic Scholar + LLM)
     extracted_ids = {
         "hf_repo": hf_repo,
-        "paper_url": None,  # Will be resolved from UnitXT catalog + HF metadata
+        "paper_url": None,
         "risk_tags": None,
     }
 
@@ -767,11 +789,12 @@ def composite_to_pipeline_inputs(
             all_scores.extend(bench.model_scores)
             all_metrics.update(bench.metrics)
 
+    # Paper URL resolution happens later via paper_resolver (Semantic Scholar + LLM)
     eee_metadata = {
         "benchmark_name": composite.folder_name,
         "eee_source_folder": composite.folder_name,
         "source_type": "url",
-        "source_urls": composite.source_urls,
+        "source_urls": list(composite.source_urls),
         "eval_library": composite.eval_library,
         "metrics": all_metrics,
         "evaluation_summary": {},

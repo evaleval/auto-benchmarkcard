@@ -1,0 +1,249 @@
+"""Background worker for benchmark card generation.
+
+Detects new benchmark folders in EEE_datastore, generates cards via
+process_single_benchmark(), and uploads them to evaleval/auto-benchmarkcards.
+"""
+
+import json
+import logging
+import os
+import tempfile
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from huggingface_hub import HfApi, snapshot_download
+
+logger = logging.getLogger("worker")
+
+EEE_REPO = "evaleval/EEE_datastore"
+CARDS_REPO = "evaleval/auto-benchmarkcards"
+
+# Persistent storage on HF Spaces (mounted volume).
+# Falls back to local /tmp for development.
+PERSISTENT_DIR = Path(os.environ.get("PERSISTENT_DIR", "/data"))
+STATE_FILE = PERSISTENT_DIR / "state.json"
+
+
+def load_state() -> dict:
+    """Load persistent state (known folders, job history)."""
+    if STATE_FILE.exists():
+        try:
+            return json.loads(STATE_FILE.read_text())
+        except Exception:
+            logger.exception("Failed to read state file, starting fresh")
+    return {"known_folders": [], "jobs": []}
+
+
+def save_state(state: dict) -> None:
+    """Save persistent state to disk."""
+    PERSISTENT_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
+def _extract_folders(file_list: list[str]) -> set[str]:
+    """Extract unique top-level folder names under data/."""
+    folders = set()
+    for path in file_list:
+        # EEE structure: data/<folder>/<model>/eval.json or data/<folder>.json
+        parts = path.split("/")
+        if len(parts) >= 2 and parts[0] == "data":
+            folders.add(parts[1])
+    return folders
+
+
+def detect_new_benchmarks() -> list[str]:
+    """Compare current EEE_datastore file listing against known state.
+
+    Returns list of new folder names not yet processed.
+    """
+    api = HfApi()
+    try:
+        all_files = api.list_repo_files(EEE_REPO, repo_type="dataset")
+    except Exception:
+        logger.exception("Failed to list EEE_datastore files")
+        return []
+
+    current_folders = _extract_folders(all_files)
+    state = load_state()
+    known = set(state.get("known_folders", []))
+
+    new_folders = sorted(current_folders - known)
+    if new_folders:
+        logger.info("Detected %d new folders: %s", len(new_folders), new_folders)
+    else:
+        logger.info("No new folders (known: %d, current: %d)", len(known), len(current_folders))
+
+    return new_folders
+
+
+def _download_folder(folder_name: str) -> Path:
+    """Download a single EEE folder to a temp directory."""
+    target_dir = tempfile.mkdtemp(prefix=f"eee_{folder_name}_")
+    logger.info("Downloading EEE folder '%s' to %s", folder_name, target_dir)
+
+    snapshot_download(
+        repo_id=EEE_REPO,
+        repo_type="dataset",
+        local_dir=target_dir,
+        allow_patterns=[f"data/{folder_name}/**/*.json"],
+    )
+
+    data_path = Path(target_dir) / "data"
+    return data_path
+
+
+def _upload_card(card: dict, benchmark_name: str) -> bool:
+    """Upload a generated card to the auto-benchmarkcards dataset."""
+    api = HfApi()
+    safe_name = benchmark_name.lower().replace(" ", "_").replace("/", "_")
+    remote_path = f"cards/{safe_name}.json"
+
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(card, f, indent=2)
+            tmp_path = f.name
+
+        api.upload_file(
+            path_or_fileobj=tmp_path,
+            path_in_repo=remote_path,
+            repo_id=CARDS_REPO,
+            repo_type="dataset",
+            commit_message=f"Auto-generated card: {benchmark_name}",
+        )
+        logger.info("Uploaded card to %s/%s", CARDS_REPO, remote_path)
+        return True
+
+    except Exception:
+        logger.exception("Failed to upload card for %s", benchmark_name)
+        return False
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+def process_new_benchmarks(new_folders: list[str]) -> None:
+    """Generate and upload cards for all benchmarks in the new folders.
+
+    This runs in a background thread, called from app.py.
+    """
+    from auto_benchmarkcard.tools.eee.eee_tool import (
+        scan_eee_folder,
+        eee_to_pipeline_inputs,
+        composite_to_pipeline_inputs,
+    )
+    from auto_benchmarkcard.eee_workflow import process_single_benchmark
+    from auto_benchmarkcard.workflow import setup_logging_suppression
+
+    setup_logging_suppression(debug_mode=False)
+
+    state = load_state()
+    job_record: dict[str, Any] = {
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "folders": new_folders,
+        "results": [],
+    }
+
+    for folder_name in new_folders:
+        logger.info("Processing folder: %s", folder_name)
+
+        try:
+            data_path = _download_folder(folder_name)
+        except Exception:
+            logger.exception("Failed to download folder %s", folder_name)
+            job_record["results"].append({
+                "folder": folder_name, "status": "download_failed",
+            })
+            continue
+
+        # Scan the downloaded folder
+        try:
+            scan_result = scan_eee_folder(str(data_path))
+        except Exception:
+            logger.exception("Failed to scan folder %s", folder_name)
+            job_record["results"].append({
+                "folder": folder_name, "status": "scan_failed",
+            })
+            continue
+
+        # Build reverse map for appears_in
+        appears_in_map: dict[str, list[str]] = defaultdict(list)
+        for comp_folder, comp in scan_result.composites.items():
+            for sub in comp.sub_benchmarks:
+                appears_in_map[sub].append(comp_folder)
+
+        # Process individual benchmarks
+        for name, bench in sorted(scan_result.benchmarks.items()):
+            inputs = eee_to_pipeline_inputs(
+                bench,
+                benchmark_type="single",
+                appears_in=appears_in_map.get(name, []),
+            )
+
+            if not inputs.get("hf_repo"):
+                logger.warning("Skipping %s: no HF repo", name)
+                job_record["results"].append({
+                    "folder": folder_name, "benchmark": name, "status": "no_hf_repo",
+                })
+                continue
+
+            card = process_single_benchmark(
+                benchmark_name=name,
+                pipeline_inputs=inputs,
+                base_output_path=str(PERSISTENT_DIR / "output"),
+                debug=False,
+            )
+
+            if card:
+                uploaded = _upload_card(card, name)
+                job_record["results"].append({
+                    "folder": folder_name, "benchmark": name,
+                    "status": "uploaded" if uploaded else "upload_failed",
+                })
+            else:
+                job_record["results"].append({
+                    "folder": folder_name, "benchmark": name, "status": "generation_failed",
+                })
+
+        # Process composites
+        for comp_folder, composite in sorted(scan_result.composites.items()):
+            inputs = composite_to_pipeline_inputs(composite, scan_result)
+            card = process_single_benchmark(
+                benchmark_name=comp_folder,
+                pipeline_inputs=inputs,
+                base_output_path=str(PERSISTENT_DIR / "output"),
+                debug=False,
+            )
+
+            if card:
+                uploaded = _upload_card(card, comp_folder)
+                job_record["results"].append({
+                    "folder": folder_name, "benchmark": f"{comp_folder} (composite)",
+                    "status": "uploaded" if uploaded else "upload_failed",
+                })
+            else:
+                job_record["results"].append({
+                    "folder": folder_name, "benchmark": f"{comp_folder} (composite)",
+                    "status": "generation_failed",
+                })
+
+        # Mark folder as known
+        if folder_name not in state["known_folders"]:
+            state["known_folders"].append(folder_name)
+
+    job_record["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Summarize
+    results = job_record["results"]
+    uploaded = sum(1 for r in results if r["status"] == "uploaded")
+    failed = sum(1 for r in results if r["status"] not in ("uploaded", "no_hf_repo"))
+    skipped = sum(1 for r in results if r["status"] == "no_hf_repo")
+    logger.info("Job complete: %d uploaded, %d failed, %d skipped", uploaded, failed, skipped)
+
+    state["jobs"].append(job_record)
+    # Keep last 50 jobs
+    state["jobs"] = state["jobs"][-50:]
+    save_state(state)

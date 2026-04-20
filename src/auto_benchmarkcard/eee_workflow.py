@@ -61,15 +61,14 @@ def build_eee_initial_state(
         "hf_extraction_attempted": False,
         "rag_results": None,
         "factuality_results": None,
+        "final_card": None,
         "eee_metadata": pipeline_inputs["eee_metadata"],
+        "html_content": None,
     }
 
 
 _CARD_FIELD_ORDER = [
     "benchmark_details",
-    "benchmark_type",
-    "contains",
-    "appears_in",
     "purpose_and_intended_users",
     "data",
     "methodology",
@@ -156,23 +155,33 @@ def process_single_benchmark(
     try:
         final_state = workflow.invoke(initial_state)
 
-        final_card = (
-            final_state.get("final_card")
-            or final_state.get("risk_enhanced_card")
-            or final_state.get("composed_card")
+        # Use explicit None checks — {} is falsy and would skip to wrong fallback
+        final_card = final_state.get("final_card")
+        if final_card is None:
+            final_card = final_state.get("risk_enhanced_card")
+        if final_card is None:
+            final_card = final_state.get("composed_card")
+        card_source = (
+            "factreasoner" if final_state.get("final_card") is not None
+            else "risk" if final_state.get("risk_enhanced_card") is not None
+            else "composer"
         )
+        logger.info("Card source: %s", card_source)
         if final_card and eee_metadata:
             final_card = _enrich_baseline_results(final_card, eee_metadata)
 
             card = final_card.get("benchmark_card", final_card)
 
-            # Inject composite/single metadata
+            # Inject composite/single metadata into benchmark_details.
+            # Write back to card in case get() created a detached empty dict.
+            details = card.get("benchmark_details", {})
             btype = eee_metadata.get("benchmark_type", "single")
-            card["benchmark_type"] = btype
+            details["benchmark_type"] = btype
             if btype == "composite" and eee_metadata.get("contains"):
-                card["contains"] = eee_metadata["contains"]
+                details["contains"] = eee_metadata["contains"]
             if eee_metadata.get("appears_in"):
-                card["appears_in"] = eee_metadata["appears_in"]
+                details["appears_in"] = eee_metadata["appears_in"]
+            card["benchmark_details"] = details
 
             ordered_card = _reorder_card_fields(card)
             if "benchmark_card" in final_card:
@@ -197,6 +206,53 @@ def process_single_benchmark(
         return None
 
 
+def _apply_benchmark_filter(
+    benchmarks: Dict[str, Any],
+    composites: Dict[str, Any],
+    benchmarks_filter: Optional[List[str]],
+) -> tuple:
+    """Apply user filter, auto-expanding composite names to sub-benchmarks.
+
+    Returns (filtered_benchmarks, filter_set) where filter_set is None if no filter.
+    """
+    if not benchmarks_filter:
+        return benchmarks, None
+
+    filter_set = {b.lower() for b in benchmarks_filter}
+    for b in list(filter_set):
+        for folder, comp in composites.items():
+            if folder.lower() == b:
+                sub_names = {n.lower() for n in comp.sub_benchmarks}
+                logger.info(
+                    "Expanding composite '%s' -> also generating: %s",
+                    folder, comp.sub_benchmarks,
+                )
+                filter_set.update(sub_names)
+
+    filtered = {k: v for k, v in benchmarks.items() if k.lower() in filter_set}
+    logger.info("Filtered to %d benchmarks: %s", len(filtered), list(filtered.keys()))
+    return filtered, filter_set
+
+
+def _resolve_hf_repos(
+    benchmarks: Dict[str, Any],
+    appears_in_map: Dict[str, List[str]],
+) -> Dict[str, Dict[str, Any]]:
+    """Resolve HF repos and build pipeline inputs for each benchmark."""
+    logger.info("Resolving HuggingFace repos...")
+    pipeline_inputs_map: Dict[str, Dict[str, Any]] = {}
+    for name, bench in sorted(benchmarks.items()):
+        inputs = eee_to_pipeline_inputs(
+            bench,
+            benchmark_type="single",
+            appears_in=appears_in_map.get(name, []),
+        )
+        pipeline_inputs_map[name] = inputs
+        hf = inputs.get("hf_repo", "None")
+        logger.info("  %s -> hf_repo=%s (%d models)", name, hf, bench.num_models_evaluated)
+    return pipeline_inputs_map
+
+
 def run_eee_pipeline(
     eee_path: str,
     output_path: Optional[str] = None,
@@ -218,10 +274,9 @@ def run_eee_pipeline(
         for err in scan_result.errors:
             logger.warning("Scan error: %s", err)
 
-    benchmarks = scan_result.benchmarks
     logger.info(
         "Found %d unique benchmarks, %d composite suites in %d files",
-        len(benchmarks), len(scan_result.composites), scan_result.total_eval_files,
+        len(scan_result.benchmarks), len(scan_result.composites), scan_result.total_eval_files,
     )
 
     # Build reverse map: benchmark_name -> composite folders it appears in
@@ -230,38 +285,11 @@ def run_eee_pipeline(
         for sub in comp.sub_benchmarks:
             appears_in_map[sub].append(folder)
 
-    # Apply filter, auto-expanding composite names to include sub-benchmarks
-    filter_set: Optional[set] = None
-    if benchmarks_filter:
-        filter_set = {b.lower() for b in benchmarks_filter}
-        # Auto-expand: if a filter name matches a composite, add its sub-benchmarks
-        for b in list(filter_set):
-            for folder, comp in scan_result.composites.items():
-                if folder.lower() == b:
-                    sub_names = {n.lower() for n in comp.sub_benchmarks}
-                    logger.info(
-                        "Expanding composite '%s' → also generating: %s",
-                        folder, comp.sub_benchmarks,
-                    )
-                    filter_set.update(sub_names)
+    benchmarks, filter_set = _apply_benchmark_filter(
+        scan_result.benchmarks, scan_result.composites, benchmarks_filter,
+    )
 
-        benchmarks = {
-            k: v for k, v in benchmarks.items()
-            if k.lower() in filter_set
-        }
-        logger.info("Filtered to %d benchmarks: %s", len(benchmarks), list(benchmarks.keys()))
-
-    logger.info("Resolving HuggingFace repos...")
-    pipeline_inputs_map: Dict[str, Dict[str, Any]] = {}
-    for name, bench in sorted(benchmarks.items()):
-        inputs = eee_to_pipeline_inputs(
-            bench,
-            benchmark_type="single",
-            appears_in=appears_in_map.get(name, []),
-        )
-        pipeline_inputs_map[name] = inputs
-        hf = inputs.get("hf_repo", "None")
-        logger.info("  %s -> hf_repo=%s (%d models)", name, hf, bench.num_models_evaluated)
+    pipeline_inputs_map = _resolve_hf_repos(benchmarks, appears_in_map)
 
     summary: Dict[str, Any] = {
         "total_benchmarks": len(pipeline_inputs_map) + len(scan_result.composites),
