@@ -24,7 +24,7 @@ class Config:
     COMPOSER_MODEL: str = (
         os.getenv(f"{LLM_ENGINE_TYPE.upper()}_COMPOSER_MODEL")
         or os.getenv("COMPOSER_MODEL")
-        or "deepseek-ai/DeepSeek-V3.2"
+        or "deepseek-ai/DeepSeek-V3.1"
     )
     FACTREASONER_MODEL: str = os.getenv(
         "FACTREASONER_MODEL", "llama-3.3-70b-instruct"

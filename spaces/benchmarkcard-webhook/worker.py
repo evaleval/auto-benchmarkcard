@@ -42,12 +42,18 @@ def save_state(state: dict) -> None:
     STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
+def _normalize_name(name: str) -> str:
+    """Normalize benchmark name for comparison (lowercase, hyphens to underscores)."""
+    return name.lower().replace("-", "_").replace(" ", "_")
+
+
 def _extract_folders(file_list: list[str]) -> set[str]:
     """Extract unique top-level folder names under data/."""
     folders = set()
     for path in file_list:
         parts = path.split("/")
-        if len(parts) >= 2 and parts[0] == "data":
+        # Only include entries that have files beneath them (depth > 2)
+        if len(parts) >= 3 and parts[0] == "data":
             folders.add(parts[1])
     return folders
 
@@ -85,8 +91,12 @@ def detect_new_benchmarks() -> list[str]:
     current_folders = _extract_folders(all_files)
     existing_cards = _get_existing_cards()
 
-    # Skip folders that already have a card
-    new_folders = sorted(current_folders - existing_cards)
+    # Normalize both sides for comparison (arc-agi == arc_agi)
+    normalized_cards = {_normalize_name(c) for c in existing_cards}
+    new_folders = sorted(
+        f for f in current_folders
+        if _normalize_name(f) not in normalized_cards
+    )
     if not new_folders:
         logger.info("All %d folders already have cards", len(current_folders))
         return []
@@ -121,7 +131,7 @@ def _download_folder(folder_name: str) -> Path:
 def _upload_card(card: dict, benchmark_name: str) -> bool:
     """Upload a generated card to the auto-benchmarkcards dataset."""
     api = HfApi()
-    safe_name = benchmark_name.lower().replace(" ", "_").replace("/", "_")
+    safe_name = benchmark_name.lower().replace("-", "_").replace(" ", "_").replace("/", "_")
     remote_path = f"cards/{safe_name}.json"
 
     try:
@@ -194,7 +204,7 @@ def process_new_benchmarks(new_folders: list[str]) -> None:
 
         # Process individual benchmarks
         for name, bench in sorted(scan_result.benchmarks.items()):
-            inputs = eee_to_pipeline_inputs(bench, benchmark_type="single")
+            inputs = eee_to_pipeline_inputs(bench)
 
             if not inputs.get("hf_repo"):
                 logger.warning("Skipping %s: no HF repo", name)
