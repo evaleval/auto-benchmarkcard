@@ -16,7 +16,7 @@ class Config:
     PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
     EXTERNAL_DIR: Path = PROJECT_ROOT / "external"
     FACTREASONER_DIR: Path = EXTERNAL_DIR / "FactReasoner"
-    MERLIN_BIN: Path = EXTERNAL_DIR / "merlin" / "bin" / "merlin"
+    MERLIN_BIN: Path = Path(os.getenv("MERLIN_BIN", str(EXTERNAL_DIR / "merlin" / "bin" / "merlin")))
 
     # LLM engine and model tiers
     LLM_ENGINE_TYPE: str = os.getenv("LLM_ENGINE_TYPE", "hf")
