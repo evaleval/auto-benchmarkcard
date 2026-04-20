@@ -1,0 +1,28 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn>=0.34.0
+
+# auto_benchmarkcard + deps (install from repo)
+auto_benchmarkcard @ git+https://github.com/evaleval/auto-benchmarkcard.git@main
+
+# These are pulled transitively by auto_benchmarkcard, but pinned here
+# for Docker layer caching and explicit control
+huggingface-hub>=0.32.0
+datasets>=3.6.0
+transformers>=4.50.0
+torch>=2.5.0
+sentence-transformers>=4.0.0
+langgraph>=0.6.0
+langchain>=0.3.25,<1.0
+langchain-core>=0.3.60
+langchain-community>=0.3.24
+docling>=2.30.0
+chromadb>=1.0.0
+pydantic>=2.11.0
+rapidfuzz>=3.0.0
+pyyaml>=6.0.0
+python-dotenv>=1.1.0
+
+# External deps
+fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@llm-handler-injection
+ai-atlas-nexus @ git+https://github.com/arishofmann/risk_atlas_nexus.git@benchmark-risk-improvements
