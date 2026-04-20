@@ -1,9 +1,16 @@
 FROM python:3.11-slim
 
-# System deps for native extensions (docling, torch, etc.)
+# System deps for native extensions and merlin build
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git build-essential && \
+    git build-essential libboost-program-options-dev && \
     rm -rf /var/lib/apt/lists/*
+
+# Build merlin probabilistic inference engine
+RUN git clone https://github.com/arishofmann/merlin.git /opt/merlin && \
+    cd /opt/merlin && \
+    make -f Makefile.linux clean && make -f Makefile.linux
+
+ENV MERLIN_BIN=/opt/merlin/bin/merlin
 
 WORKDIR /app
 
