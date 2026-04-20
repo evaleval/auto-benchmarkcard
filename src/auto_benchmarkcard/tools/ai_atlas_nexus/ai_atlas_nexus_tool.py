@@ -12,33 +12,6 @@ from ai_atlas_nexus.library import AIAtlasNexus
 logger = logging.getLogger(__name__)
 
 
-def _load_benchmark_cot_examples(taxonomy: str = "ibm-risk-atlas") -> Optional[List]:
-    """Load benchmark-specific chain-of-thought examples for few-shot risk detection."""
-    try:
-        from ai_atlas_nexus.data import load_resource
-
-        cot_data = load_resource("risk_generation_cot.json")
-
-        taxonomy_map = {
-            "ibm-risk-atlas": "ibm-risk-atlas",
-            "ibm-ai-risk-atlas": "ibm-risk-atlas",
-        }
-        key = taxonomy_map.get(taxonomy, taxonomy)
-        examples = cot_data.get(key)
-
-        if examples:
-            benchmark_examples = [ex for ex in examples if "Reasoning" in ex]
-            if benchmark_examples:
-                logger.info("Loaded %d benchmark CoT examples for %s", len(benchmark_examples), taxonomy)
-                return benchmark_examples
-
-        logger.debug("No benchmark CoT examples found for taxonomy: %s", taxonomy)
-        return None
-    except Exception as e:
-        logger.debug("Could not load CoT examples: %s", e)
-        return None
-
-
 def identify_risks_with_benchmark_detector(
     ai_atlas_nexus: AIAtlasNexus,
     usecases: List[str],
@@ -49,12 +22,10 @@ def identify_risks_with_benchmark_detector(
     """Match benchmark use cases to known AI risks using the BenchmarkRiskDetector."""
     try:
         all_risks = ai_atlas_nexus.get_all_risks(taxonomy)
-        cot_examples = _load_benchmark_cot_examples(taxonomy)
 
         benchmark_detector = BenchmarkRiskDetector(
             risks=all_risks,
             inference_engine=inference_engine,
-            cot_examples=cot_examples,
             max_risk=max_risk,
         )
 

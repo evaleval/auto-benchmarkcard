@@ -40,10 +40,15 @@ env/
 
 # Output directories
 output/
+batch_output/
+test_batch/
+cards_for_avijit/
+hf-eee-dataset/
 factreasoner_cache/
 external/merlin/
 external/FactReasoner/
 external/every_eval_ever/
+.paper_cache.json
 
 # Jupyter
 .ipynb_checkpoints/
@@ -72,3 +77,6 @@ src/auto_benchmarkcard/tools/rag/chroma_db/
 # Ruff / mypy
 .ruff_cache/
 .mypy_cache/
+
+# Pip artifacts
+=*

@@ -20,6 +20,7 @@ from auto_benchmarkcard.output import sanitize_benchmark_name
 from auto_benchmarkcard.tools.ai_atlas_nexus.ai_atlas_nexus_tool import identify_and_integrate_risks
 from auto_benchmarkcard.tools.composer.composer_tool import compose_benchmark_card
 from auto_benchmarkcard.tools.docling.docling_tool import extract_paper_with_docling
+from auto_benchmarkcard.tools.html.html_tool import extract_html_content
 from auto_benchmarkcard.tools.extractor.extractor_tool import extract_ids
 from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import (
     evaluate_factuality,
@@ -37,8 +38,13 @@ from auto_benchmarkcard.tools.unitxt import unitxt_tool
 
 logger = logging.getLogger(__name__)
 
-# Identity fields are descriptive (relaxed threshold); analytical fields
-# are reasoned from context (skip NLI-based flagging entirely).
+# Identity fields describe what the benchmark IS (name, domains, audience).
+# They're pulled from multiple sources, so NLI-based contradiction checks produce
+# false positives — use a relaxed threshold for these.
+#
+# Analytical fields are reasoned by the LLM from context (limitations,
+# out-of-scope uses, interpretation). They can't be fact-checked against
+# source docs because they don't appear verbatim anywhere — skip NLI flagging.
 _IDENTITY_FIELDS = {
     "benchmark_details.overview", "benchmark_details.domains",
     "benchmark_details.data_type", "benchmark_details.similar_benchmarks",
@@ -231,6 +237,72 @@ def run_docling(state):
         return result
 
 
+def _is_html_url(url: str) -> bool:
+    """Check if a URL is likely a web page (not PDF/arxiv)."""
+    lower = url.lower()
+    if "arxiv.org" in lower or lower.endswith(".pdf"):
+        return False
+    if lower.endswith(".json") or lower.endswith(".jsonl"):
+        return False
+    return True
+
+
+def run_html_extractor(state):
+    """Extract content from web pages using trafilatura."""
+    try:
+        urls = []
+
+        # Collect candidate URLs from EEE metadata
+        eee_meta = state.get("eee_metadata") or {}
+        for url in eee_meta.get("source_urls", []):
+            if _is_html_url(url):
+                urls.append(url)
+
+        # Check extracted_ids for website_url
+        ids = state.get("extracted_ids") or {}
+        website_url = ids.get("website_url")
+        if website_url and _is_html_url(website_url):
+            urls.insert(0, website_url)
+
+        if not urls:
+            logger.info("No HTML URLs to extract")
+            return {
+                "html_content": {"success": False, "text": "", "url": "", "title": ""},
+                "completed": ["html skipped (no web URLs)"],
+            }
+
+        # Try the first viable URL
+        for url in urls[:3]:
+            try:
+                logger.info("Extracting HTML from: %s", url)
+                result = extract_html_content.func(url=url)
+
+                if result.get("success"):
+                    char_count = len(result.get("text", ""))
+                    logger.info("HTML extraction OK: %d chars from %s", char_count, url)
+
+                    filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+                    state["output_manager"].save_tool_output(result, "html", filename)
+
+                    return {
+                        "html_content": result,
+                        "completed": ["html done"],
+                    }
+                else:
+                    logger.debug("HTML extraction failed for %s: %s", url, result.get("error"))
+
+            except Exception as e:
+                logger.debug("HTML extraction error for %s: %s", url, e)
+
+        return {
+            "html_content": {"success": False, "text": "", "url": urls[0], "title": ""},
+            "completed": ["html extraction failed"],
+        }
+
+    except Exception as e:
+        return handle_error(e, "HTML extraction", state)
+
+
 def run_hf(state):
     """Fetch HuggingFace dataset metadata."""
     if not state["hf_repo"]:
@@ -280,6 +352,7 @@ def run_composer(state):
             docling_output=state.get("docling_output"),
             query=query_for_composer,
             eee_metadata=state.get("eee_metadata"),
+            html_content=state.get("html_content"),
         )
 
         logger.info("Successfully composed benchmark card")
