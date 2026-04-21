@@ -6,7 +6,6 @@ import logging
 import os
 import sys
 import time
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -32,19 +31,8 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-warnings.filterwarnings("ignore", message=".*Triton.*")
-warnings.filterwarnings("ignore", message=".*not installed.*")
-warnings.filterwarnings("ignore", message=".*dummy decorators.*")
-warnings.filterwarnings("ignore", message=".*Failed to load GPU.*")
-warnings.filterwarnings("ignore", message=".*resume_download.*")
-warnings.filterwarnings("ignore", message=".*LangChainDeprecationWarning.*")
-warnings.filterwarnings("ignore", message=".*pin_memory.*")
-warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
-warnings.filterwarnings("ignore", category=UserWarning, module="torch")
-warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
-warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
-warnings.filterwarnings("ignore", message=".*LangChain.*deprecated.*")
-warnings.filterwarnings("ignore", message=".*manual persistence.*")
+# Warning filters are centralized in logging_setup.py (imported via Config).
+import auto_benchmarkcard.logging_setup  # noqa: F401  ensure filters are active
 
 original_level = logging.root.level
 logging.root.setLevel(logging.WARNING)
@@ -178,7 +166,7 @@ def display_workflow_summary(
     results_table.add_column("Details", style="white")
 
     for step_name, result in step_results.items():
-        status_icon = "✅" if result.get("success", False) else "❌"
+        status_icon = "[OK]" if result.get("success", False) else "[FAIL]"
         details = result.get("details", "No details available")
         results_table.add_row(step_name, status_icon, details)
 
@@ -235,10 +223,10 @@ def workflow_step(step_name: str, step_number: int = None, total_steps: int = No
         try:
             yield status
             elapsed = time.time() - start_time
-            console.print(f"✅ [green]{step_name} completed[/green] [dim]({elapsed:.1f}s)[/dim]")
+            console.print(f"[green][OK] {step_name} completed[/green] [dim]({elapsed:.1f}s)[/dim]")
         except Exception:
             elapsed = time.time() - start_time
-            console.print(f"❌ [red]{step_name} failed[/red] [dim]({elapsed:.1f}s)[/dim]")
+            console.print(f"[red][FAIL] {step_name} failed[/red] [dim]({elapsed:.1f}s)[/dim]")
             raise
 
 
@@ -269,7 +257,7 @@ def workflow_substep(substep_name: str, show_completion: bool = True):
 def display_error(message: str, details: Optional[str] = None) -> None:
     """Display an error message in a styled panel."""
     error_panel = Panel(
-        f"[bold red]❌ Error[/bold red]\n\n{message}"
+        f"[bold red][FAIL] Error[/bold red]\n\n{message}"
         + (f"\n\n[dim]{details}[/dim]" if details else ""),
         border_style="red",
         title="[bold red]Execution Failed[/bold red]",
@@ -280,7 +268,7 @@ def display_error(message: str, details: Optional[str] = None) -> None:
 def display_success(message: str, details: Optional[str] = None) -> None:
     """Display a success message in a styled panel."""
     success_panel = Panel(
-        f"[bold green]✅ Success[/bold green]\n\n{message}"
+        f"[bold green][OK] Success[/bold green]\n\n{message}"
         + (f"\n\n[dim]{details}[/dim]" if details else ""),
         border_style="green",
         title="[bold green]Execution Completed[/bold green]",
@@ -641,7 +629,7 @@ def list_outputs(
             "--output",
             "-o",
             help="Output directory to scan (default: ./output)",
-            rich_help_panel="📁 Directory Options",
+            rich_help_panel="Directory Options",
         ),
     ] = None,
     recent: Annotated[
@@ -650,7 +638,7 @@ def list_outputs(
             "--recent",
             "-n",
             help="Show only the N most recent sessions",
-            rich_help_panel="📊 Display Options",
+            rich_help_panel="Display Options",
             min=1,
             max=100,
         ),
@@ -661,7 +649,7 @@ def list_outputs(
             "--format",
             "-f",
             help="Output format: table, json, or tree",
-            rich_help_panel="📊 Display Options",
+            rich_help_panel="Display Options",
         ),
     ] = "table",
     filter_completed: Annotated[
@@ -669,7 +657,7 @@ def list_outputs(
         typer.Option(
             "--completed-only",
             help="Show only completed sessions",
-            rich_help_panel="🔍 Filter Options",
+            rich_help_panel="Filter Options",
         ),
     ] = False,
 ) -> None:
@@ -762,17 +750,17 @@ def list_outputs(
         )
 
         for session in sessions:
-            status_icon = "✅" if session["completed"] else "⚠️"
+            status_icon = "[OK]" if session["completed"] else "[WARN]"
             node = tree.add(
                 f"{status_icon} [cyan]{session['benchmark']}[/cyan] "
                 f"[dim]({session['timestamp'].replace('_', ' ').replace('-', ':')}) "
                 f"• {session['file_count']} files • {session['total_size_mb']:.1f}MB[/dim]"
             )
 
-            node.add(f"📁 Path: [blue]{session['path']}[/blue]")
-            node.add(f"🔧 Tools: [green]{session['tool_count']}[/green]")
+            node.add(f"Path: [blue]{session['path']}[/blue]")
+            node.add(f"Tools: [green]{session['tool_count']}[/green]")
             node.add(
-                f"📊 Status: {'[green]Complete[/green]' if session['completed'] else '[yellow]Incomplete[/yellow]'}"
+                f"Status: {'[green]Complete[/green]' if session['completed'] else '[yellow]Incomplete[/yellow]'}"
             )
 
         console.print(tree)
@@ -792,7 +780,7 @@ def list_outputs(
         table.add_column("Path", style="dim", overflow="ellipsis")
 
         for session in sessions:
-            status = "✅ Done" if session["completed"] else "⚠️ Partial"
+            status = "[OK] Done" if session["completed"] else "[WARN] Partial"
             timestamp_fmt = session["timestamp"].replace("_", " ").replace("-", ":")
             size_fmt = (
                 f"{session['total_size_mb']:.1f}MB" if session["total_size_mb"] > 0 else "0MB"
@@ -831,7 +819,7 @@ def show_session(
             "--detailed",
             "-d",
             help="Show detailed file information and content previews",
-            rich_help_panel="📊 Display Options",
+            rich_help_panel="Display Options",
         ),
     ] = False,
 ) -> None:
@@ -867,9 +855,9 @@ def show_session(
     overview_table.add_column("Value", style="green")
 
     status_text = (
-        "[bold green]✅ Completed[/bold green]"
+        "[bold green][OK] Completed[/bold green]"
         if session_info["completed"]
-        else "[bold yellow]⚠️ Incomplete[/bold yellow]"
+        else "[bold yellow][WARN] Incomplete[/bold yellow]"
     )
     timestamp_fmt = session_info["timestamp"].replace("_", " ").replace("-", ":")
 
@@ -888,7 +876,7 @@ def show_session(
     benchmark_card_dir = session_dir / "benchmarkcard"
 
     if tool_output_dir.exists():
-        console.print("[bold cyan]🔧 Tool Outputs[/bold cyan]")
+        console.print("[bold cyan]Tool Outputs[/bold cyan]")
 
         tools_table = Table(border_style="cyan")
         tools_table.add_column("Tool", style="cyan", width=20)
@@ -926,14 +914,14 @@ def show_session(
                                 "%Y-%m-%d %H:%M"
                             )
                             console.print(
-                                f"  📄 [blue]{file.name}[/blue] ({size_kb:.1f} KB, {mtime})"
+                                f"  [blue]{file.name}[/blue] ({size_kb:.1f} KB, {mtime})"
                             )
 
         console.print(tools_table)
         console.print()
 
     if benchmark_card_dir.exists():
-        console.print("[bold green]📋 Benchmark Cards[/bold green]")
+        console.print("[bold green]Benchmark Cards[/bold green]")
 
         cards_table = Table(border_style="green")
         cards_table.add_column("File", style="green", width=40)
@@ -954,14 +942,14 @@ def show_session(
                         card = data["benchmark_card"]
                         details = card.get("benchmark_details", {})
                         console.print(f"\n[dim]Preview of {card_file.name}:[/dim]")
-                        console.print(f"  📝 Name: [cyan]{details.get('name', 'N/A')}[/cyan]")
-                        console.print(f"  🏷️ Domains: {', '.join(details.get('domains', []))}")
-                        console.print(f"  🌐 Languages: {', '.join(details.get('languages', []))}")
+                        console.print(f"  Name: [cyan]{details.get('name', 'N/A')}[/cyan]")
+                        console.print(f"  Domains: {', '.join(details.get('domains', []))}")
+                        console.print(f"  Languages: {', '.join(details.get('languages', []))}")
 
                         overview = details.get("overview", "")
                         if overview:
                             preview = overview[:150] + "..." if len(overview) > 150 else overview
-                            console.print(f"  📖 Overview: [dim]{preview}[/dim]")
+                            console.print(f"  Overview: [dim]{preview}[/dim]")
                 except Exception as e:
                     console.print(f"  [red]Error reading {card_file.name}: {e}[/red]")
 
@@ -986,7 +974,15 @@ def validate_setup(
         typer.Option(
             "--fix",
             help="Automatically fix issues where possible",
-            rich_help_panel="🔧 Repair Options",
+            rich_help_panel="Repair Options",
+        ),
+    ] = False,
+    live: Annotated[
+        bool,
+        typer.Option(
+            "--live",
+            help="Run live checks: HF auth, LLM inference, Merlin execution",
+            rich_help_panel="Repair Options",
         ),
     ] = False,
     verbose: Annotated[
@@ -995,7 +991,7 @@ def validate_setup(
             "--verbose",
             "-v",
             help="Show detailed validation information",
-            rich_help_panel="📊 Display Options",
+            rich_help_panel="Display Options",
         ),
     ] = False,
 ) -> None:
@@ -1007,8 +1003,8 @@ def validate_setup(
         [dim]# Basic validation[/dim]
         benchmarkcard validate
 
-        [dim]# Detailed validation with auto-fix[/dim]
-        benchmarkcard validate --fix --verbose
+        [dim]# Full live check (HF token, LLM, Merlin)[/dim]
+        benchmarkcard validate --live
     """
     setup_logging(verbose=verbose)
 
@@ -1026,9 +1022,9 @@ def validate_setup(
 
         try:
             Config.validate_config()
-            progress.console.print("[green]✅ Environment configuration valid[/green]")
+            progress.console.print("[green][OK] Environment configuration valid[/green]")
         except ValueError as e:
-            progress.console.print(f"[red]❌ Configuration error: {e}[/red]")
+            progress.console.print(f"[red][FAIL] Configuration error: {e}[/red]")
             issues.append(
                 (
                     "Environment Configuration",
@@ -1048,9 +1044,9 @@ def validate_setup(
             if value:
                 if verbose:
                     preview = f"{value[:10]}..." if len(value) > 10 else value
-                    progress.console.print(f"[green]✅ {var}:[/green] [dim]{preview}[/dim]")
+                    progress.console.print(f"[green][OK] {var}:[/green] [dim]{preview}[/dim]")
             else:
-                progress.console.print(f"[red]❌ {var} not set[/red]")
+                progress.console.print(f"[red][FAIL] {var} not set[/red]")
                 issues.append(
                     (
                         f"Environment Variable: {var}",
@@ -1075,9 +1071,9 @@ def validate_setup(
             try:
                 __import__(module)
                 if verbose:
-                    progress.console.print(f"[green]✅ {description}[/green]")
+                    progress.console.print(f"[green][OK] {description}[/green]")
             except ImportError as e:
-                progress.console.print(f"[red]❌ {description}: {e}[/red]")
+                progress.console.print(f"[red][FAIL] {description}: {e}[/red]")
                 issues.append((f"Python Import: {module}", str(e), "Install missing dependencies"))
             progress.update(deps_task, advance=1)
 
@@ -1086,12 +1082,12 @@ def validate_setup(
         merlin_path = Config.MERLIN_BIN
         if merlin_path.exists():
             if os.access(merlin_path, os.X_OK):
-                progress.console.print(f"[green]✅ Merlin binary: {merlin_path}[/green]")
+                progress.console.print(f"[green][OK] Merlin binary: {merlin_path}[/green]")
             else:
-                progress.console.print(f"[red]❌ Merlin binary not executable: {merlin_path}[/red]")
+                progress.console.print(f"[red][FAIL] Merlin binary not executable: {merlin_path}[/red]")
                 issues.append(("Merlin Binary", "Not executable", "Check file permissions"))
         else:
-            progress.console.print(f"[red]❌ Merlin binary not found: {merlin_path}[/red]")
+            progress.console.print(f"[red][FAIL] Merlin binary not found: {merlin_path}[/red]")
             issues.append(
                 (
                     "Merlin Binary",
@@ -1115,21 +1111,21 @@ def validate_setup(
 
             if path_obj.exists():
                 if verbose:
-                    progress.console.print(f"[green]✅ {desc}: {path_obj.absolute()}[/green]")
+                    progress.console.print(f"[green][OK] {desc}: {path_obj.absolute()}[/green]")
             elif can_create:
                 if fix_issues:
                     try:
                         path_obj.mkdir(parents=True, exist_ok=True)
                         progress.console.print(
-                            f"[yellow]🔧 Created {desc}: {path_obj.absolute()}[/yellow]"
+                            f"[yellow]Created {desc}: {path_obj.absolute()}[/yellow]"
                         )
                         fixed_issues.append(f"Created directory: {path_obj}")
                     except Exception as e:
-                        progress.console.print(f"[red]❌ Cannot create {desc}: {e}[/red]")
+                        progress.console.print(f"[red][FAIL] Cannot create {desc}: {e}[/red]")
                         issues.append((f"Directory: {desc}", str(e), "Create directory manually"))
                 else:
                     progress.console.print(
-                        f"[yellow]⚠️ {desc} missing: {path_obj.absolute()}[/yellow]"
+                        f"[yellow][WARN] {desc} missing: {path_obj.absolute()}[/yellow]"
                     )
                     warnings.append(
                         (
@@ -1139,7 +1135,7 @@ def validate_setup(
                         )
                     )
             else:
-                progress.console.print(f"[red]❌ {desc} not found: {path_obj.absolute()}[/red]")
+                progress.console.print(f"[red][FAIL] {desc} not found: {path_obj.absolute()}[/red]")
                 issues.append(
                     (
                         f"Directory: {desc}",
@@ -1150,11 +1146,67 @@ def validate_setup(
 
             progress.update(dirs_task, advance=1)
 
+        if live:
+            live_task = progress.add_task("[cyan]Running live infrastructure checks...", total=3)
+
+            # 1. HF authentication
+            try:
+                from huggingface_hub import HfApi
+                hf_api = HfApi()
+                user_info = hf_api.whoami()
+                username = user_info.get("name", "unknown")
+                progress.console.print(f"[green]  HF auth OK (user: {username})[/green]")
+            except Exception as e:
+                progress.console.print(f"[red]  HF auth failed: {e}[/red]")
+                issues.append(("HF Authentication", str(e)[:80], "Check HF_TOKEN in .env"))
+            progress.update(live_task, advance=1)
+
+            # 2. LLM inference (short prompt to composer model)
+            try:
+                from auto_benchmarkcard.config import get_llm_handler
+                llm = get_llm_handler(Config.COMPOSER_MODEL)
+                response = llm.generate("Reply with exactly: OK")
+                if response and len(response.strip()) > 0:
+                    progress.console.print(
+                        f"[green]  LLM inference OK ({Config.COMPOSER_MODEL})[/green]"
+                    )
+                else:
+                    progress.console.print("[red]  LLM returned empty response[/red]")
+                    issues.append(("LLM Inference", "Empty response", "Check model availability and API key"))
+            except Exception as e:
+                progress.console.print(f"[red]  LLM inference failed: {e}[/red]")
+                issues.append(("LLM Inference", str(e)[:80], "Check LLM engine config and API key"))
+            progress.update(live_task, advance=1)
+
+            # 3. Merlin binary execution
+            if merlin_path.exists() and os.access(merlin_path, os.X_OK):
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        [str(merlin_path), "--help"],
+                        capture_output=True, timeout=10,
+                    )
+                    if result.returncode == 0:
+                        progress.console.print(f"[green]  Merlin execution OK[/green]")
+                    else:
+                        stderr = result.stderr.decode()[:80] if result.stderr else "unknown error"
+                        progress.console.print(f"[red]  Merlin returned exit code {result.returncode}: {stderr}[/red]")
+                        issues.append(("Merlin Execution", f"Exit code {result.returncode}", "Check Merlin build"))
+                except subprocess.TimeoutExpired:
+                    progress.console.print("[red]  Merlin timed out[/red]")
+                    issues.append(("Merlin Execution", "Timed out after 10s", "Check Merlin binary"))
+                except Exception as e:
+                    progress.console.print(f"[red]  Merlin execution failed: {e}[/red]")
+                    issues.append(("Merlin Execution", str(e)[:80], "Check Merlin build"))
+            else:
+                progress.console.print("[yellow]  Merlin skipped (binary not found or not executable)[/yellow]")
+            progress.update(live_task, advance=1)
+
     console.print()
 
     if issues or warnings or fixed_issues:
         if issues:
-            issues_table = Table(title="❌ Issues Found", border_style="red")
+            issues_table = Table(title="[FAIL] Issues Found", border_style="red")
             issues_table.add_column("Component", style="red", width=25)
             issues_table.add_column("Problem", style="yellow", width=30)
             issues_table.add_column("Solution", style="green")
@@ -1166,7 +1218,7 @@ def validate_setup(
             console.print()
 
         if warnings:
-            warnings_table = Table(title="⚠️ Warnings", border_style="yellow")
+            warnings_table = Table(title="[WARN] Warnings", border_style="yellow")
             warnings_table.add_column("Component", style="yellow", width=25)
             warnings_table.add_column("Issue", style="white", width=30)
             warnings_table.add_column("Recommendation", style="dim")
@@ -1178,9 +1230,9 @@ def validate_setup(
             console.print()
 
         if fixed_issues:
-            console.print("[bold green]🔧 Issues Fixed:[/bold green]")
+            console.print("[bold green]Issues Fixed:[/bold green]")
             for fix in fixed_issues:
-                console.print(f"  ✅ {fix}")
+                console.print(f"  [OK] {fix}")
             console.print()
 
     if issues:
@@ -1231,7 +1283,7 @@ if __name__ == "__main__":
     try:
         app()
     except KeyboardInterrupt:
-        console.print("\n[yellow]⚠ Operation cancelled by user[/yellow]")
+        console.print("\n[yellow][WARN] Operation cancelled by user[/yellow]")
         sys.exit(130)
     except Exception as e:
         error_console.print(f"\n[bold red]Unexpected error: {e}[/bold red]")

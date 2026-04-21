@@ -63,8 +63,18 @@ htmlcov/
 
 # Temporary files
 *.tmp
+*.cache.json
 to_be_reviewed/
 notebooks/
+
+# Generated output
+batch_output/
+test_output*/
+manual_output/
+missing_output/
+
+# pip install artifacts
+=*
 
 # ChromaDB files
 src/auto_benchmarkcard/tools/rag/chroma_db/

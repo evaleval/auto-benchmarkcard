@@ -36,15 +36,7 @@ HF_COMPOSER_MODEL=deepseek-ai/DeepSeek-V3.1
 FACTREASONER_MODEL=meta-llama/Llama-3.3-70B-Instruct
 ```
 
-Generate a benchmark card:
-
-```bash
-benchmarkcard generate-unitxt glue -o ./output
-```
-
-The default LLM backend is HuggingFace Inference Providers. Other supported backends are Ollama (local), vLLM, WML, and RITS. Set `LLM_ENGINE_TYPE` in your `.env` accordingly.
-
-## Setting up Merlin (for FactReasoner)
+### Setting up Merlin (for FactReasoner)
 
 FactReasoner uses [Merlin](https://github.com/arishofmann/merlin) for probabilistic inference. This step is required for the validation phase.
 
@@ -57,6 +49,15 @@ cd ../..
 ```
 
 Verify with `./external/merlin/bin/merlin --help`.
+
+
+Generate a benchmark card:
+
+```bash
+benchmarkcard generate-unitxt glue -o ./output
+```
+
+The default LLM backend is HuggingFace Inference Providers. Other supported backends are Ollama (local), vLLM, WML, and RITS. Set `LLM_ENGINE_TYPE` in your `.env` accordingly.
 
 ## Usage
 
