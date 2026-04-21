@@ -190,6 +190,11 @@ def _upload_card(card: dict, benchmark_name: str, canonical_id: str | None = Non
 
     remote_path = f"cards/{safe_name}.json"
 
+    # Embed canonical ID in the card so it's self-consistent with the filename
+    if canonical_id:
+        inner = card.get("benchmark_card", card)
+        inner.setdefault("card_info", {})["canonical_id"] = canonical_id
+
     try:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(card, f, indent=2)
