@@ -1059,10 +1059,10 @@ def validate_setup(
         deps_task = progress.add_task("[cyan]Validating Python dependencies...", total=6)
 
         critical_imports = [
-            ("workflow", "Main workflow orchestrator"),
-            ("config", "Configuration management"),
-            ("tools.unitxt.unitxt_tool", "UnitXT benchmark lookup"),
-            ("tools.factreasoner.factreasoner_tool", "FactReasoner validation"),
+            ("auto_benchmarkcard.workflow", "Main workflow orchestrator"),
+            ("auto_benchmarkcard.config", "Configuration management"),
+            ("auto_benchmarkcard.tools.unitxt.unitxt_tool", "UnitXT benchmark lookup"),
+            ("auto_benchmarkcard.tools.factreasoner.factreasoner_tool", "FactReasoner validation"),
             ("ai_atlas_nexus.library", "AI Atlas Nexus integration"),
             ("typer", "CLI framework"),
         ]
