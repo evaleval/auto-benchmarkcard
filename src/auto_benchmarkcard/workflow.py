@@ -42,20 +42,38 @@ __all__ = [
 ]
 
 
+def _step_failed(state: GraphState, keyword: str) -> bool:
+    """Check if a workflow step already failed (by scanning the completed log)."""
+    return any(keyword in entry and "failed" in entry for entry in state.get("completed", []))
+
+
 def orchestrator(state: GraphState) -> Dict[str, str]:
-    """Determine the next workflow step based on current state."""
-    # EEE path bypasses UnitXT and extractor
+    """Determine the next workflow step based on current state.
+
+    Each step is routed only if its output is missing AND the step hasn't
+    already been attempted and failed. Required steps (unitxt, composer)
+    abort the pipeline on failure; optional steps (hf, docling, risk) are
+    skipped so downstream steps can still run with partial data.
+    """
     is_eee = state.get("eee_metadata") is not None
+
+    # UnitXT + Extractor: required for non-EEE path
     if not is_eee:
         if state["unitxt_json"] is None:
+            if _step_failed(state, "unitxt"):
+                return {"next": "END"}
             return {"next": "unitxt_worker"}
         if state["extracted_ids"] is None:
+            if _step_failed(state, "extraction"):
+                return {"next": "END"}
             return {"next": "extractor_worker"}
 
+    # HF metadata: optional — skip on failure
     if state["hf_repo"] is not None and state["hf_json"] is None:
-        return {"next": "hf_worker"}
+        if not _step_failed(state, "huggingface"):
+            return {"next": "hf_worker"}
 
-    # Fall back to HF metadata for paper URL if UnitXT didn't provide one
+    # HF paper URL fallback: optional
     current_paper_url = state.get("extracted_ids", {}).get("paper_url")
     has_hf_data = state.get("hf_json") is not None
     hf_extraction_attempted = state.get("hf_extraction_attempted", False)
@@ -64,17 +82,35 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
     if needs_hf_extraction:
         return {"next": "hf_extractor_worker"}
 
+    # Docling: optional — already sets docling_output=None on failure
     paper_url = state.get("extracted_ids", {}).get("paper_url")
     if paper_url and state["docling_output"] is None:
-        return {"next": "docling_worker"}
+        if not _step_failed(state, "docling"):
+            return {"next": "docling_worker"}
+
+    # Composer: required
     if state["composed_card"] is None:
+        if _step_failed(state, "composer"):
+            return {"next": "END"}
         return {"next": "composer_worker"}
+
+    # Risk identification: optional — skip on failure
     if state["risk_enhanced_card"] is None:
-        return {"next": "risk_worker"}
+        if not _step_failed(state, "risk"):
+            return {"next": "risk_worker"}
+
+    # RAG: required for FactReasoner
     if state["rag_results"] is None:
+        if _step_failed(state, "rag"):
+            return {"next": "END"}
         return {"next": "rag_worker"}
+
+    # FactReasoner: required (final step)
     if state["factuality_results"] is None:
+        if _step_failed(state, "factreasoner"):
+            return {"next": "END"}
         return {"next": "factreasoner_worker"}
+
     return {"next": "END"}
 
 

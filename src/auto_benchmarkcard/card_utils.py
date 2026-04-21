@@ -44,7 +44,7 @@ def extract_missing_fields(data: Any, prefix: str = "") -> List[str]:
             current_path = f"{prefix}[{i}]" if prefix else f"[{i}]"
 
             # Only flag individual list items if the list has multiple elements
-            if isinstance(item, str) and item == "Not specified" and len(data) > 1:
+            if isinstance(item, str) and is_not_specified(item) and len(data) > 1:
                 missing_fields.append(current_path)
             elif isinstance(item, (dict, list)):
                 missing_fields.extend(extract_missing_fields(item, current_path))
@@ -102,7 +102,7 @@ def normalize_not_specified(card: Dict[str, Any]) -> Dict[str, Any]:
             if field_val is None or field_val == "" or field_val == []:
                 card[section_key][field_key] = ["Not specified"] if is_list_field else "Not specified"
             elif isinstance(field_val, list) and all(
-                isinstance(item, str) and item == "Not specified" for item in field_val
+                isinstance(item, str) and is_not_specified(item) for item in field_val
             ):
                 card[section_key][field_key] = ["Not specified"]
 

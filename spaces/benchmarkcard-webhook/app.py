@@ -38,8 +38,8 @@ def _verify_secret(request_secret: str) -> bool:
     """Verify webhook secret from X-Webhook-Secret header."""
     expected = os.environ.get("WEBHOOK_SECRET", "")
     if not expected:
-        logger.warning("WEBHOOK_SECRET not set, skipping verification")
-        return True
+        logger.error("WEBHOOK_SECRET not configured, rejecting request")
+        return False
     return hmac.compare_digest(expected, request_secret)
 
 
@@ -113,7 +113,7 @@ async def webhook(request: Request):
                 },
             )
 
-        thread = threading.Thread(target=_run_generation, args=(new_folders,), daemon=True)
+        thread = threading.Thread(target=_run_generation, args=(new_folders,))
         _active_job["thread"] = thread
         _active_job["started_at"] = datetime.now(timezone.utc).isoformat()
         _active_job["folders"] = new_folders
@@ -153,6 +153,16 @@ async def status():
 async def root():
     """Root endpoint for HF Space UI."""
     return {"service": "BenchmarkCard Webhook", "endpoints": ["/webhook", "/status", "/health"]}
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Wait for active generation to finish on graceful shutdown."""
+    with _job_lock:
+        t = _active_job.get("thread")
+        if t and t.is_alive():
+            logger.warning("Shutdown: waiting for active job (max 60s)")
+            t.join(timeout=60)
 
 
 @app.get("/health")

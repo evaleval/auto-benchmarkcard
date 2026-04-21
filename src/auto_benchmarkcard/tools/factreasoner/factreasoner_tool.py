@@ -347,13 +347,15 @@ def evaluate_factuality(
     entropy = 0.0
     valid_marginals = []
 
+    eps = 1e-7
     for info in marginals:
         var = info.get("variable")
         probs = info.get("probabilities")
         if probs and len(probs) > 1:
-            p_true = probs[1] if probs[1] > 0.0 else 0.0000001
-            entropy += -p_true * math.log10(p_true)
-            valid_marginals.append({"variable": var, "probabilities": probs, "p_true": p_true})
+            p_true = max(probs[1], eps)
+            p_false = max(1.0 - p_true, eps)
+            entropy += -p_true * math.log10(p_true) - p_false * math.log10(p_false)
+            valid_marginals.append({"variable": var, "probabilities": probs, "p_true": probs[1]})
 
     n = len(valid_marginals)
     normalized_entropy = entropy / n if n > 0 else 0.0

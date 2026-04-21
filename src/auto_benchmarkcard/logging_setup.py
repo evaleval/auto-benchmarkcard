@@ -78,6 +78,8 @@ def setup_logging_suppression(debug_mode: bool = False) -> None:
         logging.getLogger("auto_benchmarkcard").setLevel(logging.DEBUG)
 
 
+# Suppress noisy warnings from third-party libraries at import time.
+# Centralized here so cli.py doesn't need its own copy.
 warnings.filterwarnings("ignore", message=".*Triton.*")
 warnings.filterwarnings("ignore", message=".*not installed.*")
 warnings.filterwarnings("ignore", message=".*dummy decorators.*")
@@ -85,3 +87,12 @@ warnings.filterwarnings("ignore", message=".*Failed to load GPU.*")
 warnings.filterwarnings("ignore", message=".*platform.*")
 warnings.filterwarnings("ignore", message=".*tokenizers.*parallelism.*")
 warnings.filterwarnings("ignore", message=".*TOKENIZERS_PARALLELISM.*")
+warnings.filterwarnings("ignore", message=".*resume_download.*")
+warnings.filterwarnings("ignore", message=".*LangChainDeprecationWarning.*")
+warnings.filterwarnings("ignore", message=".*LangChain.*deprecated.*")
+warnings.filterwarnings("ignore", message=".*pin_memory.*")
+warnings.filterwarnings("ignore", message=".*manual persistence.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
+warnings.filterwarnings("ignore", category=UserWarning, module="torch")
+warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
+warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub")
