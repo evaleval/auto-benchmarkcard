@@ -1,7 +1,8 @@
 """Background worker for benchmark card generation.
 
-Detects new benchmark folders in EEE_datastore, generates cards via
-process_single_benchmark(), and uploads them to evaleval/auto-benchmarkcards.
+Detects new benchmarks in EEE_datastore by scanning folders for actual
+benchmark names, resolves them via the Entity Registry for canonical IDs,
+and skips benchmarks that already have cards in evaleval/auto-benchmarkcards.
 """
 
 import json
@@ -13,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import requests
 from huggingface_hub import HfApi, snapshot_download
 
 logger = logging.getLogger("worker")
@@ -20,6 +22,8 @@ logger = logging.getLogger("worker")
 EEE_REPO = "evaleval/EEE_datastore"
 CARDS_REPO = "evaleval/auto-benchmarkcards"
 MAX_BENCHMARKS_PER_JOB = 5
+
+ENTITY_REGISTRY_URL = "https://evaleval-entity-registry.hf.space/api/v1"
 
 # Persistent storage on HF Spaces (mounted volume).
 # Falls back to local /tmp for development.
@@ -46,8 +50,46 @@ def save_state(state: dict) -> None:
 
 
 def _normalize_name(name: str) -> str:
-    """Normalize benchmark name for comparison (lowercase, hyphens to underscores)."""
+    """Local fallback normalization (lowercase, collapse separators to underscore)."""
     return name.lower().replace("-", "_").replace(" ", "_")
+
+
+def _resolve_names(names: list[str]) -> dict[str, str]:
+    """Resolve benchmark names to canonical IDs via Entity Registry.
+
+    Returns a mapping {raw_name: canonical_id}. Names the registry doesn't
+    recognize get a locally-normalized fallback ID so dedup still works.
+    """
+    resolved = {}
+
+    if not names:
+        return resolved
+
+    try:
+        resp = requests.post(
+            f"{ENTITY_REGISTRY_URL}/resolve/batch",
+            json=[{"raw_value": n, "entity_type": "benchmark"} for n in names],
+            timeout=15,
+        )
+        resp.raise_for_status()
+        results = resp.json()
+
+        # Response is a list in the same order as the input
+        for name, item in zip(names, results):
+            canonical = item.get("canonical_id")
+            resolved[name] = canonical if canonical else _normalize_name(name)
+
+        registry_hits = sum(1 for item in results if item.get("canonical_id"))
+        logger.info(
+            "Entity Registry resolved %d/%d names",
+            registry_hits, len(names),
+        )
+    except Exception:
+        logger.warning("Entity Registry unreachable, falling back to local normalization")
+        for n in names:
+            resolved[n] = _normalize_name(n)
+
+    return resolved
 
 
 def _extract_folders(file_list: list[str]) -> set[str]:
@@ -55,14 +97,13 @@ def _extract_folders(file_list: list[str]) -> set[str]:
     folders = set()
     for path in file_list:
         parts = path.split("/")
-        # Only include entries that have files beneath them (depth > 2)
         if len(parts) >= 3 and parts[0] == "data":
             folders.add(parts[1])
     return folders
 
 
 def _get_existing_cards() -> set[str]:
-    """List benchmark names that already have a card in the target dataset."""
+    """List card names already in the target dataset (without path/extension)."""
     api = HfApi()
     try:
         files = api.list_repo_files(CARDS_REPO, repo_type="dataset")
@@ -73,16 +114,30 @@ def _get_existing_cards() -> set[str]:
     names = set()
     for f in files:
         if f.startswith("cards/") and f.endswith(".json"):
-            # cards/mmlu.json -> mmlu
             names.add(f[len("cards/"):-len(".json")])
     return names
 
 
-def detect_new_benchmarks() -> list[str]:
-    """Find EEE folders that don't have a card yet.
+def _download_folder(folder_name: str) -> Path:
+    """Download a single EEE folder to a temp directory."""
+    target_dir = tempfile.mkdtemp(prefix=f"eee_{folder_name}_")
+    logger.info("Downloading EEE folder '%s' to %s", folder_name, target_dir)
 
-    Compares EEE_datastore folders against existing cards in the
-    target dataset, so we never regenerate what's already there.
+    snapshot_download(
+        repo_id=EEE_REPO,
+        repo_type="dataset",
+        local_dir=target_dir,
+        allow_patterns=[f"data/{folder_name}/**/*.json"],
+    )
+
+    return Path(target_dir) / "data"
+
+
+def detect_new_benchmarks() -> list[str]:
+    """Find EEE folders that contain benchmarks without cards.
+
+    Returns folder names that have at least one benchmark not yet in the
+    cards dataset. The actual per-benchmark filtering happens during processing.
     """
     api = HfApi()
     try:
@@ -94,12 +149,20 @@ def detect_new_benchmarks() -> list[str]:
     current_folders = _extract_folders(all_files)
     existing_cards = _get_existing_cards()
 
-    # Normalize both sides for comparison (arc-agi == arc_agi)
-    normalized_cards = {_normalize_name(c) for c in existing_cards}
+    # Normalize existing card names for comparison (match both hyphen and underscore)
+    normalized_cards = set()
+    for c in existing_cards:
+        normalized_cards.add(c)
+        normalized_cards.add(c.replace("-", "_"))
+        normalized_cards.add(c.replace("_", "-"))
+
+    # A folder is "new" if its normalized name doesn't match any card.
+    # This is a coarse filter — per-benchmark dedup happens in process_new_benchmarks.
     new_folders = sorted(
         f for f in current_folders
         if _normalize_name(f) not in normalized_cards
     )
+
     if not new_folders:
         logger.info("All %d folders already have cards", len(current_folders))
         return []
@@ -115,26 +178,16 @@ def detect_new_benchmarks() -> list[str]:
     return new_folders
 
 
-def _download_folder(folder_name: str) -> Path:
-    """Download a single EEE folder to a temp directory."""
-    target_dir = tempfile.mkdtemp(prefix=f"eee_{folder_name}_")
-    logger.info("Downloading EEE folder '%s' to %s", folder_name, target_dir)
-
-    snapshot_download(
-        repo_id=EEE_REPO,
-        repo_type="dataset",
-        local_dir=target_dir,
-        allow_patterns=[f"data/{folder_name}/**/*.json"],
-    )
-
-    data_path = Path(target_dir) / "data"
-    return data_path
-
-
-def _upload_card(card: dict, benchmark_name: str) -> bool:
+def _upload_card(card: dict, benchmark_name: str, canonical_id: str | None = None) -> bool:
     """Upload a generated card to the auto-benchmarkcards dataset."""
     api = HfApi()
-    safe_name = benchmark_name.lower().replace("-", "_").replace(" ", "_").replace("/", "_")
+
+    # Use canonical ID for filename when available, fall back to local normalization
+    if canonical_id:
+        safe_name = canonical_id
+    else:
+        safe_name = _normalize_name(benchmark_name).replace("/", "_")
+
     remote_path = f"cards/{safe_name}.json"
 
     try:
@@ -163,18 +216,28 @@ def _upload_card(card: dict, benchmark_name: str) -> bool:
 
 
 def process_new_benchmarks(new_folders: list[str]) -> None:
-    """Generate and upload cards for all benchmarks in the new folders.
+    """Generate and upload cards for benchmarks that don't have one yet.
 
-    This runs in a background thread, called from app.py.
+    Downloads each folder, scans for benchmarks, resolves names via the
+    Entity Registry, and skips any benchmark that already has a card.
     """
     from auto_benchmarkcard.tools.eee.eee_tool import (
         scan_eee_folder,
         eee_to_pipeline_inputs,
     )
     from auto_benchmarkcard.eee_workflow import process_single_benchmark
-    from auto_benchmarkcard.workflow import setup_logging_suppression
+    from auto_benchmarkcard.logging_setup import setup_logging_suppression
 
     setup_logging_suppression(debug_mode=False)
+
+    # Fetch existing cards once for the whole job.
+    # Normalize to both hyphen and underscore forms so we match old and new naming.
+    existing_cards = _get_existing_cards()
+    existing_normalized = set()
+    for c in existing_cards:
+        existing_normalized.add(c)
+        existing_normalized.add(c.replace("-", "_"))
+        existing_normalized.add(c.replace("_", "-"))
 
     state = load_state()
     job_record: dict[str, Any] = {
@@ -200,7 +263,22 @@ def process_new_benchmarks(new_folders: list[str]) -> None:
         try:
             scan_result = scan_eee_folder(str(data_path))
 
+            # Resolve all benchmark names in this folder at once
+            bench_names = list(scan_result.benchmarks.keys())
+            resolved = _resolve_names(bench_names)
+
             for name, bench in sorted(scan_result.benchmarks.items()):
+                canonical = resolved.get(name, _normalize_name(name))
+
+                # Per-benchmark dedup: skip if a card already exists
+                if canonical in existing_normalized:
+                    logger.info("Skipping %s: card already exists (canonical: %s)", name, canonical)
+                    job_record["results"].append({
+                        "folder": folder_name, "benchmark": name,
+                        "canonical_id": canonical, "status": "already_exists",
+                    })
+                    continue
+
                 inputs = eee_to_pipeline_inputs(bench)
 
                 if not inputs.get("hf_repo"):
@@ -218,11 +296,16 @@ def process_new_benchmarks(new_folders: list[str]) -> None:
                 )
 
                 if card:
-                    uploaded = _upload_card(card, name)
+                    uploaded = _upload_card(card, name, canonical_id=canonical)
                     job_record["results"].append({
                         "folder": folder_name, "benchmark": name,
+                        "canonical_id": canonical,
                         "status": "uploaded" if uploaded else "upload_failed",
                     })
+                    # Add to existing set so later benchmarks in same job are deduped
+                    if uploaded:
+                        existing_normalized.add(canonical)
+                        existing_normalized.add(canonical.replace("-", "_"))
                 else:
                     job_record["results"].append({
                         "folder": folder_name, "benchmark": name, "status": "generation_failed",
@@ -243,11 +326,10 @@ def process_new_benchmarks(new_folders: list[str]) -> None:
 
     job_record["completed_at"] = datetime.now(timezone.utc).isoformat()
 
-    # Summarize
     results = job_record["results"]
-    uploaded = sum(1 for r in results if r["status"] == "uploaded")
-    failed = sum(1 for r in results if r["status"] not in ("uploaded", "no_hf_repo"))
-    skipped = sum(1 for r in results if r["status"] == "no_hf_repo")
+    uploaded = sum(1 for r in results if r.get("status") == "uploaded")
+    failed = sum(1 for r in results if r.get("status") not in ("uploaded", "no_hf_repo", "already_exists"))
+    skipped = sum(1 for r in results if r.get("status") in ("no_hf_repo", "already_exists"))
     logger.info("Job complete: %d uploaded, %d failed, %d skipped", uploaded, failed, skipped)
 
     state["jobs"].append(job_record)
