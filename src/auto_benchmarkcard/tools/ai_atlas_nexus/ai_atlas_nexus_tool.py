@@ -11,6 +11,16 @@ from ai_atlas_nexus.library import AIAtlasNexus
 
 logger = logging.getLogger(__name__)
 
+_nexus_instance: Optional[AIAtlasNexus] = None
+
+
+def _get_nexus() -> AIAtlasNexus:
+    """Return a cached AIAtlasNexus instance (lazy singleton)."""
+    global _nexus_instance
+    if _nexus_instance is None:
+        _nexus_instance = AIAtlasNexus()
+    return _nexus_instance
+
 
 def _load_benchmark_cot_examples(taxonomy: str = "ibm-risk-atlas") -> Optional[List]:
     """Load benchmark-specific chain-of-thought examples for few-shot risk detection."""
@@ -88,7 +98,7 @@ def identify_risks_from_benchmark_metadata(
             logger.warning("No inference engine available - skipping risk identification")
             return None
 
-        ai_atlas_nexus = AIAtlasNexus()
+        ai_atlas_nexus = _get_nexus()
         usecase = create_usecase_from_benchmark_card(benchmark_card)
         if not usecase:
             logger.warning("Could not create usecase description from benchmark card")
@@ -110,14 +120,14 @@ def identify_risks_from_benchmark_metadata(
             formatted_risks = []
             for risk_obj in risk_objects:
                 formatted_risk = {
-                    "id": risk_obj.id,
-                    "category": risk_obj.name,
-                    "description": [risk_obj.description],
-                    "tag": risk_obj.tag,
-                    "type": risk_obj.type,
-                    "concern": risk_obj.concern,
-                    "url": risk_obj.url if risk_obj.url else None,
-                    "taxonomy": risk_obj.isDefinedByTaxonomy,
+                    "id": getattr(risk_obj, "id", "unknown"),
+                    "category": getattr(risk_obj, "name", "Unknown Risk"),
+                    "description": [getattr(risk_obj, "description", "")],
+                    "tag": getattr(risk_obj, "tag", None),
+                    "type": getattr(risk_obj, "type", None),
+                    "concern": getattr(risk_obj, "concern", None),
+                    "url": getattr(risk_obj, "url", None) or None,
+                    "taxonomy": getattr(risk_obj, "isDefinedByTaxonomy", None),
                 }
                 formatted_risks.append(formatted_risk)
 

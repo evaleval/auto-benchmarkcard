@@ -53,7 +53,7 @@ _ANALYTICAL_FIELDS = {
 
 
 def handle_error(error: Exception, operation: str, state) -> Dict[str, Any]:
-    """Log the error and return updated state with the failure recorded."""
+    """Log an exception and return updated state with the failure recorded."""
     error_msg = f"{operation} failed: {error}"
     logger.error(error_msg, exc_info=True)
 
@@ -63,6 +63,14 @@ def handle_error(error: Exception, operation: str, state) -> Dict[str, Any]:
     errors = state.get("errors", [])
     errors.append(error_msg)
 
+    return {"errors": errors, "completed": [f"{operation.lower()} failed"]}
+
+
+def record_skip(message: str, operation: str, state) -> Dict[str, Any]:
+    """Record a skipped step when preconditions are not met (no traceback)."""
+    logger.warning("%s: %s", operation, message)
+    errors = state.get("errors", [])
+    errors.append(f"{operation}: {message}")
     return {"errors": errors, "completed": [f"{operation.lower()} failed"]}
 
 
@@ -220,8 +228,7 @@ def run_docling(state):
                 error_msg = (
                     f"Docling extraction failed: {docling_result.get('error', 'Unknown error')}"
                 )
-                fake_error = Exception(error_msg)
-                result = handle_error(fake_error, "Docling extraction", state)
+                result = record_skip(error_msg, "Docling extraction", state)
                 result["docling_output"] = None
                 return result
 
@@ -234,8 +241,7 @@ def run_docling(state):
 def run_hf(state):
     """Fetch HuggingFace dataset metadata."""
     if not state["hf_repo"]:
-        fake_error = Exception("No hf_repo available for HuggingFace lookup")
-        return handle_error(fake_error, "HuggingFace lookup", state)
+        return record_skip("No hf_repo available", "HuggingFace lookup", state)
 
     try:
         hf_data = hf_dataset_metadata.func(repo_id=state["hf_repo"])
@@ -314,8 +320,7 @@ def run_risk_identification(state):
     logger.info("Starting risk identification")
 
     if not state.get("composed_card"):
-        fake_error = Exception("No composed card available for risk identification")
-        return handle_error(fake_error, "Risk identification", state)
+        return record_skip("No composed card available", "Risk identification", state)
 
     try:
         benchmark_card = state["composed_card"]
@@ -373,7 +378,7 @@ def run_rag(state) -> Dict[str, Any]:
     logger.info("Starting RAG processing")
 
     if not state.get("composed_card"):
-        return handle_error(Exception("No composed card for RAG"), "RAG processing", state)
+        return record_skip("No composed card available", "RAG processing", state)
 
     try:
         benchmark_name = sanitize_benchmark_name(state["query"])
@@ -431,14 +436,17 @@ def run_rag(state) -> Dict[str, Any]:
 
             try:
                 import nest_asyncio
-
                 nest_asyncio.apply()
             except ImportError:
-                pass
+                logger.warning("nest_asyncio not installed, async reranking may fail in nested event loops")
 
-            batch_chunks = asyncio.run(
-                retriever.retrieve_for_statements_batch_parallel(statement_texts)
-            )
+            try:
+                batch_chunks = asyncio.run(
+                    retriever.retrieve_for_statements_batch_parallel(statement_texts)
+                )
+            except RuntimeError:
+                logger.warning("Async reranking failed (event loop conflict), falling back to sync")
+                batch_chunks = retriever.retrieve_for_statements_batch(statement_texts)
         else:
             batch_chunks = retriever.retrieve_for_statements_batch(statement_texts)
 
@@ -480,8 +488,7 @@ def run_factreasoner(state):
     logger.info("Starting factuality evaluation")
 
     if not state.get("rag_results"):
-        fake_error = Exception("No RAG results available for factuality evaluation")
-        return handle_error(fake_error, "FactReasoner evaluation", state)
+        return record_skip("No RAG results available", "FactReasoner evaluation", state)
 
     try:
         benchmark_name = sanitize_benchmark_name(state["query"])

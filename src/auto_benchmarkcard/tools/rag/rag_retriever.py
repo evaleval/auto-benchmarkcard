@@ -5,6 +5,7 @@ and LLM-based reranking for better fact verification.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import math
@@ -751,7 +752,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
         try:
             vector_results = self.retriever.invoke(search_query)
             for doc in vector_results:
-                content_hash = hash(doc.page_content)
+                content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                 if content_hash not in seen_content:
                     all_candidates.append(doc)
                     seen_content.add(content_hash)
@@ -768,7 +769,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
                     self.documents_for_bm25[idx] for idx, score in bm25_results if score > 0
                 ]
                 for doc in bm25_docs:
-                    content_hash = hash(doc.page_content)
+                    content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                     if content_hash not in seen_content:
                         all_candidates.append(doc)
                         seen_content.add(content_hash)
@@ -779,7 +780,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
         # Keyword filtering
         keyword_filtered = self.keyword_filter_documents(all_keywords, candidate_pool_size=10)
         for doc in keyword_filtered:
-            content_hash = hash(doc.page_content)
+            content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
             if content_hash not in seen_content:
                 all_candidates.append(doc)
                 seen_content.add(content_hash)
@@ -854,7 +855,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
             try:
                 vector_results = self.retriever.invoke(search_query)
                 for doc in vector_results:
-                    content_hash = hash(doc.page_content)
+                    content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                     if content_hash not in seen_content:
                         all_candidates.append(doc)
                         seen_content.add(content_hash)
@@ -871,7 +872,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
                         self.documents_for_bm25[idx] for idx, score in bm25_results if score > 0
                     ]
                     for doc in bm25_docs:
-                        content_hash = hash(doc.page_content)
+                        content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                         if content_hash not in seen_content:
                             all_candidates.append(doc)
                             seen_content.add(content_hash)
@@ -882,7 +883,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
             # Keyword filtering
             keyword_filtered = self.keyword_filter_documents(all_keywords, candidate_pool_size=10)
             for doc in keyword_filtered:
-                content_hash = hash(doc.page_content)
+                content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                 if content_hash not in seen_content:
                     all_candidates.append(doc)
                     seen_content.add(content_hash)
@@ -966,7 +967,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
             try:
                 vector_results = self.retriever.invoke(search_query)
                 for doc in vector_results:
-                    content_hash = hash(doc.page_content)
+                    content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                     if content_hash not in seen_content:
                         all_candidates.append(doc)
                         seen_content.add(content_hash)
@@ -983,7 +984,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
                         self.documents_for_bm25[idx] for idx, score in bm25_results if score > 0
                     ]
                     for doc in bm25_docs:
-                        content_hash = hash(doc.page_content)
+                        content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                         if content_hash not in seen_content:
                             all_candidates.append(doc)
                             seen_content.add(content_hash)
@@ -994,7 +995,7 @@ Return as JSON array: ["query1", "query2", "query3", ...]"""
             # Keyword filtering
             keyword_filtered = self.keyword_filter_documents(all_keywords, candidate_pool_size=10)
             for doc in keyword_filtered:
-                content_hash = hash(doc.page_content)
+                content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
                 if content_hash not in seen_content:
                     all_candidates.append(doc)
                     seen_content.add(content_hash)

@@ -7,6 +7,7 @@ process_single_benchmark(), and uploads them to evaleval/auto-benchmarkcards.
 import json
 import logging
 import os
+import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,9 +38,11 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
-    """Save persistent state to disk."""
+    """Save persistent state to disk (atomic write via temp + rename)."""
     PERSISTENT_DIR.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+    tmp = STATE_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, indent=2))
+    tmp.rename(STATE_FILE)
 
 
 def _normalize_name(name: str) -> str:
@@ -183,8 +186,10 @@ def process_new_benchmarks(new_folders: list[str]) -> None:
     for folder_name in new_folders:
         logger.info("Processing folder: %s", folder_name)
 
+        tmp_root = None
         try:
             data_path = _download_folder(folder_name)
+            tmp_root = data_path.parent
         except Exception:
             logger.exception("Failed to download folder %s", folder_name)
             job_record["results"].append({
@@ -192,46 +197,47 @@ def process_new_benchmarks(new_folders: list[str]) -> None:
             })
             continue
 
-        # Scan the downloaded folder
         try:
             scan_result = scan_eee_folder(str(data_path))
+
+            for name, bench in sorted(scan_result.benchmarks.items()):
+                inputs = eee_to_pipeline_inputs(bench)
+
+                if not inputs.get("hf_repo"):
+                    logger.warning("Skipping %s: no HF repo", name)
+                    job_record["results"].append({
+                        "folder": folder_name, "benchmark": name, "status": "no_hf_repo",
+                    })
+                    continue
+
+                card = process_single_benchmark(
+                    benchmark_name=name,
+                    pipeline_inputs=inputs,
+                    base_output_path=str(PERSISTENT_DIR / "output"),
+                    debug=False,
+                )
+
+                if card:
+                    uploaded = _upload_card(card, name)
+                    job_record["results"].append({
+                        "folder": folder_name, "benchmark": name,
+                        "status": "uploaded" if uploaded else "upload_failed",
+                    })
+                else:
+                    job_record["results"].append({
+                        "folder": folder_name, "benchmark": name, "status": "generation_failed",
+                    })
+
         except Exception:
-            logger.exception("Failed to scan folder %s", folder_name)
+            logger.exception("Failed to process folder %s", folder_name)
             job_record["results"].append({
                 "folder": folder_name, "status": "scan_failed",
             })
-            continue
 
-        # Process individual benchmarks
-        for name, bench in sorted(scan_result.benchmarks.items()):
-            inputs = eee_to_pipeline_inputs(bench)
+        finally:
+            if tmp_root and tmp_root.exists():
+                shutil.rmtree(tmp_root, ignore_errors=True)
 
-            if not inputs.get("hf_repo"):
-                logger.warning("Skipping %s: no HF repo", name)
-                job_record["results"].append({
-                    "folder": folder_name, "benchmark": name, "status": "no_hf_repo",
-                })
-                continue
-
-            card = process_single_benchmark(
-                benchmark_name=name,
-                pipeline_inputs=inputs,
-                base_output_path=str(PERSISTENT_DIR / "output"),
-                debug=False,
-            )
-
-            if card:
-                uploaded = _upload_card(card, name)
-                job_record["results"].append({
-                    "folder": folder_name, "benchmark": name,
-                    "status": "uploaded" if uploaded else "upload_failed",
-                })
-            else:
-                job_record["results"].append({
-                    "folder": folder_name, "benchmark": name, "status": "generation_failed",
-                })
-
-        # Mark folder as known
         if folder_name not in state["known_folders"]:
             state["known_folders"].append(folder_name)
 
