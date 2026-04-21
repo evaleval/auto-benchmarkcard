@@ -93,9 +93,9 @@ class WorkflowCLILogger:
                 self.status_spinner.update(f"[blue]{step_name}...[/blue]")
                 break
 
-        # Show step completion messages with ✅
+        # Show step completion messages
         if any(completion_msg in msg for completion_msg in self.completion_messages):
-            self.console.print(f"✅ [green]{msg}[/green]")
+            self.console.print(f"[green][OK] {msg}[/green]")
             return
 
         # Show snippet information with indentation
@@ -118,7 +118,7 @@ class WorkflowCLILogger:
         """
         if args:
             msg = msg % args
-        self.console.print(f"⚠️ [yellow]{msg}[/yellow]")
+        self.console.print(f"[yellow][WARN] {msg}[/yellow]")
 
     def error(self, msg: str, *args: Any, exc_info: bool = False) -> None:
         """Handle error level messages.
@@ -132,7 +132,7 @@ class WorkflowCLILogger:
         """
         if args:
             msg = msg % args
-        self.console.print(f"❌ [red]{msg}[/red]")
+        self.console.print(f"[red][FAIL] {msg}[/red]")
 
     def debug(self, msg: str, *args: Any) -> None:
         """Handle debug level messages.
