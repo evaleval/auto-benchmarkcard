@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict
+
+import requests
 
 from auto_benchmarkcard.card_utils import (
     apply_deterministic_overrides,
@@ -26,6 +29,7 @@ from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import (
     evaluate_factuality,
     flag_benchmark_card_fields,
 )
+from auto_benchmarkcard.tools.eee.paper_resolver import resolve_paper
 from auto_benchmarkcard.tools.hf.hf_tool import hf_dataset_metadata
 from auto_benchmarkcard.tools.rag.atomizer import atomize_benchmark_card
 from auto_benchmarkcard.tools.rag.format_converter import (
@@ -180,6 +184,165 @@ def run_hf_extractor(state):
         return result
 
 
+_BIBTEX_ARXIV_RE = re.compile(r"arxiv[:\s.]*(\d{4}\.\d{4,5})", re.IGNORECASE)
+_PAPER_LINK_RE = re.compile(
+    r"\*{0,2}Paper\*{0,2}\s*[:：]\s*(https?://\S+)", re.IGNORECASE
+)
+_ARXIV_URL_RE = re.compile(r"https?://arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})")
+
+
+def _extract_paper_from_hf(hf_json: Dict[str, Any]) -> str | None:
+    """Try to extract a paper URL from HF README markdown (BibTeX, Paper: link, tags)."""
+    if not hf_json:
+        return None
+
+    # Check tags for arxiv: entries (structured, most reliable)
+    card_data = hf_json.get("card_data") or {}
+    tags = card_data.get("tags") or []
+    if isinstance(tags, list):
+        for tag in tags:
+            if isinstance(tag, str) and tag.startswith("arxiv:"):
+                arxiv_id = tag.split(":", 1)[1].strip()
+                if arxiv_id:
+                    return f"https://arxiv.org/abs/{arxiv_id}"
+
+    readme = hf_json.get("readme_markdown") or ""
+    if not readme:
+        return None
+
+    # Parse **Paper:** link
+    m = _PAPER_LINK_RE.search(readme)
+    if m:
+        url = m.group(1).rstrip(")")
+        return url
+
+    # Parse BibTeX blocks for arxiv IDs
+    bibtex_blocks = re.findall(r"```bibtex(.*?)```", readme, re.DOTALL | re.IGNORECASE)
+    for block in bibtex_blocks:
+        m = _BIBTEX_ARXIV_RE.search(block)
+        if m:
+            return f"https://arxiv.org/abs/{m.group(1)}"
+
+    # Scan entire README for arxiv URLs
+    m = _ARXIV_URL_RE.search(readme)
+    if m:
+        return f"https://arxiv.org/abs/{m.group(1)}"
+
+    return None
+
+
+def run_paper_resolver(state) -> Dict[str, Any]:
+    """Resolve paper URL using 3-tier approach: HF README > API search > fallback."""
+    logger.info("Starting paper resolution")
+
+    try:
+        extracted_ids = state.get("extracted_ids") or {}
+        if extracted_ids.get("paper_url"):
+            return {
+                "paper_resolver_attempted": True,
+                "completed": ["paper_resolver skipped (paper_url already set)"],
+            }
+
+        # Tier 1: Extract from HF README (no API calls)
+        hf_json = state.get("hf_json") or {}
+        readme_url = _extract_paper_from_hf(hf_json)
+        if readme_url:
+            updated = extracted_ids.copy()
+            updated["paper_url"] = readme_url
+            logger.info("Paper URL from HF README: %s", readme_url)
+            return {
+                "extracted_ids": updated,
+                "paper_resolver_attempted": True,
+                "completed": [f"paper_resolver hf_readme url={readme_url}"],
+            }
+
+        # Tier 2/3: Full resolution with whatever context we have
+        eee_metadata = state.get("eee_metadata") or {}
+        card_data = hf_json.get("card_data") or {}
+        dataset_info = hf_json.get("dataset_info") or {}
+
+        full_name = (
+            card_data.get("pretty_name")
+            or dataset_info.get("dataset_name")
+            or extracted_ids.get("full_name")
+        )
+        overview = (
+            card_data.get("description")
+            or dataset_info.get("description")
+            or extracted_ids.get("overview")
+        )
+        domains = card_data.get("task_categories") or extracted_ids.get("domains")
+
+        output_manager = state.get("output_manager")
+        output_dir = output_manager.get_tool_output_path("paper_resolver") if output_manager else None
+
+        resolved = resolve_paper(
+            suite_name=state["query"],
+            sub_benchmarks=eee_metadata.get("contains", []),
+            metrics=list(eee_metadata.get("metrics", {}).keys()) if eee_metadata.get("metrics") else [],
+            eval_library=eee_metadata.get("eval_library"),
+            full_name=full_name,
+            overview=overview,
+            domains=domains,
+            output_dir=output_dir,
+        )
+
+        if resolved:
+            url = resolved["url"]
+            updated = extracted_ids.copy()
+            updated["paper_url"] = url
+            if resolved.get("abstract"):
+                updated["paper_abstract"] = resolved["abstract"]
+            if resolved.get("title"):
+                updated["paper_title"] = resolved["title"]
+            if resolved.get("year"):
+                updated["paper_year"] = resolved["year"]
+            logger.info("Paper URL resolved: %s", url)
+            return {
+                "extracted_ids": updated,
+                "paper_resolver_attempted": True,
+                "completed": [f"paper_resolver resolved url={url}"],
+            }
+
+        logger.info("Paper resolution found no match for '%s'", state["query"])
+        return {
+            "paper_resolver_attempted": True,
+            "completed": ["paper_resolver no match"],
+        }
+
+    except Exception as e:
+        result = handle_error(e, "Paper resolution", state)
+        result["paper_resolver_attempted"] = True
+        return result
+
+
+def _normalize_paper_url(url: str) -> str | None:
+    """Transform paper URLs into Docling-friendly forms. Returns None if not extractable."""
+    lower = url.lower()
+    # S2 landing pages are HTML, never pass to Docling
+    if "semanticscholar.org" in lower:
+        return None
+    # ACL Anthology: append .pdf
+    if "aclanthology.org" in lower and not lower.endswith(".pdf"):
+        return url.rstrip("/") + ".pdf"
+    return url
+
+
+def _check_paper_accessible(url: str) -> bool:
+    """HEAD request to detect paywall or HTML-only pages before Docling."""
+    try:
+        resp = requests.head(url, allow_redirects=True, timeout=10)
+        if resp.status_code in (401, 403):
+            return False
+        content_type = resp.headers.get("content-type", "")
+        # HTML pages from publishers are usually paywalled or not PDF
+        if "text/html" in content_type and "arxiv.org" not in url and "openreview.net" not in url:
+            return False
+        return True
+    except Exception:
+        return True  # Optimistic fallback
+
+
 def run_docling(state):
     """Extract paper content using Docling."""
     paper_url = state.get("extracted_ids", {}).get("paper_url")
@@ -191,6 +354,24 @@ def run_docling(state):
             "docling_output": None,
             "completed": ["docling skipped (no paper_url)"],
         }
+
+    # Normalize URL and check accessibility before Docling
+    normalized = _normalize_paper_url(paper_url)
+    if not normalized:
+        logger.info("Skipping Docling for non-extractable URL: %s", paper_url)
+        return {
+            "docling_output": None,
+            "completed": [f"docling skipped (non-extractable URL: {paper_url})"],
+        }
+
+    if not _check_paper_accessible(normalized):
+        logger.info("Paper URL not accessible (paywall/HTML): %s", normalized)
+        return {
+            "docling_output": None,
+            "completed": [f"docling skipped (not accessible: {normalized})"],
+        }
+
+    paper_url = normalized
 
     try:
         logger.info("Extracting paper from: %s", paper_url)

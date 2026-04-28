@@ -34,6 +34,7 @@ class GraphState(TypedDict):
     html_content: Optional[Dict[str, Any]]  # web page text from trafilatura
     eee_metadata: Optional[Dict[str, Any]]  # pre-aggregated EEE data (bypasses UnitXT)
     hf_extraction_attempted: Optional[bool]  # prevents re-running HF paper URL extraction
+    paper_resolver_attempted: Optional[bool]  # prevents re-running paper resolution
 
     # Phase 2 — composition and enrichment
     composed_card: Optional[Dict[str, Any]]  # LLM-generated card from composer

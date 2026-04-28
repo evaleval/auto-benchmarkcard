@@ -1,8 +1,8 @@
 """Benchmark metadata extraction pipeline built on LangGraph.
 
 Pipeline flow:
-  [UnitXT] -> [Extractor] -> [HF] -> [HF_Extractor?] -> [Docling?] -> [HTML?]
-    -> [Composer] -> [Risk] -> [RAG] -> [FactReasoner] -> END
+  [UnitXT] -> [Extractor] -> [HF] -> [HF_Extractor?] -> [PaperResolver?]
+    -> [Docling?] -> [HTML?] -> [Composer] -> [Risk] -> [RAG] -> [FactReasoner] -> END
 
 EEE path: skips UnitXT/Extractor (metadata comes from EEE JSONs)
 Composite path: skips RAG/FactReasoner (no single source paper to fact-check)
@@ -25,6 +25,7 @@ from auto_benchmarkcard.workers import (
     run_unitxt,
     run_extractor,
     run_hf_extractor,
+    run_paper_resolver,
     run_docling,
     run_html_extractor,
     run_hf,
@@ -82,6 +83,11 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
     if needs_hf_extraction:
         return {"next": "hf_extractor_worker"}
 
+    # Paper resolver: run after HF extraction if still no paper_url
+    paper_resolver_attempted = state.get("paper_resolver_attempted", False)
+    if not current_paper_url and not paper_resolver_attempted and not _failed("paper resolution"):
+        return {"next": "paper_resolver_worker"}
+
     paper_url = state.get("extracted_ids", {}).get("paper_url")
     if paper_url and state["docling_output"] is None and not _failed("docling extraction"):
         return {"next": "docling_worker"}
@@ -117,6 +123,7 @@ def build_workflow():
     builder.add_node("unitxt_worker", run_unitxt)
     builder.add_node("extractor_worker", run_extractor)
     builder.add_node("hf_extractor_worker", run_hf_extractor)
+    builder.add_node("paper_resolver_worker", run_paper_resolver)
     builder.add_node("docling_worker", run_docling)
     builder.add_node("html_worker", run_html_extractor)
     builder.add_node("hf_worker", run_hf)
@@ -133,6 +140,7 @@ def build_workflow():
             "unitxt_worker": "unitxt_worker",
             "extractor_worker": "extractor_worker",
             "hf_extractor_worker": "hf_extractor_worker",
+            "paper_resolver_worker": "paper_resolver_worker",
             "docling_worker": "docling_worker",
             "html_worker": "html_worker",
             "hf_worker": "hf_worker",
@@ -146,6 +154,7 @@ def build_workflow():
     builder.add_edge("unitxt_worker", "orchestrator")
     builder.add_edge("extractor_worker", "orchestrator")
     builder.add_edge("hf_extractor_worker", "orchestrator")
+    builder.add_edge("paper_resolver_worker", "orchestrator")
     builder.add_edge("docling_worker", "orchestrator")
     builder.add_edge("html_worker", "orchestrator")
     builder.add_edge("hf_worker", "orchestrator")

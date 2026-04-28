@@ -1571,10 +1571,13 @@ def compose_benchmark_card(
     has_hf_readme = bool(_get_hf_readme(hf_metadata))
     has_eee = bool(eee_metadata)
     has_html = bool(html_content and html_content.get("success"))
+    has_abstract_fallback = not has_paper and bool(extracted_ids and extracted_ids.get("paper_abstract"))
 
     source_list = []
     if has_paper:
         source_list.append("Paper")
+    elif has_abstract_fallback:
+        source_list.append("Paper-abstract")
     if has_html:
         source_list.append("HTML")
     if has_hf_readme:
@@ -1666,10 +1669,21 @@ def compose_benchmark_card(
                 all_paper_content = paper_text[:budget]
                 logger.info("Using raw paper text (truncated to %d chars)", budget)
 
+    # Fallback: use paper abstract from resolver when Docling failed/skipped
+    if not all_paper_content and has_abstract_fallback:
+        abstract = extracted_ids["paper_abstract"]
+        title = extracted_ids.get("paper_title", "")
+        year = extracted_ids.get("paper_year", "")
+        header = f"Paper: {title}" + (f" ({year})" if year else "")
+        all_paper_content = f"{header}\n\nAbstract: {abstract}"
+        logger.info("Using paper abstract as fallback (%d chars)", len(all_paper_content))
+
     # Extract paper title for name alias (helps with name mismatches like tau_bench_2 vs τ-bench)
     paper_title = ""
     if has_paper:
         paper_title = docling_output.get("metadata", {}).get("title", "")
+    elif has_abstract_fallback and extracted_ids:
+        paper_title = extracted_ids.get("paper_title", "")
 
     # Phase 2: Source-isolated extraction
     identity_anchor = _get_benchmark_identity(query, hf_metadata, eee_metadata, paper_title=paper_title)
@@ -1888,6 +1902,7 @@ Generate the {section_name} section.""",
                 "huggingface": bool(hf_metadata),
                 "extracted_ids": bool(extracted_ids),
                 "docling": has_paper,
+                "paper_abstract_fallback": has_abstract_fallback,
                 "html": has_html,
                 "eee": has_eee,
             },
