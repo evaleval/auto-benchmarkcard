@@ -473,6 +473,7 @@ def generate_unitxt(
             "completed": [],
             "errors": [],
             "hf_extraction_attempted": False,
+            "paper_resolver_attempted": False,
             "rag_results": None,
             "factuality_results": None,
             "eee_metadata": None,

@@ -59,6 +59,7 @@ def build_eee_initial_state(
         "completed": ["eee_scan done", "eee_resolve done"],
         "errors": [],
         "hf_extraction_attempted": False,
+        "paper_resolver_attempted": False,
         "rag_results": None,
         "factuality_results": None,
         "final_card": None,
@@ -146,6 +147,9 @@ def process_single_benchmark(
         unitxt_paper = lookup_unitxt_paper(hf_repo)
         if unitxt_paper:
             extracted_ids["paper_url"] = unitxt_paper
+
+    # Paper resolution is now handled inside the workflow (paper_resolver_worker)
+    # after HF metadata is available, giving it richer context.
 
     initial_state = build_eee_initial_state(benchmark_name, pipeline_inputs, output_manager)
     workflow = build_workflow()
