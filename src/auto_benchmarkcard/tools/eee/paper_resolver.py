@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Callable
@@ -41,8 +42,6 @@ def _get_s2_api_key() -> Optional[str]:
 ENTITY_REGISTRY_URL = "https://evaleval-entity-registry.hf.space/api/v1"
 _display_name_cache: Dict[str, Optional[str]] = {}
 _metadata_cache: Dict[str, Dict[str, Any]] = {}
-
-CACHE_FILE = Path(__file__).resolve().parents[4] / ".paper_cache.json"
 
 ALL_SOURCES = ["openalex", "semantic_scholar"]
 
@@ -201,41 +200,9 @@ Respond ONLY with JSON (no markdown fences):
 {{"match_index": <0-based index of the matching paper, or "none">, "confidence": 0.0-1.0, "reasoning": "..."}}"""
 
 
-def _normalize_cache_key(name: str) -> str:
-    """Normalize to consistent cache key: lowercase, hyphens/spaces to underscores."""
+def _normalize_key(name: str) -> str:
+    """Normalize benchmark name for KNOWN_PAPERS lookup."""
     return name.strip().lower().replace("-", "_").replace(" ", "_")
-
-
-def _load_cache() -> Dict[str, Any]:
-    if CACHE_FILE.exists():
-        try:
-            raw = json.loads(CACHE_FILE.read_text())
-        except (json.JSONDecodeError, OSError):
-            return {}
-        # Migrate keys to normalized form, merge duplicates (prefer non-null URL)
-        normalized: Dict[str, Any] = {}
-        for key, value in raw.items():
-            nk = _normalize_cache_key(key)
-            if nk in normalized:
-                existing = normalized[nk]
-                if not existing.get("url") and value.get("url"):
-                    normalized[nk] = value
-            else:
-                normalized[nk] = value
-        if normalized != raw:
-            try:
-                CACHE_FILE.write_text(json.dumps(normalized, indent=2))
-            except OSError:
-                pass
-        return normalized
-    return {}
-
-
-def _save_cache(cache: Dict[str, Any]) -> None:
-    try:
-        CACHE_FILE.write_text(json.dumps(cache, indent=2))
-    except OSError as e:
-        logger.warning("Failed to write paper cache: %s", e)
 
 
 def _search_openalex(query: str) -> List[Dict[str, Any]]:
@@ -552,6 +519,12 @@ def _build_search_queries(
     # Clean up suite name (underscores to spaces)
     search_name = suite_name.replace("_", " ")
 
+    # Strip version suffixes (v1.0, 2.0, etc.) and add base name as query
+    base_name = re.sub(r'\s+v?\d+(\.\d+)*$', '', search_name).strip()
+    if base_name and base_name.lower() != search_name.lower():
+        queries.append(base_name)
+        queries.append(f"{base_name} benchmark")
+
     # Strip harness prefixes but keep them as context
     stripped = None
     for prefix in ("helm ", "hf ", "hfopenllm "):
@@ -615,38 +588,13 @@ def resolve_paper(
         Dict with keys: url, abstract, title, year, citation_count.
         Returns None if no paper found.
     """
-    cache = _load_cache()
-    cache_key = _normalize_cache_key(suite_name)
+    key = _normalize_key(suite_name)
 
     # Known-papers table wins over everything (manually verified, always correct)
-    known_url = KNOWN_PAPERS.get(cache_key)
+    known_url = KNOWN_PAPERS.get(key)
     if known_url:
         logger.info("Paper URL from known-papers table for '%s': %s", suite_name, known_url)
-        cache[cache_key] = {"url": known_url, "sources_tried": ["known_papers"]}
-        _save_cache(cache)
         return {"url": known_url, "abstract": "", "title": "", "year": None, "citation_count": 0}
-
-    # Check cache: return immediately if URL found, retry if new sources available
-    skip_sources: List[str] = []
-    if cache_key in cache:
-        cached = cache[cache_key]
-        if cached.get("url"):
-            logger.info("Paper URL from cache for '%s': %s", suite_name, cached["url"])
-            return {
-                "url": cached["url"],
-                "abstract": cached.get("abstract", ""),
-                "title": cached.get("title", ""),
-                "year": cached.get("year"),
-                "citation_count": cached.get("citation_count", 0),
-            }
-        # Null result — check if we have untried sources
-        previously_tried = cached.get("sources_tried", ["openalex"])
-        untried = [s for s in ALL_SOURCES if s not in previously_tried]
-        if not untried:
-            logger.info("Paper cache miss for '%s' (all sources tried)", cache_key)
-            return None
-        skip_sources = previously_tried
-        logger.info("Retrying '%s' with new sources: %s", suite_name, untried)
 
     # Resolve full_name from Entity Registry if not provided
     if not full_name:
@@ -686,7 +634,6 @@ def resolve_paper(
 
     resolved_url = None
     resolved_meta = {"abstract": "", "title": "", "year": None, "citation_count": 0}
-    sources_tried = list(skip_sources)
 
     # Collect all candidates across queries and sources, then verify in one batch
     all_candidates: List[Dict[str, Any]] = []
@@ -694,10 +641,6 @@ def resolve_paper(
 
     for query in queries:
         for source_name, search_fn, normalize_fn in _SOURCES:
-            if source_name in skip_sources:
-                continue
-            if source_name not in sources_tried:
-                sources_tried.append(source_name)
 
             logger.info("Searching %s for '%s'", source_name, query)
             raw_results = search_fn(query)
@@ -769,20 +712,6 @@ def resolve_paper(
                     suite_name, resolved_url, confidence,
                     batch_result.get("reasoning", ""),
                 )
-
-    verification_log["sources_tried"] = sources_tried
-
-    # Cache result with source tracking and metadata
-    cache_entry = {"url": resolved_url, "sources_tried": sources_tried}
-    if resolved_url:
-        cache_entry.update({
-            "abstract": resolved_meta.get("abstract", ""),
-            "title": resolved_meta.get("title", ""),
-            "year": resolved_meta.get("year"),
-            "citation_count": resolved_meta.get("citation_count", 0),
-        })
-    cache[cache_key] = cache_entry
-    _save_cache(cache)
 
     # Save verification log for traceability
     if output_dir:

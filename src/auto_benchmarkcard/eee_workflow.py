@@ -314,9 +314,7 @@ def run_eee_pipeline(
 
         try:
             if not inputs.get("hf_repo"):
-                logger.warning("Skipping %s: no HF repo resolved", name)
-                summary["skipped"].append({"benchmark": name, "reason": "no_hf_repo"})
-                continue
+                logger.info("No HF repo for '%s', proceeding with EEE data + paper resolver", name)
 
             card = process_single_benchmark(
                 benchmark_name=name,
