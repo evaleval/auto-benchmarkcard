@@ -191,10 +191,33 @@ async def status():
     }
 
 
+@app.post("/init-known-folders")
+async def init_known_folders(request: Request):
+    """One-time: mark all current EEE folders as known."""
+    secret = request.headers.get("X-Webhook-Secret", "")
+    if not _verify_secret(secret):
+        return JSONResponse(status_code=403, content={"error": "invalid secret"})
+
+    from huggingface_hub import HfApi
+    from worker import save_state
+
+    api = HfApi()
+    all_files = api.list_repo_files("evaleval/EEE_datastore", repo_type="dataset")
+    current_folders = sorted({
+        p.split("/")[1] for p in all_files
+        if p.startswith("data/") and len(p.split("/")) >= 2
+    })
+
+    state = load_state()
+    state["known_folders"] = current_folders
+    save_state(state)
+    return {"action": "initialized", "known_folders_count": len(current_folders)}
+
+
 @app.get("/")
 async def root():
     """Root endpoint for HF Space UI."""
-    return {"service": "BenchmarkCard Webhook", "endpoints": ["/webhook", "/status", "/health"]}
+    return {"service": "BenchmarkCard Webhook", "endpoints": ["/webhook", "/status", "/health", "/init-known-folders"]}
 
 
 @app.get("/health")
