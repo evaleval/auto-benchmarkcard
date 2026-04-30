@@ -18,20 +18,34 @@ class BenchmarkProcessingError(Exception):
 
 
 class GraphState(TypedDict):
+    # Input: benchmark name or UnitXT catalog ID (e.g. "mmlu" or "cards.mmlu")
     query: str
+    # Optional UnitXT catalog path override
     catalog_path: Optional[str]
+    # Manages per-benchmark output directories and tool artifact saving
     output_manager: OutputManager
+
+    # Phase 1 — extraction outputs (populated by workers, consumed by composer)
     unitxt_json: Optional[Dict[str, Any]]
-    extracted_ids: Optional[Dict[str, Any]]
+    extracted_ids: Optional[Dict[str, Any]]  # hf_repo, paper_url, risk_tags
     hf_repo: Optional[str]
     hf_json: Optional[Dict[str, Any]]
-    docling_output: Optional[Dict[str, Any]]
+    docling_output: Optional[Dict[str, Any]]  # paper text from PDF
+    html_content: Optional[Dict[str, Any]]  # web page text from trafilatura
+    eee_metadata: Optional[Dict[str, Any]]  # pre-aggregated EEE data (bypasses UnitXT)
+    hf_extraction_attempted: Optional[bool]  # prevents re-running HF paper URL extraction
+    paper_resolver_attempted: Optional[bool]  # prevents re-running paper resolution
+
+    # Phase 2 — composition and enrichment
+    composed_card: Optional[Dict[str, Any]]  # LLM-generated card from composer
+    risk_enhanced_card: Optional[Dict[str, Any]]  # card with AI Atlas Nexus risks
+
+    # Phase 3 — validation
+    rag_results: Optional[Dict[str, Any]]  # evidence retrieved for fact-checking
+    factuality_results: Optional[Dict[str, Any]]  # FactReasoner probability scores
+    final_card: Optional[Dict[str, Any]]  # flagged card after fact-checking
+
+    # LangGraph reducer: each worker appends status strings (e.g. "unitxt done",
+    # "composer failed"). The orchestrator reads these to decide the next step.
     completed: Annotated[list, operator.add]
     errors: Optional[List[str]]
-    composed_card: Optional[Dict[str, Any]]
-    risk_enhanced_card: Optional[Dict[str, Any]]
-    hf_extraction_attempted: Optional[bool]
-    rag_results: Optional[Dict[str, Any]]
-    factuality_results: Optional[Dict[str, Any]]
-    final_card: Optional[Dict[str, Any]]
-    eee_metadata: Optional[Dict[str, Any]]

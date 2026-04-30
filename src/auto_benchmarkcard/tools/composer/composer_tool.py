@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 PAPER_EXTRACTION_PROMPT = """Read this research paper about the benchmark "{benchmark_name}" and describe what it says about each field below.
 
 {identity_anchor}
+{name_alias_line}
 CRITICAL RULES:
 1. Write in your own words based on what the paper says. Do NOT copy text verbatim — rephrase clearly.
 2. Base your descriptions ONLY on the paper text provided. Do NOT use knowledge from your training data.
@@ -112,6 +113,43 @@ Describe these fields:
 HUGGINGFACE DATASET PAGE:
 {hf_content}"""
 
+HTML_EXTRACTION_PROMPT = """Read this web page about the benchmark "{benchmark_name}" and describe what it says about each field below.
+
+{identity_anchor}
+CRITICAL RULES:
+1. Write in your own words based on what the page says. Do NOT copy text verbatim — rephrase clearly.
+2. Base your descriptions ONLY on the text provided. Do NOT use knowledge from your training data.
+3. You are extracting facts about "{benchmark_name}" ONLY. Do NOT confuse it with any other benchmark or dataset.
+4. If information is not found, write: "- No information found"
+5. For each field, write 1-3 clear sentences capturing the key information.
+
+Describe these fields:
+
+## benchmark_details
+- overview: What does this benchmark measure? What makes it distinctive?
+- domains: What research domains or subject areas does it cover?
+
+## purpose_and_intended_users
+- goal: What is the purpose of this benchmark?
+- tasks: What evaluation tasks does it include?
+- limitations: What limitations are mentioned?
+
+## data
+- source: Where does the data come from and how was it collected?
+- size: How many examples or how large is the dataset?
+- annotation: How was the annotation process conducted?
+
+## methodology
+- methods: How are models evaluated?
+- metrics: What metrics are used?
+- baseline_results: What model scores or baselines are reported?
+
+## ethical_and_legal_considerations
+- Any ethical considerations mentioned
+
+WEB PAGE CONTENT:
+{html_content}"""
+
 _EXTRACTOR_SYSTEM = (
     "You are a precise research assistant that reads source material and describes what it says. "
     "You rephrase information in your own words — you do NOT copy text verbatim. "
@@ -171,9 +209,13 @@ def _get_benchmark_identity(
     benchmark_name: str,
     hf_metadata: Optional[Dict[str, Any]] = None,
     eee_metadata: Optional[Dict[str, Any]] = None,
+    paper_title: str = "",
 ) -> str:
     """Build a short identity anchor so the LLM doesn't confuse benchmarks."""
     signals = []
+
+    if paper_title and paper_title.lower() != benchmark_name.lower():
+        signals.insert(0, f"Also known as: {paper_title}")
 
     if hf_metadata:
         meta = _get_hf_meta(hf_metadata)
@@ -215,16 +257,23 @@ def _get_benchmark_identity(
 
 
 def extract_facts_from_paper(
-    paper_content: str, benchmark_name: str, identity_anchor: str = ""
+    paper_content: str, benchmark_name: str, identity_anchor: str = "",
+    paper_title: str = "",
 ) -> str:
     """Extract benchmark facts from paper text in isolation (no other sources)."""
     if not paper_content or paper_content == "Not available":
         return ""
 
+    name_alias_line = (
+        f'This benchmark may also be referred to as: "{paper_title}"'
+        if paper_title else ""
+    )
+
     prompt = PAPER_EXTRACTION_PROMPT.format(
         benchmark_name=benchmark_name,
         paper_content=paper_content,
         identity_anchor=identity_anchor,
+        name_alias_line=name_alias_line,
     )
 
     try:
@@ -266,6 +315,365 @@ def extract_facts_from_hf_readme(
     except Exception as e:
         logger.warning("HF README fact extraction failed: %s", e)
         return ""
+
+
+def extract_facts_from_html(
+    html_content: Dict[str, Any],
+    benchmark_name: str,
+    identity_anchor: str = "",
+) -> str:
+    """Extract benchmark facts from HTML web page content."""
+    text = html_content.get("text", "")
+    if not text or len(text) < 50:
+        return ""
+
+    html_text = text[:15000]
+
+    prompt = HTML_EXTRACTION_PROMPT.format(
+        benchmark_name=benchmark_name,
+        html_content=html_text,
+        identity_anchor=identity_anchor,
+    )
+
+    try:
+        from auto_benchmarkcard.config import get_llm_handler
+        llm_handler = get_llm_handler()
+        facts = llm_handler.generate(f"{_EXTRACTOR_SYSTEM}\n\n{prompt}")
+        logger.info("HTML extraction: %d chars of facts (from %d chars source)", len(facts), len(html_text))
+        return facts
+    except Exception as e:
+        logger.warning("HTML fact extraction failed: %s", e)
+        return ""
+
+
+SUB_BENCHMARK_EXTRACTION_PROMPT = """This paper describes the benchmark "{parent_name}".
+{name_alias_line}
+Search the text for ANY information specifically about the variant, sub-benchmark, category, or split called "{sub_name}".
+Also look for references to just "{sub_label}" — e.g., a section, category, task type, or evaluation split called "{sub_label}".
+
+Look for:
+- Sections, subsections, or paragraphs describing "{sub_label}" specifically
+- Data splits, sizes, or sources unique to this variant
+- Metrics or evaluation methodology that differs from the parent
+- Specific results or baselines reported for this variant
+- Task categories or domains unique to this variant
+- Any definition or description of what "{sub_label}" means in the context of this benchmark
+
+If you find specific information, describe it using the fields below.
+If the paper does NOT mention "{sub_label}" or "{sub_name}" and has NO information specific to it beyond what applies to the parent benchmark as a whole, respond with EXACTLY: NO SPECIFIC INFORMATION FOUND
+
+{identity_anchor}
+
+Fields to describe (ONLY if paper has sub-benchmark-specific information):
+
+## benchmark_details
+- overview: What specifically distinguishes this sub-benchmark from the parent?
+- domains: Any specific domains or categories this variant focuses on
+
+## data
+- source: Data sources unique to this sub-benchmark
+- size: Size information specific to this sub-benchmark
+
+## methodology
+- metrics: Metrics specific to this sub-benchmark
+- baseline_results: Results reported specifically for this variant
+
+PAPER TEXT:
+{paper_content}"""
+
+HF_SUB_BENCHMARK_EXTRACTION_PROMPT = """This HuggingFace dataset README describes the benchmark "{parent_name}".
+Search the text for ANY information specifically about the variant, sub-benchmark, category, or split called "{sub_name}".
+Also look for references to just "{sub_label}" — e.g., a section, category, task type, or split called "{sub_label}".
+
+If you find specific information about what "{sub_label}" is or how it differs from the parent benchmark, describe it.
+If the README does NOT mention "{sub_label}" or "{sub_name}", respond with EXACTLY: NO SPECIFIC INFORMATION FOUND
+
+Fields to describe (ONLY if README has sub-benchmark-specific information):
+
+## benchmark_details
+- overview: What specifically distinguishes this sub-benchmark from the parent?
+- domains: Any specific domains or categories this variant focuses on
+
+## data
+- source: Data sources unique to this sub-benchmark
+- size: Size information specific to this sub-benchmark
+
+README TEXT:
+{readme_content}"""
+
+SUB_BENCHMARK_FALLBACK_PROMPT = """You are writing a brief, factual description for a sub-benchmark card.
+
+Parent benchmark: "{parent_name}"
+Parent overview: "{parent_overview}"
+Sub-benchmark name: "{sub_name}"
+Distinguishing label: "{sub_label}"
+
+Based on the sub-benchmark name and the parent benchmark context, write exactly 1-2 sentences describing what this sub-benchmark likely evaluates or measures, and how it relates to the parent benchmark. Be specific about the "{sub_label}" component.
+
+Keep it factual and concise. Do NOT invent specific numbers, dates, or paper citations."""
+
+
+def _extract_sub_label(sub_name: str, parent_name: str) -> str:
+    """Extract the distinguishing label from a sub-benchmark name.
+
+    E.g., 'rewardbench_2_safety' with parent 'rewardbench_2' → 'safety'
+          'bfcl_multi_turn' with parent 'bfcl' → 'multi turn'
+          'arc_agi_v2_public_eval' with parent 'arc_agi' → 'v2 public eval'
+    """
+    # Simple normalization (avoid importing from eee_tool to prevent circular imports)
+    def _norm(n):
+        return n.strip().lower().replace("_", "-").replace(" ", "-")
+
+    parent_norm = _norm(parent_name)
+    sub_norm = _norm(sub_name)
+
+    # Try to strip the parent prefix
+    if sub_norm.startswith(parent_norm):
+        label = sub_norm[len(parent_norm):].strip().strip("-").strip()
+        if label:
+            return label.replace("-", " ")
+
+    # Fallback: just replace underscores/dashes with spaces
+    return sub_name.replace("_", " ").replace("-", " ")
+
+
+def _targeted_extract(paper_content: str, sub_label: str, context_chars: int = 2000) -> str:
+    """Extract paragraphs from paper that mention the sub-benchmark label.
+
+    Returns the most relevant portions of the paper text containing the label,
+    plus the first section for context. Caps total at context_chars * number of matches.
+    """
+    paragraphs = paper_content.split("\n\n")
+    label_lower = sub_label.lower()
+    # Also search for individual words if label is multi-word
+    label_words = label_lower.split()
+
+    relevant = []
+    for i, para in enumerate(paragraphs):
+        para_lower = para.lower()
+        if label_lower in para_lower:
+            # Include surrounding paragraphs for context
+            start = max(0, i - 1)
+            end = min(len(paragraphs), i + 2)
+            for j in range(start, end):
+                if paragraphs[j] not in relevant:
+                    relevant.append(paragraphs[j])
+        elif len(label_words) > 1 and all(w in para_lower for w in label_words):
+            if para not in relevant:
+                relevant.append(para)
+
+    if relevant:
+        # Include first 2 paragraphs for paper context + all relevant paragraphs
+        header = "\n\n".join(paragraphs[:2])
+        body = "\n\n".join(relevant)
+        return f"{header}\n\n...\n\n{body}"
+
+    return ""
+
+
+def extract_sub_benchmark_facts(
+    paper_content: str,
+    parent_name: str,
+    sub_name: str,
+    identity_anchor: str = "",
+    paper_title: str = "",
+    hf_readme_content: str = "",
+) -> Optional[str]:
+    """Search paper text and HF README for information specific to a sub-benchmark.
+
+    Returns extracted facts string if found, None if nothing specific was found.
+    Tries: (1) targeted paper extraction, (2) full paper extraction, (3) HF README.
+    """
+    sub_label = _extract_sub_label(sub_name, parent_name)
+
+    name_alias_line = (
+        f'This benchmark may also be referred to as: "{paper_title}"'
+        if paper_title else ""
+    )
+
+    from auto_benchmarkcard.config import get_llm_handler
+    llm_handler = get_llm_handler()
+
+    # Strategy 1: Targeted extraction — find paragraphs mentioning sub_label
+    if paper_content:
+        targeted_text = _targeted_extract(paper_content, sub_label)
+        search_text = targeted_text if targeted_text else paper_content[:30000]
+
+        prompt = SUB_BENCHMARK_EXTRACTION_PROMPT.format(
+            parent_name=parent_name,
+            sub_name=sub_name,
+            sub_label=sub_label,
+            paper_content=search_text,
+            identity_anchor=identity_anchor,
+            name_alias_line=name_alias_line,
+        )
+
+        try:
+            result = llm_handler.generate(f"{_EXTRACTOR_SYSTEM}\n\n{prompt}")
+
+            if "NO SPECIFIC INFORMATION FOUND" not in result.upper():
+                logger.info("Found sub-benchmark facts for %s (paper): %d chars", sub_name, len(result))
+                return result
+
+            logger.info("No specific info in paper for sub-benchmark %s (label: %s)", sub_name, sub_label)
+        except Exception as e:
+            logger.warning("Paper sub-benchmark extraction failed for %s: %s", sub_name, e)
+
+    # Strategy 2: HF README fallback
+    if hf_readme_content:
+        prompt = HF_SUB_BENCHMARK_EXTRACTION_PROMPT.format(
+            parent_name=parent_name,
+            sub_name=sub_name,
+            sub_label=sub_label,
+            readme_content=hf_readme_content[:15000],
+        )
+
+        try:
+            result = llm_handler.generate(f"{_EXTRACTOR_SYSTEM}\n\n{prompt}")
+
+            if "NO SPECIFIC INFORMATION FOUND" not in result.upper():
+                logger.info("Found sub-benchmark facts for %s (HF README): %d chars", sub_name, len(result))
+                return result
+
+            logger.info("No specific info in HF README for sub-benchmark %s", sub_name)
+        except Exception as e:
+            logger.warning("HF README sub-benchmark extraction failed for %s: %s", sub_name, e)
+
+    return None
+
+
+def generate_sub_benchmark_fallback_description(
+    sub_name: str,
+    parent_name: str,
+    parent_overview: str,
+) -> Optional[str]:
+    """Generate a brief distinguishing description for a sub-benchmark as last resort.
+
+    Used when neither paper nor HF README contain specific sub-benchmark info.
+    Returns a 1-2 sentence description, or None if generation fails.
+    """
+    sub_label = _extract_sub_label(sub_name, parent_name)
+
+    prompt = SUB_BENCHMARK_FALLBACK_PROMPT.format(
+        parent_name=parent_name,
+        parent_overview=parent_overview[:500],
+        sub_name=sub_name,
+        sub_label=sub_label,
+    )
+
+    try:
+        from auto_benchmarkcard.config import get_llm_handler
+        llm_handler = get_llm_handler()
+        result = llm_handler.generate(prompt)
+        # Clean up — take just the first 1-2 sentences
+        sentences = result.strip().split(". ")
+        description = ". ".join(sentences[:2])
+        if not description.endswith("."):
+            description += "."
+        logger.info("Generated fallback description for %s: %s", sub_name, description[:100])
+        return description
+    except Exception as e:
+        logger.warning("Fallback description generation failed for %s: %s", sub_name, e)
+        return None
+
+
+def compose_sub_benchmark_card(
+    parent_card: Dict[str, Any],
+    sub_facts: Optional[str],
+    sub_name: str,
+    eee_metadata: Optional[Dict[str, Any]] = None,
+    fallback_description: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Compose a sub-benchmark card by inheriting from parent and specializing.
+
+    If sub_facts is None (no specific info found), uses fallback_description
+    to at least distinguish the overview. If neither is available, inherits verbatim.
+    """
+    import copy
+
+    parent_bc = parent_card.get("benchmark_card", parent_card)
+    card = copy.deepcopy(parent_bc)
+
+    # Always override identity fields
+    if "benchmark_details" not in card:
+        card["benchmark_details"] = {}
+    card["benchmark_details"]["name"] = sub_name
+    card["benchmark_details"]["benchmark_type"] = "sub-benchmark"
+    if eee_metadata:
+        card["benchmark_details"]["appears_in"] = eee_metadata.get("appears_in", [])
+
+    if sub_facts:
+        # Use LLM to specialize the inherited card with sub-benchmark-specific facts
+        _specialize_card_with_facts(card, sub_facts, sub_name)
+    elif fallback_description:
+        # No grounded facts found, but inject a distinguishing overview
+        parent_name = parent_bc.get("benchmark_details", {}).get("name", "unknown")
+        sub_label = _extract_sub_label(sub_name, parent_name)
+        parent_overview = card["benchmark_details"].get("overview", "")
+        card["benchmark_details"]["overview"] = (
+            f"{fallback_description}\n\n"
+            f"This is the \"{sub_label}\" sub-component of {parent_name}. "
+            f"{parent_overview}"
+        )
+
+    card = post_process_card(card)
+
+    return {
+        "benchmark_card": card,
+        "generation_metadata": {
+            "generation_method": "sub_benchmark_inheritance",
+            "parent_benchmark": parent_bc.get("benchmark_details", {}).get("name", "unknown"),
+            "has_specific_facts": bool(sub_facts),
+            "has_fallback_description": bool(fallback_description) and not bool(sub_facts),
+            "timestamp": datetime.now().isoformat(),
+        },
+    }
+
+
+def _specialize_card_with_facts(card: Dict[str, Any], sub_facts: str, sub_name: str):
+    """Apply sub-benchmark-specific facts to inherited card fields."""
+    # Sections that should NOT be overridden (always inherit from parent)
+    _INHERIT_SECTIONS = {"ethical_and_legal_considerations"}
+
+    prompt = f"""You are specializing a benchmark card for the sub-benchmark "{sub_name}".
+
+Below is the PARENT benchmark card (inherited values) and FACTS specific to this sub-benchmark extracted from the paper.
+
+For each section and field:
+- If the sub-benchmark facts provide SPECIFIC information for that field, update the value to reflect the sub-benchmark specifics.
+- If the facts say nothing specific about a field, keep the parent value UNCHANGED.
+- Do NOT remove or empty any parent values — only add or refine.
+
+PARENT CARD:
+{json.dumps(card, indent=2)}
+
+SUB-BENCHMARK FACTS:
+{sub_facts}
+
+Return the updated card as valid JSON. Keep the exact same structure as the parent card."""
+
+    try:
+        from auto_benchmarkcard.config import get_llm_handler
+        llm_handler = get_llm_handler()
+        result = llm_handler.generate(prompt)
+
+        # Extract JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', result)
+        if json_match:
+            specialized = json.loads(json_match.group())
+
+            # Apply specializations but protect inherited sections
+            for section_key, section_value in specialized.items():
+                if section_key in _INHERIT_SECTIONS:
+                    continue
+                if section_key in card and isinstance(section_value, dict):
+                    card[section_key].update(section_value)
+                else:
+                    card[section_key] = section_value
+        else:
+            logger.warning("Could not parse specialized card JSON for %s", sub_name)
+    except Exception as e:
+        logger.warning("Card specialization failed for %s: %s", sub_name, e)
 
 
 def _get_hf_readme(hf_metadata: Optional[Dict[str, Any]]) -> str:
@@ -403,6 +811,18 @@ def extract_deterministic_facts(
 
         if eee_metadata.get("eval_library"):
             facts["methodology.eval_library"] = eee_metadata["eval_library"]
+
+        # Composite context in deterministic facts: structured data for merging.
+        # A second composite block exists in the prompt (~line 1744) for LLM guidance.
+        # Both are needed: this one feeds the facts dict, that one shapes generation.
+        if eee_metadata.get("benchmark_type") == "composite":
+            contains = eee_metadata.get("contains", [])
+            facts["benchmark_type"] = "composite"
+            facts["composite_context"] = (
+                f"This is a composite benchmark suite containing the following "
+                f"sub-benchmarks: {', '.join(contains)}. Describe what the suite "
+                f"measures as a whole, not individual sub-benchmarks."
+            )
 
     if extracted_ids:
         if extracted_ids.get("paper_url"):
@@ -645,20 +1065,32 @@ def merge_extracted_facts(
     hf_facts: str,
     deterministic_facts: Dict[str, Any],
     benchmark_name: str,
+    html_facts: str = "",
 ) -> Dict[str, str]:
     """Merge facts from all sources into per-section tagged strings.
 
-    Priority: DETERMINISTIC > PAPER > HF_README.
+    Priority: DETERMINISTIC > PAPER > HTML > HF_README > EEE.
     """
     merged: Dict[str, str] = {}
 
     for section in ALL_SECTIONS:
         parts = []
 
+        # Composite context goes first so the LLM always knows the suite structure
+        if deterministic_facts.get("benchmark_type") == "composite":
+            composite_ctx = deterministic_facts.get("composite_context", "")
+            if composite_ctx:
+                parts.append(f"[DETERMINISTIC] {composite_ctx}")
+
         if paper_facts:
             section_text = _extract_section_from_facts(paper_facts, section)
             if section_text:
                 parts.append(f"[PAPER] Facts from research paper:\n{section_text}")
+
+        if html_facts:
+            section_text = _extract_section_from_facts(html_facts, section)
+            if section_text:
+                parts.append(f"[HTML] Facts from project web page:\n{section_text}")
 
         if hf_facts:
             section_text = _extract_section_from_facts(hf_facts, section)
@@ -883,11 +1315,12 @@ def compute_card_confidence(
     has_hf_readme: bool,
     has_eee: bool,
     has_hf_basic: bool = False,
+    has_html: bool = False,
 ) -> Dict[str, Any]:
     """Compute confidence level (high/medium/low) based on available sources."""
-    if has_paper and (has_hf_readme or has_hf_basic):
+    if has_paper and (has_hf_readme or has_hf_basic or has_html):
         level = "high"
-    elif has_paper or (has_hf_readme and has_eee):
+    elif has_paper or (has_hf_readme and has_eee) or (has_html and has_eee):
         level = "medium"
     else:
         level = "low"
@@ -896,6 +1329,7 @@ def compute_card_confidence(
         "confidence_level": level,
         "sources_available": {
             "paper": has_paper,
+            "html": has_html,
             "hf_readme": has_hf_readme,
             "hf_basic_metadata": has_hf_basic,
             "eee": has_eee,
@@ -1126,6 +1560,7 @@ def compose_benchmark_card(
     docling_output: Optional[Dict[str, Any]] = None,
     query: str = "",
     eee_metadata: Optional[Dict[str, Any]] = None,
+    html_content: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Compose a benchmark card from collected metadata using source-isolated extraction."""
 
@@ -1135,10 +1570,16 @@ def compose_benchmark_card(
     has_hf = bool(hf_metadata)
     has_hf_readme = bool(_get_hf_readme(hf_metadata))
     has_eee = bool(eee_metadata)
+    has_html = bool(html_content and html_content.get("success"))
+    has_abstract_fallback = not has_paper and bool(extracted_ids and extracted_ids.get("paper_abstract"))
 
     source_list = []
     if has_paper:
         source_list.append("Paper")
+    elif has_abstract_fallback:
+        source_list.append("Paper-abstract")
+    if has_html:
+        source_list.append("HTML")
     if has_hf_readme:
         source_list.append("HF-README")
     elif has_hf:
@@ -1228,18 +1669,38 @@ def compose_benchmark_card(
                 all_paper_content = paper_text[:budget]
                 logger.info("Using raw paper text (truncated to %d chars)", budget)
 
+    # Fallback: use paper abstract from resolver when Docling failed/skipped
+    if not all_paper_content and has_abstract_fallback:
+        abstract = extracted_ids["paper_abstract"]
+        title = extracted_ids.get("paper_title", "")
+        year = extracted_ids.get("paper_year", "")
+        header = f"Paper: {title}" + (f" ({year})" if year else "")
+        all_paper_content = f"{header}\n\nAbstract: {abstract}"
+        logger.info("Using paper abstract as fallback (%d chars)", len(all_paper_content))
+
+    # Extract paper title for name alias (helps with name mismatches like tau_bench_2 vs τ-bench)
+    paper_title = ""
+    if has_paper:
+        paper_title = docling_output.get("metadata", {}).get("title", "")
+    elif has_abstract_fallback and extracted_ids:
+        paper_title = extracted_ids.get("paper_title", "")
+
     # Phase 2: Source-isolated extraction
-    identity_anchor = _get_benchmark_identity(query, hf_metadata, eee_metadata)
+    identity_anchor = _get_benchmark_identity(query, hf_metadata, eee_metadata, paper_title=paper_title)
     if identity_anchor:
         logger.info("Benchmark identity: %s", identity_anchor)
 
     paper_facts = ""
     if all_paper_content:
-        paper_facts = extract_facts_from_paper(all_paper_content, query, identity_anchor)
+        paper_facts = extract_facts_from_paper(all_paper_content, query, identity_anchor, paper_title=paper_title)
 
     hf_facts = ""
     if has_hf_readme:
         hf_facts = extract_facts_from_hf_readme(hf_metadata, query, identity_anchor=identity_anchor)
+
+    html_facts = ""
+    if has_html:
+        html_facts = extract_facts_from_html(html_content, query, identity_anchor=identity_anchor)
 
     det_facts = extract_deterministic_facts(eee_metadata, hf_metadata, extracted_ids)
 
@@ -1252,6 +1713,13 @@ def compose_benchmark_card(
         paper_facts = check_cross_contamination(
             paper_facts, full_paper_text or all_paper_content, query, identity_anchor
         )
+
+    if html_facts and has_html:
+        html_text = html_content.get("text", "")
+        if html_text:
+            html_facts = check_cross_contamination(
+                html_facts, html_text, query, identity_anchor
+            )
 
     if hf_facts and has_hf_readme:
         readme_text_for_check = _get_hf_readme(hf_metadata)
@@ -1267,7 +1735,7 @@ def compose_benchmark_card(
         )
 
     # Phase 4: Merge facts
-    merged_facts = merge_extracted_facts(paper_facts, hf_facts, det_facts, query)
+    merged_facts = merge_extracted_facts(paper_facts, hf_facts, det_facts, query, html_facts=html_facts)
 
     # Phase 5: Compose sections
     sections = [
@@ -1288,6 +1756,19 @@ def compose_benchmark_card(
     generated_sections = {}
     all_provenance = {}
 
+    # Composite guidance: injected into prompt for composite suites, empty for singles
+    composite_guidance = ""
+    if eee_metadata and eee_metadata.get("benchmark_type") == "composite":
+        contains_list = ", ".join(eee_metadata.get("contains", []))
+        composite_guidance = (
+            f"\nCOMPOSITE BENCHMARK CONTEXT:\n"
+            f"This benchmark is a composite suite containing: {contains_list}.\n"
+            f"Describe what the suite measures overall and how the sub-benchmarks fit together.\n"
+            f"For methodology and data fields, describe the suite as a whole "
+            f"(e.g., aggregated scoring, coverage across domains).\n"
+            f"Detailed methodology of each sub-benchmark belongs in their individual cards.\n"
+        )
+
     for section_name, section_class in sections:
         logger.info("Composing section: %s", section_name)
 
@@ -1302,24 +1783,28 @@ def compose_benchmark_card(
                 f"```json\n{gold_json_escaped}\n```"
             )
 
+        # Escape braces in composite_guidance for ChatPromptTemplate
+        composite_guidance_escaped = composite_guidance.replace("{", "{{").replace("}", "}}")
+
         section_prompt = ChatPromptTemplate.from_messages([
             (
                 "system",
                 f"""You are documenting the AI benchmark "{{query}}". Generate the '{section_name}' section.
-
+{composite_guidance_escaped}
 You are given DESCRIBED FACTS from multiple sources, each tagged with its origin:
 - [PAPER]: From the research paper (most authoritative for methodology, baselines)
+- [HTML]: From the project web page
 - [HF_README]: From the HuggingFace dataset page
 - [DETERMINISTIC]: Verified facts from structured metadata (always correct)
 - [EEE]: Evaluation results from Every Eval Ever
 
 RULES:
 1. Use ONLY the facts provided below. Do NOT add information from your own knowledge about this or any benchmark.
-2. If facts from different sources conflict, prefer [DETERMINISTIC] > [PAPER] > [HF_README] > [EEE].
+2. If facts from different sources conflict, prefer [DETERMINISTIC] > [PAPER] > [HTML] > [HF_README] > [EEE].
 3. If a field has no facts from any source, write exactly "Not specified".
 4. Write in third person. Be concise and clear. Match the gold example style.
 5. Write in your own words — synthesize the facts into natural, readable descriptions. Do NOT copy raw text fragments.
-6. Do NOT mention other benchmarks unless the [PAPER] facts explicitly name them.
+6. Do NOT mention other benchmarks unless the [PAPER] or [HTML] facts explicitly name them.
 7. For baseline_results: separate PAPER baselines (original results) from EEE results (evaluation suite results).
 8. Do NOT invent numbers, dataset sizes, platform names, or methodology details that are not in the facts below.
 9. SKIP any facts tagged [SUSPECT] — these may be from a different benchmark. Do not use them.
@@ -1330,7 +1815,7 @@ For every field you fill in (except "Not specified"), include a provenance entry
 {{{{
   "provenance": {{{{
     "field_name": {{{{
-      "source": "paper|huggingface|eee|deterministic",
+      "source": "paper|html|huggingface|eee|deterministic",
       "evidence": "the key fact that supports this value"
     }}}}
   }}}}
@@ -1406,7 +1891,7 @@ Generate the {section_name} section.""",
     benchmark_card_dict = post_process_card(benchmark_card_dict)
 
     # Phase 9: Confidence
-    confidence = compute_card_confidence(has_paper, has_hf_readme, has_eee, has_hf)
+    confidence = compute_card_confidence(has_paper, has_hf_readme, has_eee, has_hf, has_html=has_html)
 
     return {
         "benchmark_card": benchmark_card_dict,
@@ -1417,6 +1902,8 @@ Generate the {section_name} section.""",
                 "huggingface": bool(hf_metadata),
                 "extracted_ids": bool(extracted_ids),
                 "docling": has_paper,
+                "paper_abstract_fallback": has_abstract_fallback,
+                "html": has_html,
                 "eee": has_eee,
             },
             "query": query,

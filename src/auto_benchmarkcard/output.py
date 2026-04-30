@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -12,8 +13,16 @@ logger = logging.getLogger(__name__)
 
 
 def sanitize_benchmark_name(name: str) -> str:
-    """Convert benchmark name to a filesystem-safe string."""
-    return name.replace("/", "_").replace(" ", "_")
+    """Convert benchmark name to a canonical, filesystem-safe string.
+
+    All non-alphanumeric characters (except dots for version numbers) are
+    replaced with hyphens. Result is lowercase with no leading/trailing
+    or consecutive hyphens. Uses hyphens to match Entity Registry conventions.
+    """
+    s = name.strip().lower()
+    s = re.sub(r'[^a-z0-9.]+', '-', s)
+    s = re.sub(r'-+', '-', s).strip('-')
+    return s
 
 
 class OutputManager:
