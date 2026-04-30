@@ -75,7 +75,9 @@ def generate_output_from_benchmark_card(benchmark_card: Dict[str, Any], field: s
                 domain_text = f"It is used for {', '.join(details['domains'])}."
                 output_parts.append(domain_text)
             if "languages" in details:
-                lang_text = f"It supports {', '.join(details['languages'])} language."
+                langs = details['languages']
+                suffix = "languages" if len(langs) != 1 else "language"
+                lang_text = f"It supports {', '.join(langs)} {suffix}."
                 output_parts.append(lang_text)
 
     elif field == "purpose":

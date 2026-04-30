@@ -57,9 +57,9 @@ FAILURE_REASONS = {
 }
 
 
-# ---------------------------------------------------------------------------
+
 # Step 1: Parse missing benchmarks from card_backend README
-# ---------------------------------------------------------------------------
+
 
 def parse_missing_benchmarks() -> List[str]:
     """Download card_backend README and extract non-checkmarked benchmark names."""
@@ -78,9 +78,9 @@ def parse_missing_benchmarks() -> List[str]:
     return names
 
 
-# ---------------------------------------------------------------------------
+
 # Step 2: Download EEE datastore
-# ---------------------------------------------------------------------------
+
 
 def download_eee_datastore() -> Path:
     """Download the EEE datastore via HF hub (cached). Returns path to data/ dir."""
@@ -97,9 +97,9 @@ def download_eee_datastore() -> Path:
     return data_path
 
 
-# ---------------------------------------------------------------------------
+
 # Step 3: Match README names to EEE benchmark names
-# ---------------------------------------------------------------------------
+
 
 def match_benchmarks(
     readme_names: List[str],
@@ -174,9 +174,9 @@ def match_benchmarks(
     return deduped
 
 
-# ---------------------------------------------------------------------------
+
 # Step 4: Check already generated (resumability)
-# ---------------------------------------------------------------------------
+
 
 def already_generated(benchmark_name: str, output_dir: Path) -> bool:
     """Check if a benchmark card has already been generated in output_dir."""
@@ -192,9 +192,9 @@ def already_generated(benchmark_name: str, output_dir: Path) -> bool:
     return False
 
 
-# ---------------------------------------------------------------------------
+
 # Step 5-8: Main batch runner
-# ---------------------------------------------------------------------------
+
 
 def setup_file_logging(output_dir: Path, debug: bool = False) -> None:
     """Configure dual logging: console + file."""

@@ -1,8 +1,4 @@
-"""RAG (Retrieval-Augmented Generation) tools for evidence retrieval.
-
-This module provides tools for indexing metadata and retrieving evidence
-to support fact verification of benchmark cards.
-"""
+"""RAG evidence retrieval for fact verification."""
 
 from .atomizer import atomize_benchmark_card
 from .indexer import MetadataIndexer

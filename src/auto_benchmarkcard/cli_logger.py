@@ -1,9 +1,4 @@
-"""
-CLI Logger for BenchmarkCard workflow integration.
-
-This module provides a custom logger that integrates the agents workflow logging
-with the CLI's rich console interface, providing clean step-by-step output.
-"""
+"""Rich console logger for CLI workflow output."""
 
 from typing import Any
 

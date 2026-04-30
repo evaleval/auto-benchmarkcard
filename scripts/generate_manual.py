@@ -261,7 +261,7 @@ def main():
     parent_results = {}  # name -> {"card": card_dict}
     start = time.time()
 
-    # ── Pass 1: Generate parent benchmark cards ──
+    # Pass 1: generate parent benchmark cards
     if getattr(args, 'subs_only', False):
         print(f"\n{'=' * 60}")
         print(f"PASS 1: SKIPPED (--subs-only). Loading parent cards from disk.")
@@ -308,7 +308,7 @@ def main():
                 logger.error("ERROR %s - %s: %s (%.0fs)", name, reason, e, dt)
                 failed_list.append(_make_failure_entry(name, reason, str(e), paper_url, hf_repo, appears_in))
 
-    # ── Pass 2: Generate sub-benchmark cards via inheritance ──
+    # Pass 2: generate sub-benchmark cards via inheritance
     if subs:
         print(f"\n{'=' * 60}")
         print(f"PASS 2: Generating {len(subs)} sub-benchmarks via parent inheritance")
