@@ -1,0 +1,168 @@
+# Backlog: 162 benchmarks that need cards generated
+# Generated from dry-run on 2026-04-30
+# These are benchmarks in the 47 current EEE folders that don't have cards yet.
+# The webhook's known_folders should include all 47 folders so it doesn't re-process them.
+# Generate these separately via batch script.
+
+AMC_2022_23
+ARC-C
+ARC-E
+Aider
+Aider-Polyglot
+Aider-Polyglot Edit
+AlignBench
+AlpacaEval 2.0
+Anthropic Red Team
+Arena Hard
+Artificial Analysis LLM API
+AssistantBench
+BBQ
+BIG-Bench
+BIG-Bench Hard
+Bird-SQL (dev)
+BrowseComp
+BrowseComp-zh
+C-Eval
+CLUEWSC
+CMMLU
+CNMO 2024
+CORE-Bench Hard
+CRAG
+CSimpleQA
+CaseLaw (v2) - Overall
+CharXiv-R
+ChartQA
+CoVoST2
+CocoaBench v1.0
+CodeForces
+CorpFin - Exact Pages
+CorpFin - Max Fitting Context
+CorpFin - Overall
+CorpFin - Shared Max Context
+CorpusQA 1M
+CyBench
+CyberGym
+Cybersecurity CTFs
+DROP
+DS-Arena-Code
+DS-FIM-Eval
+DeepSearchQA
+DocVQA
+EgoSchema
+FACTS Grounding
+FLEURS
+FRAMES
+FigQA
+FinQA
+Finance Agent
+Finance Agent (v1.1)
+FunctionalMATH
+GAIA
+GDPval-AA
+Graphwalks BFS >128k
+Graphwalks parents >128k
+GroundUI-1K
+HMMT 2025
+HMMT Feb 26
+HarmBench
+HiddenMath
+HumanEval
+HumanEval+
+HumanEval-Mul
+Humanity's Last Exam
+IMO-AnswerBench
+IOI
+InfoVQA
+LVBench
+La Leaderboard composite dataset
+LiveCodeBench
+LiveCodeBench v5
+LiveCodeBench v6
+LiveCodeBench(01-09)
+LongBench v2
+MATH 500 - Overall
+MATH-500
+MBPP+
+MCP Atlas
+MCP-Mark
+MCP-Universe
+MGSM
+MM-Mind2Web
+MMBench
+MMBench-V1.1
+MME
+MMLU-Redux
+MMMLU
+MMMU (validation)
+MMMU-Pro
+MMMUval
+MMStar
+MMT-Bench
+MRCR
+MRCR 1M
+MRCR v2 (8-needle)
+MT-Bench
+MathArena Apex
+MathVista
+Multi Swe Bench (
+Natural2Code
+OCRBench
+OSWorld
+OSWorld Extended
+OSWorld Screenshot-only
+OSWorld-Verified
+Online Mind2Web
+OpenRCA
+PIQA
+PhysicsFinals
+RealWorldQA
+SQuALITY
+SWE-Bench Multimodal
+SWE-Bench Pro
+SWE-Bench Verified
+SWE-bench Multilingual
+SWE-bench Verified (Agentic Coding)
+SWE-bench Verified Mini
+Scicode
+ScienceAgentBench
+SimpleQA
+SimpleSafetyTests
+Swe Polybench
+TAU-bench Airline
+TAU-bench Retail
+Tau2 Airline
+Tau2 Retail
+Tau2 Telecom
+TaxEval (v2) - Correctness
+TaxEval (v2) - Overall
+TaxEval (v2) - Stepwise Reasoning
+Terminal-Bench
+TextVQA
+Toolathlon
+Translation Set1→en COMET22
+Translation Set1→en spBleu
+Translation en→Set1 COMET22
+Translation en→Set1 spBleu
+USACO
+USAMO25
+VATEX
+Vals Index - Case Law (v2)
+Vals Index - Corp Fin (v2)
+Vals Index - Finance Agent
+Vals Index - Terminal-Bench 2.0
+Vending-Bench 2
+Vibe Code Bench - Overall
+Vibe-Eval
+Video-MME
+VisualWebBench
+WMT23
+Wild Bench
+Winogrande
+XSTest
+appworld/test_normal
+helm_air_bench
+helm_safety
+llm-stats
+openeval
+t2-bench
+vals-ai

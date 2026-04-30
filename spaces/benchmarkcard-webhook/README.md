@@ -10,17 +10,19 @@ pinned: false
 
 # BenchmarkCard Webhook
 
-Receives HF webhook events when PRs are merged on `evaleval/EEE_datastore`,
-detects new benchmark folders, and automatically generates benchmark cards.
+Webhook receiver that auto-generates benchmark cards when new evaluation data
+is merged into [evaleval/EEE_datastore](https://huggingface.co/datasets/evaleval/EEE_datastore).
+
+Generated cards are uploaded to [evaleval/auto-benchmarkcards](https://huggingface.co/datasets/evaleval/auto-benchmarkcards).
 
 ## Endpoints
 
-- `POST /webhook` — HF webhook receiver
-- `GET /status` — Job history and active state
-- `GET /health` — Health check
+- `POST /webhook` — receives HF webhook events
+- `GET /status` — shows recent job history
+- `GET /health` — health check
 
-## Environment Variables
+## Setup
 
-- `HF_TOKEN` — HuggingFace token with write access to `evaleval/auto-benchmarkcards`
-- `WEBHOOK_SECRET` — Secret for webhook verification
-- `PERSISTENT_DIR` — Path to persistent storage (default: `/data`)
+Required Space secrets:
+- `HF_TOKEN` — HuggingFace token with write access to evaleval/auto-benchmarkcards
+- `WEBHOOK_SECRET` — shared secret for webhook verification

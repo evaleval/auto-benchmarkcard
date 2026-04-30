@@ -1,7 +1,12 @@
 """Benchmark metadata extraction pipeline built on LangGraph.
 
-Orchestrates worker nodes through a conditional state machine:
-  UnitXT → Extractor → HF → Docling → Composer → Risk → RAG → FactReasoner
+Pipeline flow:
+  [UnitXT] -> [Extractor] -> [HF] -> [HF_Extractor?] -> [PaperResolver?]
+    -> [Docling?] -> [HTML?] -> [Composer] -> [Risk] -> [RAG] -> [FactReasoner] -> END
+
+EEE path: skips UnitXT/Extractor (metadata comes from EEE JSONs)
+Composite path: skips RAG/FactReasoner (no single source paper to fact-check)
+Failed steps: skipped, pipeline continues to next step
 """
 
 from __future__ import annotations
@@ -20,7 +25,9 @@ from auto_benchmarkcard.workers import (
     run_unitxt,
     run_extractor,
     run_hf_extractor,
+    run_paper_resolver,
     run_docling,
+    run_html_extractor,
     run_hf,
     run_composer,
     run_risk_identification,
@@ -42,38 +49,32 @@ __all__ = [
 ]
 
 
-def _step_failed(state: GraphState, keyword: str) -> bool:
-    """Check if a workflow step already failed (by scanning the completed log)."""
-    return any(keyword in entry and "failed" in entry for entry in state.get("completed", []))
-
-
 def orchestrator(state: GraphState) -> Dict[str, str]:
-    """Determine the next workflow step based on current state.
+    """Determine the next workflow step based on current state."""
+    completed = state.get("completed", [])
+    completed_str = " ".join(completed)
 
-    Each step is routed only if its output is missing AND the step hasn't
-    already been attempted and failed. Required steps (unitxt, composer)
-    abort the pipeline on failure; optional steps (hf, docling, risk) are
-    skipped so downstream steps can still run with partial data.
-    """
-    is_eee = state.get("eee_metadata") is not None
+    def _failed(step: str) -> bool:
+        # Relies on handle_error() producing "<operation> failed" strings consistently.
+        # Fragile if operation names change — but works today. A proper fix would use
+        # an enum-based failed set, which requires touching every worker + state schema.
+        return f"{step} failed" in completed_str
 
-    # UnitXT + Extractor: required for non-EEE path
+    # EEE path bypasses UnitXT and extractor
+    eee_metadata = state.get("eee_metadata")
+    is_eee = eee_metadata is not None
+    is_composite = is_eee and eee_metadata.get("benchmark_type") == "composite"
+
     if not is_eee:
-        if state["unitxt_json"] is None:
-            if _step_failed(state, "unitxt"):
-                return {"next": "END"}
+        if state["unitxt_json"] is None and not _failed("unitxt lookup"):
             return {"next": "unitxt_worker"}
-        if state["extracted_ids"] is None:
-            if _step_failed(state, "extraction"):
-                return {"next": "END"}
+        if state["extracted_ids"] is None and not _failed("id extraction"):
             return {"next": "extractor_worker"}
 
-    # HF metadata: optional — skip on failure
-    if state["hf_repo"] is not None and state["hf_json"] is None:
-        if not _step_failed(state, "huggingface"):
-            return {"next": "hf_worker"}
+    if state["hf_repo"] is not None and state["hf_json"] is None and not _failed("huggingface lookup"):
+        return {"next": "hf_worker"}
 
-    # HF paper URL fallback: optional
+    # Fall back to HF metadata for paper URL if UnitXT didn't provide one
     current_paper_url = state.get("extracted_ids", {}).get("paper_url")
     has_hf_data = state.get("hf_json") is not None
     hf_extraction_attempted = state.get("hf_extraction_attempted", False)
@@ -82,35 +83,35 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
     if needs_hf_extraction:
         return {"next": "hf_extractor_worker"}
 
-    # Docling: optional — already sets docling_output=None on failure
+    # Paper resolver: run after HF extraction if still no paper_url
+    paper_resolver_attempted = state.get("paper_resolver_attempted", False)
+    if not current_paper_url and not paper_resolver_attempted and not _failed("paper resolution"):
+        return {"next": "paper_resolver_worker"}
+
     paper_url = state.get("extracted_ids", {}).get("paper_url")
-    if paper_url and state["docling_output"] is None:
-        if not _step_failed(state, "docling"):
-            return {"next": "docling_worker"}
+    if paper_url and state["docling_output"] is None and not _failed("docling extraction"):
+        return {"next": "docling_worker"}
 
-    # Composer: required
-    if state["composed_card"] is None:
-        if _step_failed(state, "composer"):
-            return {"next": "END"}
+    # HTML extraction from web pages (project sites, blog posts)
+    if state.get("html_content") is None and not _failed("html extraction"):
+        eee_urls = (state.get("eee_metadata") or {}).get("source_urls", [])
+        web_url = (state.get("extracted_ids") or {}).get("website_url")
+        if eee_urls or web_url:
+            return {"next": "html_worker"}
+
+    if state["composed_card"] is None and not _failed("composer"):
         return {"next": "composer_worker"}
+    if state["risk_enhanced_card"] is None and not _failed("risk identification"):
+        return {"next": "risk_worker"}
 
-    # Risk identification: optional — skip on failure
-    if state["risk_enhanced_card"] is None:
-        if not _step_failed(state, "risk"):
-            return {"next": "risk_worker"}
+    # Composites have no source docs for RAG/FactReasoner — skip directly to END
+    if is_composite:
+        return {"next": "END"}
 
-    # RAG: required for FactReasoner
-    if state["rag_results"] is None:
-        if _step_failed(state, "rag"):
-            return {"next": "END"}
+    if state["rag_results"] is None and not _failed("rag processing"):
         return {"next": "rag_worker"}
-
-    # FactReasoner: required (final step)
-    if state["factuality_results"] is None:
-        if _step_failed(state, "factreasoner"):
-            return {"next": "END"}
+    if state["factuality_results"] is None and not _failed("factreasoner evaluation"):
         return {"next": "factreasoner_worker"}
-
     return {"next": "END"}
 
 
@@ -122,7 +123,9 @@ def build_workflow():
     builder.add_node("unitxt_worker", run_unitxt)
     builder.add_node("extractor_worker", run_extractor)
     builder.add_node("hf_extractor_worker", run_hf_extractor)
+    builder.add_node("paper_resolver_worker", run_paper_resolver)
     builder.add_node("docling_worker", run_docling)
+    builder.add_node("html_worker", run_html_extractor)
     builder.add_node("hf_worker", run_hf)
     builder.add_node("composer_worker", run_composer)
     builder.add_node("risk_worker", run_risk_identification)
@@ -137,7 +140,9 @@ def build_workflow():
             "unitxt_worker": "unitxt_worker",
             "extractor_worker": "extractor_worker",
             "hf_extractor_worker": "hf_extractor_worker",
+            "paper_resolver_worker": "paper_resolver_worker",
             "docling_worker": "docling_worker",
+            "html_worker": "html_worker",
             "hf_worker": "hf_worker",
             "composer_worker": "composer_worker",
             "risk_worker": "risk_worker",
@@ -149,7 +154,9 @@ def build_workflow():
     builder.add_edge("unitxt_worker", "orchestrator")
     builder.add_edge("extractor_worker", "orchestrator")
     builder.add_edge("hf_extractor_worker", "orchestrator")
+    builder.add_edge("paper_resolver_worker", "orchestrator")
     builder.add_edge("docling_worker", "orchestrator")
+    builder.add_edge("html_worker", "orchestrator")
     builder.add_edge("hf_worker", "orchestrator")
     builder.add_edge("composer_worker", "orchestrator")
     builder.add_edge("risk_worker", "orchestrator")
