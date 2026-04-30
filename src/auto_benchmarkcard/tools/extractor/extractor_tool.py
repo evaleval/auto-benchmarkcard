@@ -1,8 +1,4 @@
-"""Tool for extracting benchmark identifiers and metadata from UnitXT data.
-
-This module provides functionality to extract HuggingFace repository names,
-academic paper URLs, and other metadata from UnitXT benchmark configurations.
-"""
+"""Extract benchmark identifiers (HF repo, paper URL, risk tags) from UnitXT data."""
 
 from __future__ import annotations
 
@@ -128,7 +124,10 @@ def _risk_tags(blob: Dict[str, Any]) -> List[str] | None:
     Returns:
         List of risk category tags or None if not found.
     """
-    return blob.get("risk", {}).get("tags") or blob.get("__risk__", {}).get("tags")
+    tags = blob.get("risk", {}).get("tags")
+    if tags is not None:
+        return tags
+    return blob.get("__risk__", {}).get("tags")
 
 
 # all available extractors
@@ -141,22 +140,11 @@ EXTRACTORS: Dict[str, Callable[[Dict[str, Any]], Any]] = {
 
 @tool("extract_ids")
 def extract_ids(source: Dict[str, Any], want: List[str]) -> Dict[str, Any]:
-    """Extract specific identifiers and metadata from benchmark data.
-
-    This tool extracts various identifiers and metadata from UnitXT or HuggingFace
-    benchmark configurations, including repository names, paper URLs, and risk tags.
+    """Extract identifiers from UnitXT/HF metadata.
 
     Args:
-        source: Source metadata dictionary (UnitXT or HuggingFace format).
-        want: List of extraction types to perform.
-            Valid values: ['hf_repo', 'paper_url', 'risk_tags'].
-
-    Returns:
-        Dictionary mapping extraction types to their extracted values.
-
-    Example:
-        >>> extract_ids(unitxt_data, ['hf_repo', 'paper_url'])
-        {'hf_repo': 'huggingface/dataset-name', 'paper_url': 'https://arxiv.org/abs/2101.00000'}
+        source: UnitXT or HuggingFace metadata dict.
+        want: Keys to extract: 'hf_repo', 'paper_url', 'risk_tags'.
     """
     result = {label: EXTRACTORS.get(label, lambda _: None)(source) for label in want}
 

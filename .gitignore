@@ -90,3 +90,6 @@ src/auto_benchmarkcard/tools/rag/chroma_db/
 
 # Pip artifacts
 =*
+
+# Internal/private scripts
+scripts/_internal/

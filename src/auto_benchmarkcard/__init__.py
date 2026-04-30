@@ -1,16 +1,4 @@
-"""Auto-BenchmarkCard: benchmark metadata extraction and validation.
-
-Tools for extracting, validating, and enhancing AI benchmark metadata
-through LLM-powered analysis, risk assessment, and factual verification.
-
-Example (generate from evaluation data):
-    >>> from auto_benchmarkcard import run_eee_pipeline
-    >>> summary = run_eee_pipeline("./eee_data", benchmarks_filter=["MMLU"])
-
-Example (standalone tool usage):
-    >>> from auto_benchmarkcard import unitxt_benchmark_lookup
-    >>> metadata = unitxt_benchmark_lookup("glue")
-"""
+"""Auto-BenchmarkCard: generate validated documentation cards for AI benchmarks."""
 
 __version__ = "0.1.0"
 __author__ = "Aris Hofmann"

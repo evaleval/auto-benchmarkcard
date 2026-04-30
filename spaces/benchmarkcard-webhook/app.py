@@ -39,13 +39,14 @@ _active_job: dict = {"thread": None, "started_at": None, "folders": []}
 _job_lock = threading.Lock()
 
 
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
+if not WEBHOOK_SECRET:
+    raise RuntimeError("WEBHOOK_SECRET env var must be set")
+
+
 def _verify_secret(request_secret: str) -> bool:
     """Verify webhook secret from X-Webhook-Secret header."""
-    expected = os.environ.get("WEBHOOK_SECRET", "")
-    if not expected:
-        logger.warning("WEBHOOK_SECRET not set, skipping verification")
-        return True
-    return hmac.compare_digest(expected, request_secret)
+    return hmac.compare_digest(WEBHOOK_SECRET, request_secret)
 
 
 def _is_merged_pr(payload: dict) -> bool:

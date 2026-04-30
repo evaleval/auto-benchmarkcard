@@ -1,8 +1,4 @@
-"""Metadata extraction tools for benchmark identifiers.
-
-This module provides tools for extracting HuggingFace repository names,
-paper URLs, and other metadata from UnitXT configurations.
-"""
+"""Extract HF repo names, paper URLs, and risk tags from UnitXT configs."""
 
 from .extractor_tool import extract_ids
 

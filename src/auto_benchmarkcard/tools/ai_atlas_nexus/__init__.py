@@ -1,3 +1,1 @@
-"""
-AI Atlas Nexus integration tools for benchmark metadata extraction.
-"""
+"""AI Atlas Nexus risk identification integration."""

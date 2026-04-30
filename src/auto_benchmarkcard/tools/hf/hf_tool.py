@@ -1,9 +1,4 @@
-"""HuggingFace dataset metadata extraction tool.
-
-This module provides functionality to extract comprehensive metadata from
-HuggingFace datasets including README content, configuration details,
-and dataset statistics.
-"""
+"""Extract metadata from HuggingFace datasets (README, configs, stats)."""
 
 from __future__ import annotations
 

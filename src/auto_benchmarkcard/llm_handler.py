@@ -1,13 +1,12 @@
-"""Thin wrapper around ai-atlas-nexus inference engines.
-
-Provides structured output and LangChain integration on top of the
-ai-atlas-nexus inference backends.
-"""
+"""Thin wrapper around ai-atlas-nexus inference engines."""
 
 import json
+import logging
 import os
 import re
 from typing import Any, Dict, List, Optional, Union
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 from langchain_core.runnables import Runnable
@@ -120,12 +119,12 @@ class LLMHandler:
             return response_schema.model_validate(parsed)
         except (json.JSONDecodeError, ValueError) as e:
             try:
-                json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+                json_match = re.search(r"\{.*?\}", raw, re.DOTALL)
                 if json_match:
                     parsed = json.loads(json_match.group())
                     return response_schema.model_validate(parsed)
-            except Exception:
-                pass
+            except (json.JSONDecodeError, ValueError):
+                logger.debug("JSON fallback extraction also failed for: %.200s", raw)
             raise ValueError(f"Failed to parse structured output: {e}")
 
     def with_structured_output(self, schema: BaseModel):

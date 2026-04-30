@@ -835,6 +835,25 @@ def extract_deterministic_facts(
     return facts
 
 
+_TOPIC_CLASH_PAIRS = {
+    "instruction following": [
+        "math word problem", "grade school math", "arithmetic",
+        "mathematical reasoning", "solving math",
+    ],
+    "text generation": [],
+    "evaluation": [],
+    "mathematics": [
+        "instruction following", "instruction-following",
+    ],
+    "grade school math": [
+        "instruction following", "instruction-following",
+    ],
+    "question answering": [
+        "math word problem", "grade school math",
+    ],
+}
+
+
 def check_cross_contamination(
     extracted_facts: str,
     source_text: str,
@@ -858,24 +877,6 @@ def check_cross_contamination(
         if about_match:
             topics = about_match.group(1).split(",")
             topic_keywords = {t.strip().lower() for t in topics if t.strip()}
-
-    _TOPIC_CLASH_PAIRS = {
-        "instruction following": [
-            "math word problem", "grade school math", "arithmetic",
-            "mathematical reasoning", "solving math",
-        ],
-        "text generation": [],
-        "evaluation": [],
-        "mathematics": [
-            "instruction following", "instruction-following",
-        ],
-        "grade school math": [
-            "instruction following", "instruction-following",
-        ],
-        "question answering": [
-            "math word problem", "grade school math",
-        ],
-    }
 
     off_topic_phrases: list = []
     for topic in topic_keywords:
@@ -1009,8 +1010,8 @@ def _fill_paper_gaps(
             if chunks:
                 text = "\n".join(c.page_content for c in chunks[:2])[:1500]
                 gap_chunks[field] = text
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Gap-fill retrieval failed for %s: %s", field, e)
 
     if not gap_chunks:
         return paper_facts
@@ -1041,11 +1042,12 @@ PAPER EXCERPTS:
 
         filled_count = 0
         for _, field in missing_fields:
-            pattern = rf'-\s*{field}:\s*(.+)'
+            escaped = re.escape(field)
+            pattern = rf'-\s*{escaped}:\s*(.+)'
             match = re.search(pattern, gap_facts, re.IGNORECASE)
             if match and "no information found" not in match.group(1).lower():
                 new_value = match.group(0)
-                old_pattern = rf'(-\s*{field}:\s*.*[Nn]o information found.*)'
+                old_pattern = rf'(-\s*{escaped}:\s*.*[Nn]o information found.*)'
                 paper_facts = re.sub(old_pattern, new_value, paper_facts)
                 filled_count += 1
 
@@ -1397,7 +1399,7 @@ class BenchmarkDetails(BaseModel):
     )
     overview: str = Field(
         ...,
-        description="A comprehensive 2-3 sentence description explaining what the benchmark measures, its key characteristics, and its significance in the field",
+        description="2-3 sentence description of what the benchmark measures and its key characteristics",
     )
     data_type: str = Field(
         ...,
