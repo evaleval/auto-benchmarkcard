@@ -121,8 +121,12 @@ class EEEScanResult(BaseModel):
 _HARNESS_PREFIXES = ["helm_", "hf_", "hfopenllm_"]
 
 
-def _derive_benchmark_name(folder: str, bench_names: List[str]) -> str:
+def _derive_benchmark_name(
+    folder: str, bench_names: List[str], override_name: Optional[str] = None,
+) -> str:
     """Derive a clean benchmark name for a collapsed subject-composite."""
+    if override_name:
+        return override_name
     normalized = [_normalize_benchmark_name(n) for n in bench_names]
     prefix = os.path.commonprefix(normalized).rstrip("-").rstrip(" ")
     if len(prefix) >= 4:
@@ -193,12 +197,21 @@ def _is_subject_composite(bench_names: List[str], scan_result: EEEScanResult) ->
 
 
 def _collapse_subject_composite(
-    folder: str, bench_names: List[str], result: EEEScanResult,
+    folder: str,
+    bench_names: List[str],
+    result: EEEScanResult,
+    override_name: Optional[str] = None,
+    overall_key: Optional[str] = None,
 ) -> None:
-    """Collapse a subject-composite into a single merged benchmark entry."""
-    merged_name = _derive_benchmark_name(folder, bench_names)
+    """Collapse a subject-composite into a single merged benchmark entry.
 
-    scores_by_model: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    Args:
+        override_name: Use this name instead of deriving from common prefix.
+        overall_key: If set and present in benchmarks, use its scores as primary
+            instead of averaging all members (avoids double-counting Overall).
+    """
+    merged_name = _derive_benchmark_name(folder, bench_names, override_name)
+
     all_metrics: Dict[str, Dict[str, Any]] = {}
     hf_repo: Optional[str] = None
     source_urls: List[str] = []
@@ -211,24 +224,54 @@ def _collapse_subject_composite(
         if bench.hf_repo and not hf_repo:
             hf_repo = bench.hf_repo
         source_urls.extend(u for u in bench.source_urls if u not in source_urls)
-        for score_entry in bench.model_scores:
-            scores_by_model[score_entry["model"]].append(score_entry)
 
-    # Build aggregated model_scores: average across subjects per model
+    # Collect all sub-benchmark scores by model for subject_scores detail
+    sub_scores_by_model: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for name in bench_names:
+        bench = result.benchmarks.get(name)
+        if not bench:
+            continue
+        child_label = name.split(" - ", 1)[-1].strip() if " - " in name else name
+        for entry in bench.model_scores:
+            sub_scores_by_model[entry["model"]].append(
+                {"subject": child_label, "score": entry["score"]}
+            )
+
+    # Build merged model_scores
     merged_scores: List[Dict[str, Any]] = []
-    for model, entries in scores_by_model.items():
-        avg = sum(e["score"] for e in entries) / len(entries)
-        merged_scores.append({
-            "model": model,
-            "developer": entries[0].get("developer", ""),
-            "score": avg,
-            "metric": "average_across_subjects",
-            "evaluation_name": merged_name,
-            "subject_scores": [
-                {"subject": e.get("evaluation_name", ""), "score": e["score"]}
-                for e in entries
-            ],
-        })
+
+    if overall_key and overall_key in result.benchmarks:
+        # Use Overall entry's scores as primary, attach sub-scores for reference
+        overall_bench = result.benchmarks[overall_key]
+        for entry in overall_bench.model_scores:
+            merged_scores.append({
+                "model": entry["model"],
+                "developer": entry.get("developer", ""),
+                "score": entry["score"],
+                "metric": entry.get("metric", "overall"),
+                "evaluation_name": merged_name,
+                "subject_scores": sub_scores_by_model.get(entry["model"], []),
+            })
+    else:
+        # Average across all members per model
+        scores_by_model: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for name in bench_names:
+            bench = result.benchmarks.get(name)
+            if not bench:
+                continue
+            for entry in bench.model_scores:
+                scores_by_model[entry["model"]].append(entry)
+
+        for model, entries in scores_by_model.items():
+            avg = sum(e["score"] for e in entries) / len(entries)
+            merged_scores.append({
+                "model": model,
+                "developer": entries[0].get("developer", ""),
+                "score": avg,
+                "metric": "average_across_subjects",
+                "evaluation_name": merged_name,
+                "subject_scores": sub_scores_by_model.get(model, []),
+            })
 
     # Remove individual sub-benchmark entries
     for name in bench_names:
@@ -243,7 +286,7 @@ def _collapse_subject_composite(
         source_urls=source_urls,
         metrics=all_metrics,
         model_scores=merged_scores,
-        num_models_evaluated=len(scores_by_model),
+        num_models_evaluated=len(merged_scores),
         eval_library=result.folder_metadata.get(folder, {}).get("eval_library"),
     )
 
@@ -294,6 +337,95 @@ def _detect_intra_benchmark_subjects(result: EEEScanResult) -> None:
         logger.info(
             "Aggregated %d subjects for '%s' into per-model averages (%d models)",
             len(eval_names), name, len(scores_by_model),
+        )
+
+
+def _enrich_standalone_with_subs(
+    standalone_name: str, sub_names: List[str], result: EEEScanResult,
+) -> None:
+    """Enrich an existing standalone benchmark with sub-benchmark scores.
+
+    When 'MGSM' already exists as standalone and 'MGSM - Bengali' etc. are
+    sub-benchmarks, merge the sub-scores onto the standalone as subject_scores
+    and remove the sub-entries.
+    """
+    standalone = result.benchmarks[standalone_name]
+
+    # Collect sub-scores by model
+    sub_scores_by_model: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for name in sub_names:
+        bench = result.benchmarks.get(name)
+        if not bench:
+            continue
+        child_label = name.split(" - ", 1)[-1].strip() if " - " in name else name
+        for entry in bench.model_scores:
+            sub_scores_by_model[entry["model"]].append(
+                {"subject": child_label, "score": entry["score"]}
+            )
+        # Merge any extra source URLs
+        for url in bench.source_urls:
+            if url not in standalone.source_urls:
+                standalone.source_urls.append(url)
+
+    # Attach subject_scores to standalone's model_scores
+    for entry in standalone.model_scores:
+        subs = sub_scores_by_model.get(entry["model"], [])
+        if subs:
+            entry["subject_scores"] = subs
+
+    # Remove sub-benchmark entries
+    for name in sub_names:
+        result.benchmarks.pop(name, None)
+
+    logger.info(
+        "Enriched standalone '%s' with %d sub-benchmark scores, removed %d sub-entries",
+        standalone_name, len(sub_scores_by_model), len(sub_names),
+    )
+
+
+def _collapse_name_subgroups(result: EEEScanResult) -> None:
+    """Collapse sub-benchmark groups that share a 'Parent - Child' naming pattern.
+
+    After per-folder collapsing, benchmarks like 'MGSM - Bengali', 'MGSM - Chinese'
+    etc. may still exist as separate entries. Groups them by prefix before ' - '
+    and collapses groups of 2+ that pass the subject-composite heuristic.
+    """
+    groups: Dict[str, List[str]] = defaultdict(list)
+    for name in list(result.benchmarks.keys()):
+        if " - " in name:
+            prefix = name.split(" - ", 1)[0].strip()
+            groups[prefix].append(name)
+
+    for prefix, members in groups.items():
+        if len(members) < 2:
+            continue
+
+        if not _is_subject_composite(members, result):
+            continue
+
+        # Find "Overall" entry to use as primary score source
+        overall_candidates = [
+            m for m in members
+            if "overall" in m.split(" - ", 1)[-1].strip().lower()
+        ]
+        overall_key = overall_candidates[0] if overall_candidates else None
+
+        # Use original casing from the prefix (e.g., "MGSM" not "Mgsm")
+        parent_name = prefix
+
+        # If a standalone benchmark with that exact name already exists,
+        # enrich it with sub-scores instead of creating a duplicate.
+        if parent_name in result.benchmarks and parent_name not in members:
+            _enrich_standalone_with_subs(parent_name, members, result)
+            continue
+
+        any_bench = result.benchmarks.get(members[0])
+        folder = any_bench.eee_source_folders[0] if any_bench and any_bench.eee_source_folders else "unknown"
+
+        _collapse_subject_composite(
+            folder, members, result,
+            override_name=parent_name,
+            overall_key=overall_key,
         )
 
 
@@ -384,6 +516,7 @@ def scan_eee_folder(
 
     if not no_collapse:
         _detect_intra_benchmark_subjects(result)
+        _collapse_name_subgroups(result)
 
     _detect_composites(result, no_collapse=no_collapse)
 
