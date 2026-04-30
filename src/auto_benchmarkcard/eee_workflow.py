@@ -13,7 +13,7 @@ Flow:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from auto_benchmarkcard.config import Config
 from collections import defaultdict
@@ -264,8 +264,14 @@ def run_eee_pipeline(
     benchmarks_filter: Optional[List[str]] = None,
     debug: bool = False,
     no_collapse: bool = False,
+    on_card_generated: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
-    """Scan EEE evaluation data, discover benchmarks, and generate cards for each."""
+    """Scan EEE evaluation data, discover benchmarks, and generate cards for each.
+
+    Args:
+        on_card_generated: Optional callback called after each successful card generation.
+            Receives (benchmark_name, card_dict). Used by the webhook worker to upload cards.
+    """
     setup_logging_suppression(debug_mode=debug)
 
     logger.info("Models — composer: %s | factreasoner: %s",
@@ -306,21 +312,27 @@ def run_eee_pipeline(
     for i, (name, inputs) in enumerate(sorted(pipeline_inputs_map.items()), 1):
         logger.info("[%d/%d] Processing: %s", i, len(pipeline_inputs_map), name)
 
-        if not inputs.get("hf_repo"):
-            logger.warning("Skipping %s: no HF repo resolved", name)
-            summary["skipped"].append({"benchmark": name, "reason": "no_hf_repo"})
-            continue
+        try:
+            if not inputs.get("hf_repo"):
+                logger.warning("Skipping %s: no HF repo resolved", name)
+                summary["skipped"].append({"benchmark": name, "reason": "no_hf_repo"})
+                continue
 
-        card = process_single_benchmark(
-            benchmark_name=name,
-            pipeline_inputs=inputs,
-            base_output_path=output_path,
-            debug=debug,
-        )
+            card = process_single_benchmark(
+                benchmark_name=name,
+                pipeline_inputs=inputs,
+                base_output_path=output_path,
+                debug=debug,
+            )
 
-        if card:
-            summary["successful"].append(name)
-        else:
+            if card:
+                summary["successful"].append(name)
+                if on_card_generated:
+                    on_card_generated(name, card)
+            else:
+                summary["failed"].append(name)
+        except Exception:
+            logger.exception("Unexpected error processing benchmark '%s'", name)
             summary["failed"].append(name)
 
     # Process composite suites
@@ -331,17 +343,23 @@ def run_eee_pipeline(
         logger.info("Processing composite suite: %s (%d sub-benchmarks)",
                      folder, len(composite.sub_benchmarks))
 
-        inputs = composite_to_pipeline_inputs(composite, scan_result)
-        card = process_single_benchmark(
-            benchmark_name=folder,
-            pipeline_inputs=inputs,
-            base_output_path=output_path,
-            debug=debug,
-        )
+        try:
+            inputs = composite_to_pipeline_inputs(composite, scan_result)
+            card = process_single_benchmark(
+                benchmark_name=folder,
+                pipeline_inputs=inputs,
+                base_output_path=output_path,
+                debug=debug,
+            )
 
-        if card:
-            summary["successful"].append(f"{folder} (composite)")
-        else:
+            if card:
+                summary["successful"].append(f"{folder} (composite)")
+                if on_card_generated:
+                    on_card_generated(folder, card)
+            else:
+                summary["failed"].append(f"{folder} (composite)")
+        except Exception:
+            logger.exception("Unexpected error processing composite '%s'", folder)
             summary["failed"].append(f"{folder} (composite)")
 
     logger.info("EEE pipeline complete: success=%d, failed=%d, skipped=%d",
