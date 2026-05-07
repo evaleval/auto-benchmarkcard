@@ -664,6 +664,9 @@ def run_rag(state) -> Dict[str, Any]:
                 enable_query_expansion=False,
             )
 
+        if not documents:
+            return record_skip("No source documents available for evidence retrieval", "RAG processing", state)
+
         retriever.index_documents(documents)
 
         benchmark_card = state["composed_card"]

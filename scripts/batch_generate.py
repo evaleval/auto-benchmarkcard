@@ -61,8 +61,21 @@ FAILURE_REASONS = {
 # Step 1: Parse missing benchmarks from card_backend README
 
 
-def parse_missing_benchmarks() -> List[str]:
-    """Download card_backend README and extract non-checkmarked benchmark names."""
+def parse_missing_benchmarks(backlog_file: Optional[str] = None) -> List[str]:
+    """Get list of benchmarks that need cards generated.
+
+    If backlog_file is provided, reads names from that file (one per line).
+    Otherwise falls back to parsing unchecked items from card_backend README.
+    """
+    if backlog_file:
+        path = Path(backlog_file)
+        names = [
+            line.strip() for line in path.read_text().splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        logger.info("Loaded %d benchmarks from backlog file: %s", len(names), backlog_file)
+        return names
+
     readme_path = hf_hub_download(
         CARD_BACKEND_REPO, "README.md", repo_type="dataset"
     )
@@ -71,7 +84,6 @@ def parse_missing_benchmarks() -> List[str]:
         match = re.match(r"^\s*-\s*\[ \]\s*(.+)$", line)
         if match:
             name = match.group(1).strip()
-            # Strip markdown bold markers (leading/trailing **)
             name = re.sub(r"^\*\*|\*\*$", "", name).strip()
             names.append(name)
     logger.info("Parsed %d non-checkmarked benchmarks from card_backend README", len(names))
@@ -82,13 +94,35 @@ def parse_missing_benchmarks() -> List[str]:
 # Step 2: Download EEE datastore
 
 
-def download_eee_datastore() -> Path:
-    """Download the EEE datastore via HF hub (cached). Returns path to data/ dir."""
-    logger.info("Downloading EEE datastore (using HF cache)...")
+def download_eee_datastore(
+    eee_path: Optional[str] = None,
+    local_files_only: bool = False,
+) -> Path:
+    """Resolve the EEE datastore path.
+
+    If `eee_path` is provided, use it directly (skip HF entirely).
+    Otherwise call snapshot_download. Pass `local_files_only=True` to skip
+    network ETag checks when the cache is known good — much faster on repeat runs.
+    """
+    if eee_path:
+        data_path = Path(eee_path).expanduser().resolve()
+        if not data_path.exists():
+            raise FileNotFoundError(f"--eee-path does not exist: {data_path}")
+        # Allow user to point at either the snapshot root or its data/ subdir
+        if (data_path / "data").exists():
+            data_path = data_path / "data"
+        logger.info("Using local EEE datastore: %s", data_path)
+        return data_path
+
+    if local_files_only:
+        logger.info("Resolving EEE datastore from HF cache (no network)...")
+    else:
+        logger.info("Downloading EEE datastore (using HF cache)...")
     local = snapshot_download(
         EEE_DATASTORE_REPO,
         repo_type="dataset",
         allow_patterns=["data/**/*.json"],
+        local_files_only=local_files_only,
     )
     data_path = Path(local) / "data"
     if not data_path.exists():
@@ -222,6 +256,9 @@ def run_batch(
     limit: Optional[int] = None,
     dry_run: bool = False,
     debug: bool = False,
+    backlog_file: Optional[str] = None,
+    eee_path: Optional[str] = None,
+    no_download: bool = False,
 ) -> None:
     """Run the full batch generation pipeline."""
     setup_file_logging(output_dir, debug)
@@ -232,12 +269,16 @@ def run_batch(
     logger.info("=" * 60)
 
     # Download data
-    readme_names = parse_missing_benchmarks()
-    eee_data_path = download_eee_datastore()
+    readme_names = parse_missing_benchmarks(backlog_file=backlog_file)
+    eee_data_path = download_eee_datastore(
+        eee_path=eee_path, local_files_only=no_download
+    )
 
-    # Scan EEE datastore
+    # Scan EEE datastore.
+    # max_files_per_benchmark=500 ensures llm-stats (~268 files in one folder bucket)
+    # is fully read; the default 50 silently drops most benchmarks.
     logger.info("Scanning EEE datastore...")
-    scan_result = scan_eee_folder(str(eee_data_path))
+    scan_result = scan_eee_folder(str(eee_data_path), max_files_per_benchmark=500)
     logger.info(
         "Scan complete: %d benchmarks, %d composites",
         len(scan_result.benchmarks), len(scan_result.composites),
@@ -375,12 +416,23 @@ def main():
     parser.add_argument("--limit", type=int, default=None, help="Max benchmarks to process")
     parser.add_argument("--dry-run", action="store_true", help="List benchmarks without generating")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--backlog", type=str, default=None, help="Path to backlog file (one benchmark per line)")
+    parser.add_argument("--eee-path", type=str, default=None, help="Path to local EEE data dir (skips HF download entirely)")
+    parser.add_argument("--no-download", action="store_true", help="Use HF cache only, skip ETag checks (much faster on repeat runs)")
 
     args = parser.parse_args()
     output_dir = Path(args.output).resolve()
 
     try:
-        run_batch(output_dir, limit=args.limit, dry_run=args.dry_run, debug=args.debug)
+        run_batch(
+            output_dir,
+            limit=args.limit,
+            dry_run=args.dry_run,
+            debug=args.debug,
+            backlog_file=args.backlog,
+            eee_path=args.eee_path,
+            no_download=args.no_download,
+        )
     except KeyboardInterrupt:
         logger.info("Interrupted by user — partial results saved")
         sys.exit(1)
