@@ -1,6 +1,7 @@
 """Card processing utilities: field extraction, normalization, and HF tag overrides."""
 
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -52,10 +53,113 @@ def extract_missing_fields(data: Any, prefix: str = "") -> List[str]:
     return missing_fields
 
 
+# The five scored card sections (shared by the gold-set metric tooling).
+GOLD_SECTIONS = (
+    "benchmark_details", "purpose_and_intended_users",
+    "data", "methodology", "ethical_and_legal_considerations",
+)
+
+# Fields with a structured external source (HF tags / EEE metadata) that can be
+# filled deterministically. Everything else in the gold sections counts as prose.
+# This split drives the prose-vs-deterministic Not-specified breakdown; tune here.
+DETERMINISTIC_FIELDS = {
+    "benchmark_details.languages",
+    "benchmark_details.data_type",
+    "ethical_and_legal_considerations.data_licensing",
+    "data.size",
+    "data.format",
+    "methodology.metrics",
+}
+
+_FIELD_SKIP = {"provenance", "flagged_fields", "missing_fields"}
+
+
+def card_field_stats(card: Dict[str, Any]) -> Dict[str, int]:
+    """Count fields and 'Not specified' values across the five gold sections,
+    split into prose vs deterministic (structured) fields.
+
+    `card` must be the unwrapped card dict (see extract_card). Returns counts:
+    n_fields, n_not_specified, n_prose, n_prose_ns, n_det, n_det_ns, n_flagged.
+    """
+    n_fields = n_ns = n_prose = n_prose_ns = n_det = n_det_ns = 0
+    for sec in GOLD_SECTIONS:
+        fields = card.get(sec, {})
+        if not isinstance(fields, dict):
+            continue
+        for k, v in fields.items():
+            if k in _FIELD_SKIP:
+                continue
+            n_fields += 1
+            ns = 1 if is_not_specified(v) else 0
+            n_ns += ns
+            if f"{sec}.{k}" in DETERMINISTIC_FIELDS:
+                n_det += 1
+                n_det_ns += ns
+            else:
+                n_prose += 1
+                n_prose_ns += ns
+    flagged = card.get("flagged_fields")
+    n_flagged = len(flagged) if isinstance(flagged, dict) else 0
+    return {
+        "n_fields": n_fields, "n_not_specified": n_ns,
+        "n_prose": n_prose, "n_prose_ns": n_prose_ns,
+        "n_det": n_det, "n_det_ns": n_det_ns,
+        "n_flagged": n_flagged,
+    }
+
+
+_PROSE_SOURCES = ("paper", "html")
+_STRUCTURED_SOURCES = ("deterministic", "eee", "unitxt", "extracted_id")
+
+
+def _content_words(text: str) -> set:
+    """Content-token set (words >3 chars, numbers >=2 digits) for grounding overlap."""
+    toks = re.findall(r"[a-z0-9]+", text.lower())
+    return {t for t in toks if (t.isdigit() and len(t) >= 2) or len(t) > 3}
+
+
+def _evidence_grounded_in_contexts(
+    evidence: str, retrieved_contexts: Optional[List[str]], threshold: float = 0.6
+) -> bool:
+    """Whether provenance evidence is actually supported by the retrieved source text.
+
+    Returns True only when enough of the evidence's content tokens appear in the
+    retrieved chunks. This replaces trusting the composer's self-asserted provenance,
+    which is circular: the model that wrote the field also vouches for it.
+    """
+    if not evidence or not retrieved_contexts:
+        return False
+    ev_words = _content_words(evidence)
+    if not ev_words:
+        return False
+    ctx_words: set = set()
+    for chunk in retrieved_contexts:
+        if chunk:
+            ctx_words |= _content_words(chunk)
+    return bool(ctx_words) and len(ev_words & ctx_words) / len(ev_words) >= threshold
+
+
+def _is_structured_source(source: Optional[str]) -> bool:
+    """True when provenance cites a structured/verified origin and no free-prose source.
+
+    Structured facts (HF tags, EEE results, registry ids) are verified upstream and
+    legitimately absent from the retrieved prose, so they need no prose grounding; a
+    free-prose source (paper/html) is where the self-vouching circularity bites.
+    """
+    s = (source or "").lower()
+    if any(p in s for p in _PROSE_SOURCES):
+        return False
+    return any(t in s for t in _STRUCTURED_SOURCES)
+
+
 def backfill_from_provenance(
-    card: Dict[str, Any], provenance: Dict[str, Any]
+    card: Dict[str, Any],
+    provenance: Dict[str, Any],
+    retrieved_contexts: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    """Fill 'Not specified' fields using provenance evidence when available."""
+    """Fill 'Not specified' fields from provenance evidence, but only when that evidence
+    is grounded in the retrieved source or is a structured fact -- never on the composer's
+    unverified say-so alone."""
     for section_key, section_val in card.items():
         if not isinstance(section_val, dict):
             continue
@@ -71,6 +175,11 @@ def backfill_from_provenance(
             evidence = field_prov["evidence"]
             if isinstance(evidence, str) and any(
                 neg in evidence.lower() for neg in ["no information", "not specified", "not available", "none found"]
+            ):
+                continue
+            if not (
+                _is_structured_source(field_prov.get("source"))
+                or _evidence_grounded_in_contexts(evidence, retrieved_contexts)
             ):
                 continue
             if is_not_specified(field_val) and len(evidence) > 10:

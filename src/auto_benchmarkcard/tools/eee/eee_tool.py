@@ -12,7 +12,6 @@ Composite benchmark handling:
     benchmark with averaged scores.
   - Detection uses 4 heuristic signals (prefix, URLs, HF repo, name similarity).
     At least 2 must fire to classify as subject-composite.
-  - True composites skip RAG/FactReasoner (no single source paper to check against).
 """
 
 from __future__ import annotations

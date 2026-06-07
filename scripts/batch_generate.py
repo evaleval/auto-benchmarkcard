@@ -34,6 +34,7 @@ from auto_benchmarkcard.output import sanitize_benchmark_name
 from auto_benchmarkcard.tools.eee.eee_tool import (
     EEEScanResult,
     _normalize_benchmark_name,
+    composite_to_pipeline_inputs,
     eee_to_pipeline_inputs,
     scan_eee_folder,
 )
@@ -138,54 +139,49 @@ def download_eee_datastore(
 def match_benchmarks(
     readme_names: List[str],
     scan_result: EEEScanResult,
-) -> List[Tuple[str, str]]:
+) -> List[Tuple[str, str, str]]:
     """Match README display names to EEE benchmark keys.
 
-    Returns list of (readme_name, eee_key) tuples for single benchmarks only.
-    Skips composites and aggregate-level entries.
+    Returns list of (readme_name, eee_key, kind) tuples where kind is
+    "single" or "composite". Skips aggregate-level entries.
     """
-    # Build normalized lookup: norm_name -> eee_key
-    eee_lookup: Dict[str, str] = {}
+    # Build normalized lookup: norm_name -> (eee_key, kind)
+    eee_lookup: Dict[str, Tuple[str, str]] = {}
     for key in scan_result.benchmarks:
-        norm = _normalize_benchmark_name(key)
-        eee_lookup[norm] = key
-
-    # Composite names to skip
-    composite_norms: Set[str] = set()
+        eee_lookup[_normalize_benchmark_name(key)] = (key, "single")
     for folder in scan_result.composites:
-        composite_norms.add(_normalize_benchmark_name(folder))
+        # Composites override singles only if the same name doesn't already exist as a single;
+        # otherwise prefer single (rare collision).
+        norm = _normalize_benchmark_name(folder)
+        eee_lookup.setdefault(norm, (folder, "composite"))
 
-    matched: List[Tuple[str, str]] = []
+    matched: List[Tuple[str, str, str]] = []
     unmatched: List[str] = []
 
     for readme_name in readme_names:
         norm = _normalize_benchmark_name(readme_name)
 
-        # Skip aggregate-level entries
         if norm in SKIP_AGGREGATE_NAMES:
-            continue
-
-        # Skip composites
-        if norm in composite_norms:
-            logger.debug("Skipping composite: %s", readme_name)
             continue
 
         # Exact match
         if norm in eee_lookup:
-            matched.append((readme_name, eee_lookup[norm]))
+            key, kind = eee_lookup[norm]
+            matched.append((readme_name, key, kind))
             continue
 
         # Fuzzy match
         best_score = 0
-        best_key = None
-        for eee_norm, eee_key in eee_lookup.items():
+        best_entry: Optional[Tuple[str, str]] = None
+        for eee_norm, entry in eee_lookup.items():
             score = fuzz.ratio(norm, eee_norm)
             if score > best_score:
                 best_score = score
-                best_key = eee_key
-        if best_score >= 80 and best_key:
-            logger.info("Fuzzy matched: '%s' -> '%s' (score=%d)", readme_name, best_key, best_score)
-            matched.append((readme_name, best_key))
+                best_entry = entry
+        if best_score >= 80 and best_entry:
+            logger.info("Fuzzy matched: '%s' -> '%s' (%s, score=%d)",
+                        readme_name, best_entry[0], best_entry[1], best_score)
+            matched.append((readme_name, best_entry[0], best_entry[1]))
             continue
 
         unmatched.append(readme_name)
@@ -196,15 +192,18 @@ def match_benchmarks(
             len(unmatched), unmatched,
         )
 
-    # Deduplicate by eee_key (same benchmark may appear under different README names)
+    # Deduplicate by eee_key
     seen: Set[str] = set()
-    deduped: List[Tuple[str, str]] = []
-    for readme_name, eee_key in matched:
+    deduped: List[Tuple[str, str, str]] = []
+    for readme_name, eee_key, kind in matched:
         if eee_key not in seen:
             seen.add(eee_key)
-            deduped.append((readme_name, eee_key))
+            deduped.append((readme_name, eee_key, kind))
 
-    logger.info("Matched %d single benchmarks to generate", len(deduped))
+    n_single = sum(1 for _, _, k in deduped if k == "single")
+    n_comp = sum(1 for _, _, k in deduped if k == "composite")
+    logger.info("Matched %d benchmarks to generate (%d single, %d composite)",
+                len(deduped), n_single, n_comp)
     return deduped
 
 
@@ -249,6 +248,13 @@ def setup_file_logging(output_dir: Path, debug: bool = False) -> None:
     ch.setLevel(level)
     ch.setFormatter(fmt)
     logger.addHandler(ch)
+
+    # Capture worker-level errors (e.g. Composer exceptions) in the same run log.
+    # setup_logging_suppression sets auto_benchmarkcard to WARNING, so error/warning
+    # messages from handle_error end up here without flooding the log with INFO noise.
+    # File handler only (the root stderr handler already prints to console).
+    abc_logger = logging.getLogger("auto_benchmarkcard")
+    abc_logger.addHandler(fh)
 
 
 def run_batch(
@@ -302,12 +308,17 @@ def run_batch(
         print(f"\n{'='*60}")
         print(f"DRY RUN — {len(matched)} benchmarks would be generated:")
         print(f"{'='*60}")
-        for i, (readme_name, eee_key) in enumerate(matched, 1):
-            bench = scan_result.benchmarks.get(eee_key)
-            hf = bench.hf_repo if bench else "?"
-            appears = appears_in_map.get(eee_key, [])
+        for i, (readme_name, eee_key, kind) in enumerate(matched, 1):
+            if kind == "single":
+                bench = scan_result.benchmarks.get(eee_key)
+                hf = bench.hf_repo if bench else "?"
+                appears = appears_in_map.get(eee_key, [])
+            else:
+                comp = scan_result.composites.get(eee_key)
+                hf = "(composite)"
+                appears = [f"{len(comp.sub_benchmarks)} subs"] if comp else []
             skip = " [SKIP - already exists]" if already_generated(eee_key, output_dir) else ""
-            print(f"  {i:3d}. {eee_key:<40s} hf={hf or 'None':<30s} appears_in={appears}{skip}")
+            print(f"  {i:3d}. [{kind}] {eee_key:<35s} hf={hf or 'None':<30s} {appears}{skip}")
         return
 
     # Generate cards
@@ -315,20 +326,27 @@ def run_batch(
     failed_list: List[Dict[str, str]] = []
     batch_start = time.time()
 
-    for i, (readme_name, eee_key) in enumerate(matched, 1):
+    for i, (readme_name, eee_key, kind) in enumerate(matched, 1):
         # Resumability check
         if already_generated(eee_key, output_dir):
             logger.info("[%d/%d] SKIP %s (already exists)", i, len(matched), eee_key)
             stats["skipped"] += 1
             continue
 
-        logger.info("[%d/%d] Generating: %s", i, len(matched), eee_key)
+        logger.info("[%d/%d] Generating: %s (%s)", i, len(matched), eee_key, kind)
         start = time.time()
+        bench = None
+        appears_in: List[str] = []
 
         try:
-            bench = scan_result.benchmarks[eee_key]
-            appears_in = appears_in_map.get(eee_key, [])
-            inputs = eee_to_pipeline_inputs(bench, "single", appears_in)
+            if kind == "composite":
+                composite = scan_result.composites[eee_key]
+                inputs = composite_to_pipeline_inputs(composite, scan_result)
+            else:
+                bench = scan_result.benchmarks[eee_key]
+                appears_in = appears_in_map.get(eee_key, [])
+                inputs = eee_to_pipeline_inputs(bench, "single", appears_in)
+
             card = process_single_benchmark(
                 benchmark_name=eee_key,
                 pipeline_inputs=inputs,
@@ -342,15 +360,15 @@ def run_batch(
                 logger.info("OK %s (%.0fs)", eee_key, duration)
             else:
                 stats["failed"] += 1
-                hf = bench.hf_repo if bench else None
                 reason = "composer_failed"
                 logger.warning("FAIL %s - %s (%.0fs)", eee_key, reason, duration)
                 failed_list.append({
                     "benchmark": eee_key,
+                    "kind": kind,
                     "reason": reason,
                     "reason_description": FAILURE_REASONS.get(reason, reason),
                     "detail": "returned None",
-                    "has_hf": bool(hf),
+                    "has_hf": bool(bench.hf_repo if bench else None),
                     "appears_in": appears_in,
                 })
 
@@ -361,6 +379,7 @@ def run_batch(
             logger.error("ERROR %s - %s: %s (%.0fs)", eee_key, reason, e, duration)
             failed_list.append({
                 "benchmark": eee_key,
+                "kind": kind,
                 "reason": reason,
                 "reason_description": FAILURE_REASONS.get(reason, reason),
                 "detail": str(e),

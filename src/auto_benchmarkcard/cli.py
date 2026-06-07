@@ -468,7 +468,7 @@ def generate_unitxt(
         }
 
         workflow = build_workflow()
-        state = workflow.invoke(initial_state)
+        state = workflow.invoke(initial_state, config={"recursion_limit": 75})
 
         execution_time = time.time() - start_time
 

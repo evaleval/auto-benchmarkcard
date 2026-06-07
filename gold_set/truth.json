@@ -1,0 +1,222 @@
+{
+  "bigcodebench": {
+    "name": "bigcodebench",
+    "source_url": "https://arxiv.org/abs/2406.15877",
+    "source_type": "arxiv",
+    "arxiv_id": "2406.15877",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of BigCodeBench."
+  },
+  "arc": {
+    "name": "arc",
+    "source_url": "https://arxiv.org/abs/1803.05457",
+    "source_type": "arxiv",
+    "arxiv_id": "1803.05457",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of the AI2 Reasoning Challenge (ARC)."
+  },
+  "bigcodebench-full": {
+    "name": "bigcodebench-full",
+    "source_url": "https://arxiv.org/abs/2406.15877",
+    "source_type": "arxiv",
+    "arxiv_id": "2406.15877",
+    "doi": "10.48550/arXiv.2406.15877",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Full split of BigCodeBench; uses the base benchmark's introducing paper."
+  },
+  "aider-polyglot": {
+    "name": "aider-polyglot",
+    "source_url": "https://aider.chat/docs/leaderboards/",
+    "source_type": "leaderboard",
+    "arxiv_id": null,
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Tool/leaderboard benchmark with no introducing paper; canonical leaderboard page (dataset: github.com/Aider-AI/polyglot-benchmark)."
+  },
+  "beyond-aime": {
+    "name": "beyond-aime",
+    "source_url": "https://arxiv.org/abs/2504.13914",
+    "source_type": "arxiv",
+    "arxiv_id": "2504.13914",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "BeyondAIME is introduced in the Seed1.5-Thinking paper; no dedicated paper."
+  },
+  "autologi": {
+    "name": "autologi",
+    "source_url": "https://arxiv.org/abs/2502.16906",
+    "source_type": "arxiv",
+    "arxiv_id": "2502.16906",
+    "doi": "10.48550/arXiv.2502.16906",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of AutoLogi."
+  },
+  "superglue": {
+    "name": "superglue",
+    "source_url": "https://arxiv.org/abs/1905.00537",
+    "source_type": "arxiv",
+    "arxiv_id": "1905.00537",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of SuperGLUE."
+  },
+  "aa-index": {
+    "name": "aa-index",
+    "source_url": "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index",
+    "source_type": "leaderboard",
+    "arxiv_id": null,
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Artificial Analysis Intelligence Index: composite leaderboard metric with no introducing paper; canonical page."
+  },
+  "aa-lcr": {
+    "name": "aa-lcr",
+    "source_url": "https://artificialanalysis.ai/articles/announcing-aa-lcr",
+    "source_type": "leaderboard",
+    "arxiv_id": null,
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Artificial Analysis Long Context Reasoning: leaderboard benchmark with no introducing paper; canonical page."
+  },
+  "agentharm": {
+    "name": "agentharm",
+    "source_url": "https://arxiv.org/abs/2410.09024",
+    "source_type": "arxiv",
+    "arxiv_id": "2410.09024",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of AgentHarm."
+  },
+  "androidworld": {
+    "name": "androidworld",
+    "source_url": "https://arxiv.org/abs/2405.14573",
+    "source_type": "arxiv",
+    "arxiv_id": "2405.14573",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of AndroidWorld."
+  },
+  "biolp-bench": {
+    "name": "biolp-bench",
+    "source_url": "https://doi.org/10.1101/2024.08.21.608694",
+    "source_type": "doi",
+    "arxiv_id": null,
+    "doi": "10.1101/2024.08.21.608694",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing preprint of BioLP-bench (bioRxiv)."
+  },
+  "alpacaeval-2.0": {
+    "name": "alpacaeval-2.0",
+    "source_url": "https://arxiv.org/abs/2404.04475",
+    "source_type": "arxiv",
+    "arxiv_id": "2404.04475",
+    "doi": "10.48550/arXiv.2404.04475",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Length-controlled AlpacaEval (2.0); introducing paper."
+  },
+  "api-bank": {
+    "name": "api-bank",
+    "source_url": "https://arxiv.org/abs/2304.08244",
+    "source_type": "arxiv",
+    "arxiv_id": "2304.08244",
+    "doi": "10.18653/v1/2023.emnlp-main.187",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of API-Bank."
+  },
+  "assistantbench": {
+    "name": "assistantbench",
+    "source_url": "https://arxiv.org/abs/2407.15711",
+    "source_type": "arxiv",
+    "arxiv_id": "2407.15711",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of AssistantBench."
+  },
+  "blink": {
+    "name": "blink",
+    "source_url": "https://arxiv.org/abs/2404.12390",
+    "source_type": "arxiv",
+    "arxiv_id": "2404.12390",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of BLINK."
+  },
+  "charxiv-d": {
+    "name": "charxiv-d",
+    "source_url": "https://arxiv.org/abs/2406.18521",
+    "source_type": "arxiv",
+    "arxiv_id": "2406.18521",
+    "doi": "10.48550/arXiv.2406.18521",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "CharXiv (descriptive split); introducing paper."
+  },
+  "bixbench": {
+    "name": "bixbench",
+    "source_url": "https://arxiv.org/abs/2503.00096",
+    "source_type": "arxiv",
+    "arxiv_id": "2503.00096",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of BixBench."
+  },
+  "activitynet": {
+    "name": "activitynet",
+    "source_url": "https://doi.org/10.1109/CVPR.2015.7298698",
+    "source_type": "doi",
+    "arxiv_id": null,
+    "doi": "10.1109/CVPR.2015.7298698",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of ActivityNet."
+  },
+  "chexpert-cxr": {
+    "name": "chexpert-cxr",
+    "source_url": "https://arxiv.org/abs/1901.07031",
+    "source_type": "arxiv",
+    "arxiv_id": "1901.07031",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of CheXpert."
+  },
+  "bold": {
+    "name": "bold",
+    "source_url": "https://arxiv.org/abs/2101.11718",
+    "source_type": "arxiv",
+    "arxiv_id": "2101.11718",
+    "doi": "10.1145/3442188.3445924",
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of BOLD."
+  },
+  "attaq": {
+    "name": "attaq",
+    "source_url": "https://arxiv.org/abs/2311.04124",
+    "source_type": "arxiv",
+    "arxiv_id": "2311.04124",
+    "doi": null,
+    "confidence": "high",
+    "verified_by": "manual",
+    "notes": "Introducing paper of the AttaQ dataset."
+  }
+}

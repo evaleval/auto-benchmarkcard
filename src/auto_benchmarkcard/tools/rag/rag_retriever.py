@@ -533,9 +533,18 @@ Chunks:
 
 Return JSON array: [8, 3, 9, 1, 7, 2, 6, 4, 5, 3]"""
 
-            # Run LLM call in thread pool to avoid blocking the event loop
+            # Run LLM call in thread pool to avoid blocking the event loop.
+            # 60s timeout prevents one hung HF inference call (e.g. silent
+            # rate-limit) from stalling asyncio.gather across all statements.
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, self.llm_handler.generate, rerank_prompt)
+            try:
+                response = await asyncio.wait_for(
+                    loop.run_in_executor(None, self.llm_handler.generate, rerank_prompt),
+                    timeout=60,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("LLM rerank timed out for statement (60s) — using basic filter")
+                return documents[:3]
             scores = self._parse_scores(response)
 
             if not scores:

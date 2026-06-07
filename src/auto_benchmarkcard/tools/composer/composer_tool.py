@@ -18,7 +18,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from auto_benchmarkcard.config import Config, get_llm_handler
 
@@ -1426,6 +1426,12 @@ class BenchmarkDetails(BaseModel):
         description="Source evidence mapping: field_name -> {source, evidence}",
     )
 
+    @field_validator("domains", "languages", "similar_benchmarks", "resources", mode="before")
+    @classmethod
+    def _coerce_str_to_list(cls, v):
+        # LLM sometimes returns "Not specified" as a bare string for list fields
+        return [v] if isinstance(v, str) else v
+
 
 class PurposeAndIntendedUsers(BaseModel):
 
@@ -1453,6 +1459,11 @@ class PurposeAndIntendedUsers(BaseModel):
         default=None,
         description="Source evidence mapping: field_name -> {source, evidence}",
     )
+
+    @field_validator("audience", "tasks", "out_of_scope_uses", mode="before")
+    @classmethod
+    def _coerce_str_to_list(cls, v):
+        return [v] if isinstance(v, str) else v
 
 
 class DataInfo(BaseModel):
@@ -1512,6 +1523,11 @@ class Methodology(BaseModel):
         default=None,
         description="Source evidence mapping: field_name -> {source, evidence}",
     )
+
+    @field_validator("methods", "metrics", mode="before")
+    @classmethod
+    def _coerce_str_to_list(cls, v):
+        return [v] if isinstance(v, str) else v
 
 
 class EthicalAndLegalConsiderations(BaseModel):

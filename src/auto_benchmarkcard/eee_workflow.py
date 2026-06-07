@@ -157,7 +157,10 @@ def process_single_benchmark(
     logger.info("Processing benchmark: %s (hf_repo=%s)", benchmark_name, pipeline_inputs.get("hf_repo"))
 
     try:
-        final_state = workflow.invoke(initial_state)
+        # Default LangGraph recursion_limit (25) gets hit on long pipelines:
+        # orchestrator + 11 workers + retries can easily exceed 25 super-steps.
+        # 75 gives headroom for retries without masking real loops.
+        final_state = workflow.invoke(initial_state, config={"recursion_limit": 75})
 
         # Use explicit None checks — {} is falsy and would skip to wrong fallback
         final_card = final_state.get("final_card")

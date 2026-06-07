@@ -104,10 +104,6 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
     if state["risk_enhanced_card"] is None and not _failed("risk identification"):
         return {"next": "risk_worker"}
 
-    # Composites have no source docs for RAG/FactReasoner — skip directly to END
-    if is_composite:
-        return {"next": "END"}
-
     if state["rag_results"] is None and not _failed("rag processing"):
         return {"next": "rag_worker"}
     if state["factuality_results"] is None and not _failed("factreasoner evaluation"):

@@ -367,16 +367,25 @@ def run_docling(state):
     normalized = _normalize_paper_url(paper_url)
     if not normalized:
         logger.info("Skipping Docling for non-extractable URL: %s", paper_url)
+        # Emit "docling extraction failed" so the orchestrator's _failed() check
+        # marks docling as done — otherwise the conditional re-routes here forever.
         return {
             "docling_output": None,
-            "completed": [f"docling skipped (non-extractable URL: {paper_url})"],
+            "completed": ["docling extraction failed"],
         }
 
     if not _check_paper_accessible(normalized):
         logger.info("Paper URL not accessible (paywall/HTML): %s", normalized)
+        # Promote HTML-only paper URLs (e.g. bioRxiv DOI landing pages) to
+        # extracted_ids.website_url so the html_worker picks them up — otherwise
+        # we lose the only known benchmark source for these cards.
+        ids = dict(state.get("extracted_ids") or {})
+        if not ids.get("website_url"):
+            ids["website_url"] = normalized
         return {
             "docling_output": None,
-            "completed": [f"docling skipped (not accessible: {normalized})"],
+            "extracted_ids": ids,
+            "completed": ["docling extraction failed"],
         }
 
     paper_url = normalized
@@ -409,7 +418,7 @@ def run_docling(state):
                 logger.warning("Docling warning: %s", warning_msg)
                 return {
                     "docling_output": None,
-                    "completed": ["docling warning - continuing without paper"],
+                    "completed": ["docling extraction failed"],
                 }
             else:
                 error_msg = (
@@ -435,6 +444,21 @@ def _is_html_url(url: str) -> bool:
     return True
 
 
+def _rank_html_url(url: str) -> int:
+    """Lower rank = try first. Benchmark-specific pages beat model-specific or API URLs."""
+    lower = url.lower()
+    # Strongly demote llm-stats model pages — they describe the model, not the benchmark
+    if "llm-stats" in lower and "/models/" in lower:
+        return 100
+    # Demote bare API endpoints (no human-readable content)
+    if "api." in lower or "/api/" in lower:
+        return 50
+    # Prefer llm-stats benchmark pages, project sites, blog posts
+    if "/benchmarks/" in lower or "/benchmark/" in lower:
+        return 0
+    return 10
+
+
 def run_html_extractor(state):
     """Extract content from web pages using trafilatura."""
     try:
@@ -451,6 +475,10 @@ def run_html_extractor(state):
         website_url = ids.get("website_url")
         if website_url and _is_html_url(website_url):
             urls.insert(0, website_url)
+
+        # Rank URLs: benchmark pages first, model pages last.
+        # Stable sort by rank preserves original order within each tier.
+        urls = sorted(urls, key=_rank_html_url)
 
         if not urls:
             logger.info("No HTML URLs to extract")
@@ -640,9 +668,12 @@ def run_rag(state) -> Dict[str, Any]:
         unitxt_data = state.get("unitxt_json") or {}
         hf_data = state.get("hf_json") or {}
         docling_data = state.get("docling_output")
+        html_data = state.get("html_content")
 
         indexer = MetadataIndexer()
-        documents = indexer.create_documents(unitxt_data, hf_data, state["query"], docling_data)
+        documents = indexer.create_documents(
+            unitxt_data, hf_data, state["query"], docling_data, html_data
+        )
 
         from auto_benchmarkcard.config import get_llm_handler
 
@@ -773,11 +804,18 @@ def run_factreasoner(state):
 
         field_analysis = factuality_results.get("field_analysis", {})
 
+        retrieved_contexts = (
+            [c.get("text", "") for c in rag_results.get("contexts", [])]
+            if isinstance(rag_results, dict)
+            else []
+        )
+
         flagged_card = flag_benchmark_card_fields(
             benchmark_card=clean_card,
             field_analysis=field_analysis,
             threshold=Config.DEFAULT_FACTUALITY_THRESHOLD,
             provenance=provenance_data,
+            retrieved_contexts=retrieved_contexts,
         )
 
         if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
@@ -795,7 +833,7 @@ def run_factreasoner(state):
                 logger.info("Field-type-aware scoring: unflagged %d identity/analytical fields", len(fields_to_unflag))
 
         if provenance_data:
-            flagged_card = backfill_from_provenance(flagged_card, provenance_data)
+            flagged_card = backfill_from_provenance(flagged_card, provenance_data, retrieved_contexts)
 
         flagged_card = normalize_not_specified(flagged_card)
 
