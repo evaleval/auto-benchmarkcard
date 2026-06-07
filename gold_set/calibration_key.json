@@ -1,0 +1,306 @@
+{
+  "label": "v31",
+  "rubric": "filled: supported/partial/unsupported; not_specified: info_in_source yes/no",
+  "key": [
+    {
+      "card": "bigcodebench",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "bigcodebench",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "bigcodebench",
+      "field_path": "methodology.validation",
+      "judge_label": "partial",
+      "specificity": "specific"
+    },
+    {
+      "card": "arc",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "generic"
+    },
+    {
+      "card": "arc",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "bigcodebench-full",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "bigcodebench-full",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "bigcodebench-full",
+      "field_path": "methodology.validation",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "aider-polyglot",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "generic"
+    },
+    {
+      "card": "aider-polyglot",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "beyond-aime",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "beyond-aime",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "beyond-aime",
+      "field_path": "methodology.validation",
+      "judge_label": "no",
+      "specificity": "na"
+    },
+    {
+      "card": "autologi",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "autologi",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "superglue",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "superglue",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "superglue",
+      "field_path": "methodology.validation",
+      "judge_label": "yes",
+      "specificity": "na"
+    },
+    {
+      "card": "aa-index",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "aa-index",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "aa-lcr",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "aa-lcr",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "yes",
+      "specificity": "na"
+    },
+    {
+      "card": "aa-lcr",
+      "field_path": "methodology.validation",
+      "judge_label": "yes",
+      "specificity": "na"
+    },
+    {
+      "card": "agentharm",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "agentharm",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "androidworld",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "androidworld",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "androidworld",
+      "field_path": "methodology.validation",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "biolp-bench",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "generic"
+    },
+    {
+      "card": "biolp-bench",
+      "field_path": "methodology.methods",
+      "judge_label": "partial",
+      "specificity": "specific"
+    },
+    {
+      "card": "alpacaeval-2.0",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "alpacaeval-2.0",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "no",
+      "specificity": "na"
+    },
+    {
+      "card": "alpacaeval-2.0",
+      "field_path": "methodology.validation",
+      "judge_label": "yes",
+      "specificity": "na"
+    },
+    {
+      "card": "api-bank",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "api-bank",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "assistantbench",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "assistantbench",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "assistantbench",
+      "field_path": "methodology.validation",
+      "judge_label": "unsupported",
+      "specificity": "specific"
+    },
+    {
+      "card": "blink",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "generic"
+    },
+    {
+      "card": "blink",
+      "field_path": "methodology.methods",
+      "judge_label": "partial",
+      "specificity": "specific"
+    },
+    {
+      "card": "charxiv-d",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "charxiv-d",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "charxiv-d",
+      "field_path": "methodology.validation",
+      "judge_label": "partial",
+      "specificity": "specific"
+    },
+    {
+      "card": "bixbench",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "generic"
+    },
+    {
+      "card": "bixbench",
+      "field_path": "methodology.methods",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "activitynet",
+      "field_path": "benchmark_details.name",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "activitynet",
+      "field_path": "purpose_and_intended_users.limitations",
+      "judge_label": "no",
+      "specificity": "na"
+    },
+    {
+      "card": "activitynet",
+      "field_path": "methodology.validation",
+      "judge_label": "no",
+      "specificity": "na"
+    },
+    {
+      "card": "chexpert-cxr",
+      "field_path": "benchmark_details.benchmark_type",
+      "judge_label": "supported",
+      "specificity": "specific"
+    },
+    {
+      "card": "chexpert-cxr",
+      "field_path": "methodology.methods",
+      "judge_label": "no",
+      "specificity": "na"
+    }
+  ]
+}

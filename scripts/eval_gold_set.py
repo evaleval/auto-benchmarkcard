@@ -141,7 +141,8 @@ def source_status(truth_entry, resolved):
     return "wrong"
 
 
-def build_report(label, manifest, truth, cards_root=None):
+def build_report(label, manifest, truth, cards_root=None, judge=None):
+    judge_cards = (judge or {}).get("per_card", {})
     cards = []
     for entry in manifest["cards"]:
         name = entry["name"]
@@ -169,11 +170,14 @@ def build_report(label, manifest, truth, cards_root=None):
             "validated": is_val,
             "resolved_source": resolved, "truth_source": truth.get(name, {}).get("source_url"),
             "source_status": status,
-            "faithfulness": None,  # deferred: filled by the judge step (FactReasoner v3)
+            "faithfulness": judge_cards.get(name, {}).get("aggregate"),  # None if no judge run
         })
 
+    agg = aggregate(cards)
+    if judge:
+        agg["faithfulness"] = judge.get("aggregate")
     return {"label": label, "n_cards": len(cards),
-            "aggregate": aggregate(cards), "by_stratum": by_stratum(cards), "cards": cards}
+            "aggregate": agg, "by_stratum": by_stratum(cards), "cards": cards}
 
 
 def _agg(cards):
@@ -236,6 +240,12 @@ def print_report(rep):
     print(f"  Source-correct accuracy={pct(s['accuracy'])} over {s['paper_truth_n']} paper-truths "
           f"(correct={s['correct']} wrong={s['wrong']} unresolved={s['unresolved']}); "
           f"abstain ok={s['abstain_correct']} bad={s['abstain_wrong']}")
+    fa = a.get("faithfulness")
+    if fa:
+        print(f"  Faithfulness   support={pct(fa['support_rate'])} unsupported={pct(fa['unsupported_rate'])} "
+              f"specific={pct(fa['specific_rate'])} (over {fa['n_filled']} filled); "
+              f"completeness-miss={pct(fa['completeness_miss_rate'])} ({fa['ns_missed']}/{fa['n_ns']}); "
+              f"risk-grounded={pct(fa['risk_grounded_rate'])}")
 
 
 def pct(x):
@@ -255,6 +265,15 @@ def print_compare(before, after):
         ("Validation frac", a["validation"]["frac"], b["validation"]["frac"], True),
         ("Source accuracy", a["source"]["accuracy"], b["source"]["accuracy"], True),
     ]
+    fa, fb = a.get("faithfulness"), b.get("faithfulness")
+    if fa and fb:
+        rows += [
+            ("Faithful: support", fa["support_rate"], fb["support_rate"], True),
+            ("Faithful: unsupported", fa["unsupported_rate"], fb["unsupported_rate"], True),
+            ("Faithful: specific", fa["specific_rate"], fb["specific_rate"], True),
+            ("Completeness miss", fa["completeness_miss_rate"], fb["completeness_miss_rate"], True),
+            ("Risk grounded", fa["risk_grounded_rate"], fb["risk_grounded_rate"], True),
+        ]
     for label, x, y, ispct in rows:
         dx = None if (x is None or y is None) else y - x
         fmt = pct if ispct else (lambda v: "n/a" if v is None else str(v))
@@ -278,6 +297,8 @@ def main():
     ap.add_argument("--cards-root", default=None,
                     help="dir (relative to repo) to pull regenerated cards from, by name")
     ap.add_argument("--out", default=None, help="output report path")
+    ap.add_argument("--judge", default=None,
+                    help="gold_set/judge_<label>.json to merge faithfulness into the report")
     ap.add_argument("--compare", nargs=2, metavar=("BEFORE", "AFTER"),
                     help="print a delta table between two report json files and exit")
     args = ap.parse_args()
@@ -296,7 +317,10 @@ def main():
     if not truth:
         print(f"warning: no truth at {args.truth} - source-correct will be all abstain/unresolved")
 
-    rep = build_report(args.label, manifest, truth, cards_root=args.cards_root)
+    judge = _load(args.judge) if args.judge else None
+    if args.judge and not judge:
+        print(f"warning: could not load judge file {args.judge} - faithfulness left empty")
+    rep = build_report(args.label, manifest, truth, cards_root=args.cards_root, judge=judge)
     out = args.out or os.path.join(GOLD_DIR, f"report_{args.label}.json")
     with open(out, "w") as f:
         json.dump(rep, f, indent=2)
