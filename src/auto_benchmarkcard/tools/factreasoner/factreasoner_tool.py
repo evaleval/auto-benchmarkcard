@@ -11,6 +11,8 @@ from fact_reasoner.context_retriever import ContextRetriever
 from fact_reasoner.factreasoner import FactReasoner
 from fact_reasoner.nli_extractor import NLIExtractor
 
+from auto_benchmarkcard.card_utils import _evidence_grounded_in_contexts, _is_structured_source
+
 logger = logging.getLogger(__name__)
 
 
@@ -397,11 +399,14 @@ def flag_benchmark_card_fields(
     field_analysis: Dict[str, Any],
     threshold: float = 0.8,
     provenance: Optional[Dict[str, Any]] = None,
+    retrieved_contexts: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Add a flagged_fields section to the benchmark card for low-confidence fields.
 
-    Fields with provenance evidence are not flagged even if the NLI score is neutral,
-    since the NLI model may simply fail to match wording.
+    A flagged field is only un-flagged when its provenance evidence is actually
+    grounded in the retrieved source text (not merely asserted by the composer):
+    the NLI model may fail to match wording, but the claim must still appear in a
+    real source for the flag to be lifted.
     """
 
     flagged_card = copy.deepcopy(benchmark_card)
@@ -423,12 +428,19 @@ def flag_benchmark_card_fields(
             section_prov = provenance.get(section_key, {})
             field_prov = section_prov.get(field_key, {})
 
-            if field_prov.get("source") and field_prov.get("evidence"):
-                # Provenance has clear source and evidence -- the NLI model
-                # just couldn't match the wording. Don't flag as hallucination.
+            if (
+                field_prov.get("source")
+                and field_prov.get("evidence")
+                and (
+                    _is_structured_source(field_prov.get("source"))
+                    or _evidence_grounded_in_contexts(field_prov["evidence"], retrieved_contexts)
+                )
+            ):
+                # Either a verified structured fact, or evidence genuinely present in
+                # the retrieved source (NLI just missed the wording). Not a hallucination.
                 should_flag = False
                 logger.debug(
-                    "Skipping flag for %s: provenance confirms source=%s",
+                    "Skipping flag for %s: provenance evidence grounded in source (source=%s)",
                     field_name,
                     field_prov["source"],
                 )

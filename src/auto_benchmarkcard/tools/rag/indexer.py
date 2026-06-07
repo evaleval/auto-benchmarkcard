@@ -73,6 +73,7 @@ class MetadataIndexer:
         hf_data: Optional[Dict[str, Any]],
         benchmark_name: str,
         docling_data: Optional[Dict[str, Any]] = None,
+        html_data: Optional[Dict[str, Any]] = None,
     ) -> List[Document]:
         """Create searchable documents from all metadata sources.
 
@@ -81,6 +82,8 @@ class MetadataIndexer:
             hf_data: Optional metadata from HuggingFace.
             benchmark_name: Name of the benchmark.
             docling_data: Optional extracted paper content.
+            html_data: Optional extracted web page content (project sites,
+                bioRxiv landing pages, llm-stats benchmark pages, etc.).
 
         Returns:
             List of Document objects ready for indexing.
@@ -94,6 +97,9 @@ class MetadataIndexer:
 
         if docling_data:
             docs.extend(self._process_docling(docling_data, benchmark_name))
+
+        if html_data:
+            docs.extend(self._process_html(html_data, benchmark_name))
 
         return docs
 
@@ -307,6 +313,42 @@ class MetadataIndexer:
                         "benchmark": benchmark_name,
                         "paper_url": metadata.get("source_url"),
                         "paper_title": metadata.get("title"),
+                    },
+                )
+            )
+
+        return docs
+
+    def _process_html(self, data: Dict[str, Any], benchmark_name: str) -> List[Document]:
+        """Convert extracted HTML page content into documents.
+
+        Used as RAG evidence when no paper PDF is extractable (paywall, HTML-only
+        landing pages like bioRxiv DOI, leaderboard pages like llm-stats benchmarks).
+        """
+        docs = []
+
+        if not data.get("success", False):
+            return docs
+
+        page_text = data.get("text", "")
+        if not page_text or not page_text.strip():
+            return docs
+
+        url = data.get("url", "")
+        title = data.get("title", "")
+        text_chunks = self.text_splitter.split_text(page_text)
+
+        for i, chunk in enumerate(text_chunks):
+            docs.append(
+                Document(
+                    page_content=chunk,
+                    metadata={
+                        "source": "html",
+                        "type": "page_text",
+                        "chunk_index": i,
+                        "benchmark": benchmark_name,
+                        "page_url": url,
+                        "page_title": title,
                     },
                 )
             )

@@ -1,0 +1,211 @@
+{
+  "n": 22,
+  "strata": [
+    "composite/suite",
+    "eee/longtail",
+    "multimodal/other",
+    "safety/other",
+    "single/paper",
+    "single/paper/known"
+  ],
+  "cards": [
+    {
+      "name": "bigcodebench",
+      "stratum": "single/paper/known",
+      "card_path": "output/current/phase2e_low/output/bigcodebench_2026-05-07_23-28/benchmarkcard/benchmark_card_bigcodebench.json",
+      "n_fields": 28,
+      "n_not_specified": 1,
+      "ns_rate": 0.036,
+      "n_flagged": 1
+    },
+    {
+      "name": "arc",
+      "stratum": "single/paper/known",
+      "card_path": "output/current/phase2e_low/output/arc_2026-05-07_23-03/benchmarkcard/benchmark_card_arc.json",
+      "n_fields": 28,
+      "n_not_specified": 5,
+      "ns_rate": 0.179,
+      "n_flagged": 2
+    },
+    {
+      "name": "bigcodebench-full",
+      "stratum": "single/paper/known",
+      "card_path": "output/current/phase2e_low/output/bigcodebench-full_2026-05-07_23-35/benchmarkcard/benchmark_card_bigcodebench-full.json",
+      "n_fields": 28,
+      "n_not_specified": 5,
+      "ns_rate": 0.179,
+      "n_flagged": 2
+    },
+    {
+      "name": "aider-polyglot",
+      "stratum": "single/paper",
+      "card_path": "output/current/v31_regen/output/aider-polyglot_2026-05-19_02-01/benchmarkcard/benchmark_card_aider-polyglot.json",
+      "n_fields": 28,
+      "n_not_specified": 10,
+      "ns_rate": 0.357,
+      "n_flagged": 0
+    },
+    {
+      "name": "beyond-aime",
+      "stratum": "single/paper",
+      "card_path": "output/current/phase2e_low/output/beyond-aime_2026-05-07_23-25/benchmarkcard/benchmark_card_beyond-aime.json",
+      "n_fields": 28,
+      "n_not_specified": 7,
+      "ns_rate": 0.25,
+      "n_flagged": 0
+    },
+    {
+      "name": "autologi",
+      "stratum": "single/paper",
+      "card_path": "output/current/phase2e_low/output/autologi_2026-05-07_23-18/benchmarkcard/benchmark_card_autologi.json",
+      "n_fields": 28,
+      "n_not_specified": 6,
+      "ns_rate": 0.214,
+      "n_flagged": 0
+    },
+    {
+      "name": "superglue",
+      "stratum": "composite/suite",
+      "card_path": "output/current/phase2e_low/output/superglue_2026-05-08_07-06/benchmarkcard/benchmark_card_superglue.json",
+      "n_fields": 28,
+      "n_not_specified": 6,
+      "ns_rate": 0.214,
+      "n_flagged": 0
+    },
+    {
+      "name": "aa-index",
+      "stratum": "composite/suite",
+      "card_path": "output/current/phase3_missing/output/aa-index_2026-05-08_13-06/benchmarkcard/benchmark_card_aa-index.json",
+      "n_fields": 28,
+      "n_not_specified": 11,
+      "ns_rate": 0.393,
+      "n_flagged": 0
+    },
+    {
+      "name": "aa-lcr",
+      "stratum": "composite/suite",
+      "card_path": "output/current/phase2c_high/output/aa-lcr_2026-05-07_06-22/benchmarkcard/benchmark_card_aa-lcr.json",
+      "n_fields": 28,
+      "n_not_specified": 9,
+      "ns_rate": 0.321,
+      "n_flagged": 0
+    },
+    {
+      "name": "agentharm",
+      "stratum": "eee/longtail",
+      "card_path": "output/current/phase2a_smoke9/output/agentharm_2026-05-07_04-51/benchmarkcard/benchmark_card_agentharm.json",
+      "n_fields": 27,
+      "n_not_specified": 1,
+      "ns_rate": 0.037,
+      "n_flagged": 0
+    },
+    {
+      "name": "androidworld",
+      "stratum": "eee/longtail",
+      "card_path": "output/current/phase2e_low/output/androidworld_2026-05-07_22-55/benchmarkcard/benchmark_card_androidworld.json",
+      "n_fields": 28,
+      "n_not_specified": 4,
+      "ns_rate": 0.143,
+      "n_flagged": 1
+    },
+    {
+      "name": "biolp-bench",
+      "stratum": "eee/longtail",
+      "card_path": "output/current/phase2e_low/output/biolp-bench_2026-05-07_23-42/benchmarkcard/benchmark_card_biolp-bench.json",
+      "n_fields": 28,
+      "n_not_specified": 9,
+      "ns_rate": 0.321,
+      "n_flagged": 0
+    },
+    {
+      "name": "alpacaeval-2.0",
+      "stratum": "eee/longtail",
+      "card_path": "output/current/v31_regen/output/alpacaeval-2.0_2026-05-19_01-55/benchmarkcard/benchmark_card_alpacaeval-2.0.json",
+      "n_fields": 28,
+      "n_not_specified": 11,
+      "ns_rate": 0.393,
+      "n_flagged": 0
+    },
+    {
+      "name": "api-bank",
+      "stratum": "eee/longtail",
+      "card_path": "output/current/phase2d_medium/output/api-bank_2026-05-07_13-46/benchmarkcard/benchmark_card_api-bank.json",
+      "n_fields": 28,
+      "n_not_specified": 10,
+      "ns_rate": 0.357,
+      "n_flagged": 0
+    },
+    {
+      "name": "assistantbench",
+      "stratum": "eee/longtail",
+      "card_path": "output/current/v31_regen/output/assistantbench_2026-05-19_00-49/benchmarkcard/benchmark_card_assistantbench.json",
+      "n_fields": 27,
+      "n_not_specified": 3,
+      "ns_rate": 0.111,
+      "n_flagged": 0
+    },
+    {
+      "name": "blink",
+      "stratum": "multimodal/other",
+      "card_path": "output/current/phase2c_high/output/blink_2026-05-07_06-26/benchmarkcard/benchmark_card_blink.json",
+      "n_fields": 28,
+      "n_not_specified": 4,
+      "ns_rate": 0.143,
+      "n_flagged": 0
+    },
+    {
+      "name": "charxiv-d",
+      "stratum": "multimodal/other",
+      "card_path": "output/current/v31_crash_retry/output/charxiv-d_2026-05-19_09-39/benchmarkcard/benchmark_card_charxiv-d.json",
+      "n_fields": 28,
+      "n_not_specified": 3,
+      "ns_rate": 0.107,
+      "n_flagged": 0
+    },
+    {
+      "name": "bixbench",
+      "stratum": "multimodal/other",
+      "card_path": "output/current/phase2e_low/output/bixbench_2026-05-07_23-45/benchmarkcard/benchmark_card_bixbench.json",
+      "n_fields": 28,
+      "n_not_specified": 11,
+      "ns_rate": 0.393,
+      "n_flagged": 0
+    },
+    {
+      "name": "activitynet",
+      "stratum": "multimodal/other",
+      "card_path": "output/current/phase2e_low/output/activitynet_2026-05-07_22-48/benchmarkcard/benchmark_card_activitynet.json",
+      "n_fields": 28,
+      "n_not_specified": 9,
+      "ns_rate": 0.321,
+      "n_flagged": 0
+    },
+    {
+      "name": "chexpert-cxr",
+      "stratum": "multimodal/other",
+      "card_path": "output/current/phase2e_low/output/chexpert-cxr_2026-05-08_00-02/benchmarkcard/benchmark_card_chexpert-cxr.json",
+      "n_fields": 28,
+      "n_not_specified": 14,
+      "ns_rate": 0.5,
+      "n_flagged": 1
+    },
+    {
+      "name": "bold",
+      "stratum": "safety/other",
+      "card_path": "output/current/phase2b_must/output/bold_2026-05-07_05-46/benchmarkcard/benchmark_card_bold.json",
+      "n_fields": 28,
+      "n_not_specified": 2,
+      "ns_rate": 0.071,
+      "n_flagged": 2
+    },
+    {
+      "name": "attaq",
+      "stratum": "safety/other",
+      "card_path": "output/current/phase2d_medium/output/attaq_2026-05-07_13-49/benchmarkcard/benchmark_card_attaq.json",
+      "n_fields": 28,
+      "n_not_specified": 3,
+      "ns_rate": 0.107,
+      "n_flagged": 0
+    }
+  ]
+}

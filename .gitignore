@@ -50,6 +50,10 @@ external/FactReasoner/
 external/every_eval_ever/
 .paper_cache.json
 
+# Local scratch / external experiments (not part of the package)
+.firecrawl/
+multitasking-benchmarks-experiments/
+
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb_checkpoints
