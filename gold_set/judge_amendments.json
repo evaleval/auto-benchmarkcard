@@ -1,0 +1,76 @@
+{
+  "_doc": "Judge label corrections. judge_v31.json stays untouched (frozen baseline); these amendments are applied on top via eval_gold_set.py --amendments, and flag_quality is always reported both raw and amended. amended=supported_by_eee_only means: the field value was deterministically verified against the benchmark's EEE artifact on disk, which the judge's source bundle (docling+html+readme+RAG) did not include -- the value is faithful to a pipeline input source, but only to EEE evaluation data, not to the benchmark's own publication (trust hierarchy paper > hf > eee stays visible).",
+  "aa-lcr:methodology.baseline_results": {
+    "original": "unsupported",
+    "amended": "supported_by_eee_only",
+    "reason": "All five listed models and scores match EEE evaluation_summary.top_performers exactly (mistral-small-latest 0.712, kimi-k2.5 0.7, qwen3.5-397b-a17b 0.687, Qwen3.6 Plus 0.683, qwen3.5-122b-a10b 0.669), mean 0.5695 +/- 0.1958 over 13 models also present. Judge source bundle contained no EEE data; aa-lcr has no paper (truth: leaderboard-only).",
+    "verified_values": [
+      "0.712",
+      "0.7",
+      "0.687",
+      "0.683",
+      "0.669",
+      "0.5695",
+      "0.1958",
+      "13"
+    ],
+    "verified_against": "output/current/phase2c_high/output/aa-lcr_2026-05-07_06-22/tool_output/eee/aa-lcr.json",
+    "verified_on": "2026-06-10"
+  },
+  "attaq:methodology.baseline_results": {
+    "original": "unsupported",
+    "amended": "supported_by_eee_only",
+    "reason": "Score range 0.861-0.885 across three models matches the EEE artifact (exactly 3 model entries). The field itself states the original paper reports no baseline results; EEE is the only source carrying this information.",
+    "verified_values": [
+      "0.861",
+      "0.885"
+    ],
+    "verified_against": "output/current/phase2d_medium/output/attaq_2026-05-07_13-49/tool_output/eee/attaq.json",
+    "verified_on": "2026-06-10"
+  },
+  "api-bank:methodology.interpretation": {
+    "original": "unsupported",
+    "amended": "supported_by_eee_only",
+    "reason": "Claim restates EEE metric_configs: 'lower_is_better': false under key llm_stats.api-bank.score, both present verbatim in the EEE artifact. Judge source bundle contained no EEE data (judge note itself says the config 'does NOT appear anywhere in the source text').",
+    "verified_values": [
+      "lower_is_better",
+      "llm_stats.api-bank.score"
+    ],
+    "verified_against": "tool_output/eee/api-bank.json (run_dir per gold_set/manifest.json)",
+    "verified_on": "2026-06-10"
+  },
+  "aider-polyglot:methodology.interpretation": {
+    "original": "unsupported",
+    "amended": "supported_by_eee_only",
+    "reason": "The 'fabricated' statistics mean 0.6213 and std 0.1524 are present verbatim in the EEE artifact (evaluation_summary), as are mean/std keys; aider-polyglot has no paper (truth: leaderboard-only). Judge saw only docling/html/readme.",
+    "verified_values": [
+      "0.6213",
+      "0.1524"
+    ],
+    "verified_against": "tool_output/eee/aider-polyglot.json (run_dir per gold_set/manifest.json)",
+    "verified_on": "2026-06-10"
+  },
+  "bold:methodology.interpretation": {
+    "original": "unsupported",
+    "amended": "supported_by_eee_only",
+    "reason": "The metric key 'openeval.bold.logprob' and 'lower_is_better' are present verbatim in the EEE artifact; judge grep over docling/html/readme could not see them.",
+    "verified_values": [
+      "openeval.bold.logprob",
+      "lower_is_better"
+    ],
+    "verified_against": "tool_output/eee/bold.json (run_dir per gold_set/manifest.json)",
+    "verified_on": "2026-06-10"
+  },
+  "chexpert-cxr:methodology.calculation": {
+    "original": "unsupported",
+    "amended": "supported_by_eee_only",
+    "reason": "Claim restates EEE metric_config for llm_stats.chexpert-cxr.score: 'lower_is_better': false (= higher is better) and 'score_type': 'continuous', both present verbatim in the EEE artifact. Judge source bundle contained no EEE data.",
+    "verified_values": [
+      "lower_is_better: false",
+      "score_type: continuous",
+      "llm_stats.chexpert-cxr.score"
+    ],
+    "verified_against": "tool_output/eee/chexpert-cxr.json (run_dir per gold_set/manifest.json)",
+    "verified_on": "2026-06-10"
+  }
+}

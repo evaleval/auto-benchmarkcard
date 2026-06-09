@@ -1,5 +1,6 @@
 """Card processing utilities: field extraction, normalization, and HF tag overrides."""
 
+import json
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -74,6 +75,44 @@ DETERMINISTIC_FIELDS = {
 _FIELD_SKIP = {"provenance", "flagged_fields", "missing_fields"}
 
 
+# Composer abstentions that leak through as a field VALUE instead of being
+# normalized to the canonical "Not specified" sentinel. These reference the
+# composer's own input ("facts provided", "the source facts") rather than making
+# a substantive claim about the benchmark, so they masquerade as filled content
+# and a faithfulness judge marks them unsupported. Anchored on PROVIDED / source
+# facts only: phrases like "no information was found regarding IRB" are honest,
+# judge-supported statements about the source and must NOT match.
+_ABSENCE_PLACEHOLDER_RE = re.compile(
+    r"no facts provided"
+    r"|provided in the source facts"
+    r"|no specific .{0,40}?(?:was|were) provided",
+    re.I,
+)
+
+
+def detect_absence_placeholders(card: Dict[str, Any]) -> Dict[str, str]:
+    """Find gold-section fields whose value is an explicit no-data placeholder
+    that slipped past the canonical 'Not specified' sentinel. Returns a
+    {dotted_path: reason} map for flagging. Deterministic, no inference."""
+    found: Dict[str, str] = {}
+    for section in GOLD_SECTIONS:
+        sec = card.get(section)
+        if not isinstance(sec, dict):
+            continue
+        for field, value in sec.items():
+            if is_not_specified(value):
+                continue
+            if isinstance(value, list):
+                text = " ".join(str(v) for v in value)
+            elif isinstance(value, str):
+                text = value
+            else:
+                continue
+            if _ABSENCE_PLACEHOLDER_RE.search(text):
+                found[f"{section}.{field}"] = "[Absence] explicit no-data placeholder"
+    return found
+
+
 def card_field_stats(card: Dict[str, Any]) -> Dict[str, int]:
     """Count fields and 'Not specified' values across the five gold sections,
     split into prose vs deterministic (structured) fields.
@@ -118,14 +157,160 @@ def _content_words(text: str) -> set:
     return {t for t in toks if (t.isdigit() and len(t) >= 2) or len(t) > 3}
 
 
+# Number literals as they appear in cards/evidence: 1,319 / 0.712 / 88% / 2024.
+_NUMBER_RE = re.compile(r"\d+(?:,\d{3})*(?:\.\d+)?%?")
+# Multi-word capitalized spans ("Terminal Bench", "Claude 3.5 Sonnet"),
+# digit/dash-bearing model slugs ("GPT-4o", "Llama-3.3-70B-Instruct"), and
+# snake_case/dotted config identifiers ("lower_is_better", "openeval.bold.logprob")
+# as they appear in EEE metric_configs.
+_NAME_SPAN_RE = re.compile(r"\b[A-Z][\w.+-]*(?:\s+[A-Z][\w.+-]*)+\b")
+_SLUG_RE = re.compile(r"\b[A-Za-z]+\w*\d[\w.-]*\b|\b[A-Za-z]\w*(?:-[\w.]+)+\b")
+_IDENT_RE = re.compile(r"\b[A-Za-z]\w*(?:[._]\w+)+\b")
+
+
+def _norm_number(tok: str) -> Optional[str]:
+    """Canonical form for numeric comparison: '1,319'->'1319', '0.700'->'0.7', '70%'->'70'."""
+    t = tok.replace(",", "").rstrip("%")
+    try:
+        return format(float(t), "g")
+    except ValueError:
+        return None
+
+
+def _number_tokens(text: str, min_signal: bool = False) -> list:
+    """(normalized, had_percent) number tokens in text. min_signal drops bare
+    single digits (keeps >=2-digit integers, decimals, percents) so '3 tasks'
+    can't veto."""
+    out = []
+    for tok in _NUMBER_RE.findall(text or ""):
+        if min_signal and "." not in tok and "%" not in tok and "," not in tok and len(tok) < 2:
+            continue
+        n = _norm_number(tok)
+        if n is not None:
+            out.append((n, tok.endswith("%")))
+    return out
+
+
+def _number_literals(text: str, min_signal: bool = False) -> set:
+    """Normalized number literals in text (see _number_tokens)."""
+    return {n for n, _ in _number_tokens(text, min_signal)}
+
+
+def _number_pool(text: str) -> set:
+    """Lookup pool of normalized numbers; percent tokens also contribute their
+    fractional form ('70%' -> {'70', '0.7'}) so decimal claims can match them."""
+    pool = set()
+    for n, had_pct in _number_tokens(text):
+        pool.add(n)
+        if had_pct:
+            try:
+                pool.add(format(float(n) / 100, "g"))
+            except ValueError:
+                pass
+    return pool
+
+
+def _num_matches(token, pool: set) -> bool:
+    """Match a (normalized, had_percent) claim token against a pool. Scaling is
+    only applied when an explicit percent marker licenses it -- a bare 0.05 must
+    not match a benign 5 somewhere in the artifacts."""
+    n, had_pct = token
+    if n in pool:
+        return True
+    if had_pct:
+        try:
+            return format(float(n) / 100, "g") in pool
+        except ValueError:
+            return False
+    return False
+
+
+def _name_literals(text: str) -> set:
+    """Lowercased proper-name spans, model slugs and config identifiers in text."""
+    names = set()
+    for rx in (_NAME_SPAN_RE, _SLUG_RE, _IDENT_RE):
+        for m in rx.findall(text or ""):
+            if len(m) >= 4:
+                names.add(m.lower())
+    return names
+
+
+def verify_against_artifacts(
+    field_value: Any,
+    evidence: str,
+    artifacts: Optional[Dict[str, Any]],
+    benchmark_name: Optional[str] = None,
+) -> Optional[bool]:
+    """Check a structured-source claim against the actual artifact JSON on disk.
+
+    `artifacts` maps source kind to loaded JSON, e.g. {"eee": ..., "hf": ...}.
+    Returns None when no artifact is available (caller must fall back to prose
+    grounding -- never blind-trust the composer's source label). True/False =
+    the claim's number/name literals are present/absent in the pooled artifacts.
+    The benchmark's own name is excluded from the name units -- it appears in
+    every artifact, so matching on it would verify any claim vacuously.
+    """
+    if not artifacts:
+        return None
+    blobs = [json.dumps(a) for a in artifacts.values() if a]
+    if not blobs:
+        return None
+    blob = " ".join(blobs)
+    pool_nums = _number_pool(blob)
+    pool_text = blob.lower()
+
+    if isinstance(field_value, str):
+        value_text = field_value
+    elif field_value is None:
+        value_text = ""
+    else:
+        value_text = json.dumps(field_value)
+    claim = f"{evidence or ''} {value_text}"
+
+    def _norm_span(s):
+        return " ".join(re.findall(r"[a-z0-9]+", s.lower()))
+
+    num_tokens = _number_tokens(claim, min_signal=True)
+    nums = {n for n, _ in num_tokens}
+    names = _name_literals(claim)
+    bn = _norm_span(benchmark_name or "")
+    if bn:
+        # Drop units that ARE the benchmark name (not units merely containing it,
+        # like a metric key 'openeval.bold.logprob' for benchmark 'BOLD').
+        names = {n for n in names if _norm_span(n) not in (bn, f"the {bn}")}
+    if nums:
+        if not names and len(nums) < 2:
+            # A single bare number with no identifying name is too weak to
+            # verify (it could match anything in the artifacts) -- abstain.
+            return None
+        return all(_num_matches(t, pool_nums) for t in num_tokens) and (
+            not names or any(n in pool_text for n in names)
+        )
+    if names:
+        return any(n in pool_text for n in names)
+    # No verifiable units (generic prose, e.g. an interpretation sentence):
+    # abstain rather than guess -- common words overlapping the artifact JSON
+    # is no evidence the claim came from it. Caller falls back to prose grounding.
+    return None
+
+
 def _evidence_grounded_in_contexts(
-    evidence: str, retrieved_contexts: Optional[List[str]], threshold: float = 0.6
+    evidence: str,
+    retrieved_contexts: Optional[List[str]],
+    threshold: float = 0.6,
+    high_signal: bool = False,
 ) -> bool:
     """Whether provenance evidence is actually supported by the retrieved source text.
 
     Returns True only when enough of the evidence's content tokens appear in the
     retrieved chunks. This replaces trusting the composer's self-asserted provenance,
     which is circular: the model that wrote the field also vouches for it.
+
+    With high_signal=True an additional veto applies on top of the base overlap
+    check (strictly stricter, never looser): if the evidence contains number
+    literals or proper-name spans, ALL numbers and at least one name must appear
+    in the contexts -- common words overlapping is not enough to vouch for a
+    fabricated score or model name.
     """
     if not evidence or not retrieved_contexts:
         return False
@@ -136,7 +321,21 @@ def _evidence_grounded_in_contexts(
     for chunk in retrieved_contexts:
         if chunk:
             ctx_words |= _content_words(chunk)
-    return bool(ctx_words) and len(ev_words & ctx_words) / len(ev_words) >= threshold
+    base = bool(ctx_words) and len(ev_words & ctx_words) / len(ev_words) >= threshold
+    if not high_signal or not base:
+        return base
+    num_tokens = _number_tokens(evidence, min_signal=True)
+    names = _name_literals(evidence)
+    if not (num_tokens or names):
+        return base
+    ctx_text = " ".join(c for c in retrieved_contexts if c)
+    if num_tokens:
+        ctx_nums = _number_pool(ctx_text)
+        if not all(_num_matches(t, ctx_nums) for t in num_tokens):
+            return False
+    if names and not any(n in ctx_text.lower() for n in names):
+        return False
+    return True
 
 
 def _is_structured_source(source: Optional[str]) -> bool:

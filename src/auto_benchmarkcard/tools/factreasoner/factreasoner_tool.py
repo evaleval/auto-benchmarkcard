@@ -5,15 +5,119 @@ import math
 import os
 from typing import Any, Dict, List, Optional
 
-from fact_reasoner.atom_extractor import AtomExtractor
-from fact_reasoner.atom_reviser import AtomReviser
-from fact_reasoner.context_retriever import ContextRetriever
-from fact_reasoner.factreasoner import FactReasoner
-from fact_reasoner.nli_extractor import NLIExtractor
+import asyncio
+import threading
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 
-from auto_benchmarkcard.card_utils import _evidence_grounded_in_contexts, _is_structured_source
+import fact_reasoner.core.base as _fr_base
+from fact_reasoner.assessor import FactReasoner
+from fact_reasoner.core.atomizer import Atomizer
+from fact_reasoner.core.nli import NLIExtractor
+from fact_reasoner.core.reviser import Reviser
+from mellea.backends import ModelOption
+from mellea.backends.openai import OpenAIBackend
+
+from auto_benchmarkcard.card_utils import (
+    _evidence_grounded_in_contexts,
+    _is_structured_source,
+    detect_absence_placeholders,
+    verify_against_artifacts,
+)
 
 logger = logging.getLogger(__name__)
+
+
+# FactReasoner v0.5.9 build_relations has a bug in the contexts_per_atom_only (FR1)
+# path: it iterates `atom.get_contexts()`, which returns a dict, so it yields context
+# ids (strings) instead of Context objects. NLI then scores the id string against the
+# atom and every relation comes back neutral. We make get_contexts return a dict view
+# that iterates as values while preserving the dict API (.keys()/[]/in/len) that the
+# serialization and baseline call sites rely on.
+class _ContextsView(dict):
+    def __iter__(self):
+        return iter(self.values())
+
+
+_fr_base.Atom.get_contexts = lambda self: _ContextsView(self.contexts)
+
+
+# v0.5.9 build() calls the serial Reviser.run (one LLM call per atom, sequential),
+# which dominates wall-clock when revise_atoms is on (~6s/atom -> minutes per card).
+# The Reviser already ships an async run_batch; route run() through it so atoms are
+# revised concurrently (identical prompts/output, ~10x faster). This also matters for
+# scaling decontextualization to many cards.
+def _parallel_reviser_run(self, units, response):
+    import concurrent.futures
+
+    if not units:
+        return []
+    try:
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, self.run_batch(units, response)).result()
+    except RuntimeError:
+        return asyncio.run(self.run_batch(units, response))
+
+
+Reviser.run = _parallel_reviser_run
+
+
+# redirect_stdout/redirect_stderr swap the *global* sys.stdout/stderr, which is not
+# thread-safe: when several cards are scored concurrently (batch revalidation) two
+# threads can interleave their save/restore so sys.stdout is left pointing at another
+# thread's already-closed devnull, and the next print() dies with "I/O operation on
+# closed file". Only the lock holder suppresses; concurrent callers run without
+# redirection (verbose but correct) and never touch the global streams. Single-threaded
+# production keeps the original quiet behavior.
+_SUPPRESS_LOCK = threading.Lock()
+
+
+@contextmanager
+def _maybe_suppress_streams():
+    if _SUPPRESS_LOCK.acquire(blocking=False):
+        try:
+            with open(os.devnull, "w") as devnull, redirect_stdout(devnull), redirect_stderr(devnull):
+                yield
+        finally:
+            _SUPPRESS_LOCK.release()
+    else:
+        yield
+
+
+class _LogprobsOpenAIBackend(OpenAIBackend):
+    """OpenAI-compatible Mellea backend that surfaces choice logprobs where
+    FactReasoner's NLI extractor expects them.
+
+    Mellea's OpenAIBackend stores the full chat response under "oai_chat_response"
+    (logprobs nested under choices[0]); FactReasoner's extract_logprobs_from_output
+    looks for a top-level "logprobs". We lift the choice logprobs so grounded-NLI
+    scoring works against RITS / HF OpenAI-compatible endpoints (no mellea-ibm).
+    """
+
+    async def post_processing(self, mot, tools, conversation, thinking, seed, _format):
+        await super().post_processing(mot, tools, conversation, thinking, seed, _format)
+        choice = mot._meta.get("oai_chat_response_choice")
+        if isinstance(choice, dict) and choice.get("logprobs") is not None:
+            mot._meta["logprobs"] = choice["logprobs"]
+
+
+# RITS routes each model under its own url slug; map the FactReasoner model to its
+# (url-slug, served-model-name). Falls back to a derived slug for unmapped models.
+_RITS_ROUTES = {
+    "meta-llama/llama-3.3-70b-instruct": (
+        "llama-3-3-70b-instruct",
+        "meta-llama/llama-3-3-70b-instruct",
+    ),
+}
+
+
+def _rits_route(model_id: str) -> tuple[str, str]:
+    """Return the (url-slug, served-model-name) for a model on RITS."""
+    key = model_id.lower()
+    if key in _RITS_ROUTES:
+        return _RITS_ROUTES[key]
+    slug = model_id.split("/")[-1].lower().replace(".", "-")
+    return slug, key
 
 
 def _create_atom_marginal_mappings(
@@ -29,11 +133,14 @@ def _find_marginal_for_atom(
     atom_id: str, atom_text: str, marginals_by_var: Dict[str, Any]
 ) -> Dict[str, Any] | None:
     """Find the marginal probability data corresponding to an atom."""
-    # FactReasoner variable names may contain the atom ID or a text prefix
+    exact = marginals_by_var.get(atom_id)
+    if exact is not None:
+        return exact
+    # Legacy fallback: variable names may embed the atom ID or a text prefix.
     for var_name, marginal in marginals_by_var.items():
-        if atom_id in var_name or atom_text[:50] in var_name:
+        if atom_id in var_name or (atom_text and atom_text[:50] in var_name):
             return marginal
-    return marginals_by_var.get(atom_id)
+    return None
 
 
 def _determine_flag_reason(field_stats: Dict[str, Any], threshold: float) -> tuple[bool, str, str]:
@@ -237,60 +344,69 @@ def create_atom_summary(
     return atom_summary
 
 
-def _create_factreasoner_llm_handler():
-    """Create a FactReasoner LLMHandler using the workflow's configured engine credentials."""
-    try:
-        from auto_benchmarkcard.config import Config
-        from fact_reasoner.llm_handler import LLMHandler as FRLLMHandler
+def _active_factreasoner_engine() -> str:
+    """Return the engine type FactReasoner will run on (rits/hf/...)."""
+    from auto_benchmarkcard.config import Config
 
-        engine_type = Config.LLM_ENGINE_TYPE.lower()
-        model_id = Config.FACTREASONER_MODEL
+    return Config.LLM_ENGINE_TYPE.lower()
+
+
+def _create_factreasoner_backend(model_id: str):
+    """Create a Mellea backend for FactReasoner from the configured engine.
+
+    RITS and HuggingFace both expose OpenAI-compatible chat endpoints, so a single
+    logprobs-surfacing OpenAI backend serves both (no mellea-ibm needed). RITS is the
+    batch engine and does not consume HF credits; HF is the interactive fallback.
+    """
+    try:
+        engine_type = _active_factreasoner_engine()
+        max_new = ModelOption.MAX_NEW_TOKENS
 
         if engine_type == "rits":
             api_key = os.environ.get("RITS_API_KEY")
-            if api_key:
-                return FRLLMHandler(
-                    model_id=model_id,
-                    backend="rits",
-                    api_key=api_key,
-                )
-            return None
+            api_url = os.environ.get("RITS_API_URL")
+            if not (api_key and api_url):
+                return None
+            slug, rits_model = _rits_route(model_id)
+            base_url = f"{api_url.rstrip('/')}/{slug}/v1"
+            return _LogprobsOpenAIBackend(
+                model_id=rits_model,
+                base_url=base_url,
+                api_key=api_key,
+                default_headers={"RITS_API_KEY": api_key},
+                model_options={max_new: 1024},
+            )
 
         if engine_type == "hf":
             api_key = os.environ.get("HF_TOKEN")
-            api_base = os.environ.get(
-                "HF_API_URL", "https://router.huggingface.co/v1"
-            )
+            api_base = os.environ.get("HF_API_URL", "https://router.huggingface.co/v1")
             if not api_key:
-                logger.warning("HF_TOKEN not set; FactReasoner will use defaults")
+                logger.warning("HF_TOKEN not set; cannot create FactReasoner backend")
                 return None
-            extra_headers = {}
+            headers = {}
             hf_org = os.environ.get("HF_ORG")
             if hf_org:
-                extra_headers["X-HF-Bill-To"] = hf_org
-            return FRLLMHandler(
+                headers["X-HF-Bill-To"] = hf_org
+            return _LogprobsOpenAIBackend(
                 model_id=model_id,
-                backend="openai",
-                api_base=api_base,
+                base_url=api_base,
                 api_key=api_key,
-                extra_headers=extra_headers or None,
+                default_headers=headers or None,
+                model_options={max_new: 1024},
             )
 
         # Generic OpenAI-compatible fallback
         api_base = os.environ.get("FACTREASONER_API_BASE") or os.environ.get("LLM_API_BASE")
-        api_key = (
-            os.environ.get("FACTREASONER_API_KEY")
-            or os.environ.get("LLM_API_KEY")
-        )
+        api_key = os.environ.get("FACTREASONER_API_KEY") or os.environ.get("LLM_API_KEY")
         if api_base and api_key:
-            return FRLLMHandler(
+            return _LogprobsOpenAIBackend(
                 model_id=model_id,
-                backend="openai",
-                api_base=api_base,
+                base_url=api_base,
                 api_key=api_key,
+                model_options={max_new: 1024},
             )
     except Exception:
-        logger.debug("Could not create FactReasoner LLM handler", exc_info=True)
+        logger.debug("Could not create FactReasoner backend", exc_info=True)
     return None
 
 
@@ -301,63 +417,75 @@ def evaluate_factuality(
     cache_dir: str = "factreasoner_cache",
     merlin_path: str = "merlin/bin/merlin",
     debug_mode: bool = False,
-    use_priors: bool = False,
+    revise_atoms: bool = False,
 ) -> Dict[str, Any]:
     """Run NLI-based factuality evaluation on benchmark card claims.
 
-    Uses FactReasoner to check whether source evidence supports, contradicts,
-    or is neutral about each extracted claim, then runs probabilistic reasoning
-    to produce per-claim confidence scores.
+    Uses FactReasoner (v0.5.9, Mellea backend) to check whether source evidence
+    supports, contradicts, or is neutral about each extracted claim, then runs
+    probabilistic reasoning to produce per-claim confidence scores. Runs FR1
+    (each atom scored against its own retrieved contexts); ``revise_atoms`` turns
+    on decontextualization of atoms before scoring.
     """
     os.makedirs(cache_dir, exist_ok=True)
-    llm_handler = _create_factreasoner_llm_handler()
+    backend = _create_factreasoner_backend(model)
+    if backend is None:
+        raise RuntimeError(
+            "FactReasoner backend unavailable; check RITS_API_KEY/RITS_API_URL "
+            "(LLM_ENGINE_TYPE=rits) or HF_TOKEN (LLM_ENGINE_TYPE=hf)."
+        )
 
-    from auto_benchmarkcard.config import Config
-    context_retriever = ContextRetriever(service_type="langchain", top_k=Config.DEFAULT_TOP_K, cache_dir=cache_dir)
-    atom_extractor = AtomExtractor(model, llm_handler=llm_handler)
-    atom_reviser = AtomReviser(model, llm_handler=llm_handler)
-    nli_extractor = NLIExtractor(model, prompt_version=nli_prompt_version, llm_handler=llm_handler)
+    atom_extractor = Atomizer(backend)
+    atom_reviser = Reviser(backend)
+    nli_extractor = NLIExtractor(backend)
 
     pipeline = FactReasoner(
-        context_retriever=context_retriever,
         atom_extractor=atom_extractor,
         atom_reviser=atom_reviser,
         nli_extractor=nli_extractor,
+        context_retriever=None,
+        context_summarizer=None,
         merlin_path=merlin_path,
-        debug_mode=False,
-        use_priors=use_priors,
+        # v0.5.9 needs context priors to anchor evidence as "supported"; without
+        # them grounded relations cannot propagate and every atom stays at 0.5.
+        use_priors=True,
     )
 
     pipeline.from_dict_with_contexts(data=formatted_rag_results)
 
-    # Suppress FactReasoner's verbose stdout/stderr during processing
-    from contextlib import redirect_stderr, redirect_stdout
-
-    with open(os.devnull, "w") as devnull:
-        with redirect_stdout(devnull), redirect_stderr(devnull):
+    # Suppress FactReasoner's verbose stdout/stderr during processing (thread-safe;
+    # see _maybe_suppress_streams).
+    with _maybe_suppress_streams():
+        asyncio.run(
             pipeline.build(
                 has_atoms=True,
                 has_contexts=True,
-                revise_atoms=False,
+                revise_atoms=revise_atoms,
                 rel_atom_context=True,
                 rel_context_context=False,
                 contexts_per_atom_only=True,
                 remove_duplicates=False,
+                summarize_contexts=False,
             )
-            results, marginals = pipeline.score()
+        )
+        results, marginals = pipeline.score()
 
+    # score() returns marginals for atom AND context variables; keep atom variables
+    # only and backfill orphan atoms (no NLI relation -> no marginal) as neutral.
+    marginals_by_var = {m.get("variable"): m for m in marginals}
     entropy = 0.0
-    valid_marginals = []
-
     eps = 1e-7
-    for info in marginals:
-        var = info.get("variable")
-        probs = info.get("probabilities")
-        if probs and len(probs) > 1:
-            p_true = max(probs[1], eps)
-            p_false = max(1.0 - p_true, eps)
-            entropy += -p_true * math.log10(p_true) - p_false * math.log10(p_false)
-            valid_marginals.append({"variable": var, "probabilities": probs, "p_true": probs[1]})
+    valid_marginals = []
+    for atom in formatted_rag_results.get("atoms", []):
+        aid = atom.get("id")
+        info = marginals_by_var.get(aid)
+        probs = info.get("probabilities") if info else None
+        if not (probs and len(probs) > 1):
+            probs = [0.5, 0.5]
+        p_true = max(probs[1], eps)
+        p_false = max(1.0 - p_true, eps)
+        entropy += -p_true * math.log10(p_true) - p_false * math.log10(p_false)
+        valid_marginals.append({"variable": aid, "probabilities": probs, "p_true": probs[1]})
 
     n = len(valid_marginals)
     normalized_entropy = entropy / n if n > 0 else 0.0
@@ -373,7 +501,11 @@ def evaluate_factuality(
     )
 
     return {
-        "results": results,
+        "results": {
+            "num_atoms": results.get("num_atoms", len(pipeline.atoms)),
+            "num_contexts": results.get("num_contexts", len(pipeline.contexts)),
+            "factuality_score": results.get("factuality_score"),
+        },
         "marginals": valid_marginals,
         "entropy_metrics": {
             "total_entropy": entropy,
@@ -382,12 +514,8 @@ def evaluate_factuality(
             "num_variables": n,
         },
         "fact_graph_info": {
-            "num_atoms": (
-                len(pipeline.fact_graph.atoms) if hasattr(pipeline.fact_graph, "atoms") else 0
-            ),
-            "num_contexts": (
-                len(pipeline.fact_graph.contexts) if hasattr(pipeline.fact_graph, "contexts") else 0
-            ),
+            "num_atoms": len(pipeline.atoms),
+            "num_contexts": len(pipeline.contexts),
         },
         "field_analysis": field_analysis,
         "atom_summary": atom_summary,
@@ -400,6 +528,8 @@ def flag_benchmark_card_fields(
     threshold: float = 0.8,
     provenance: Optional[Dict[str, Any]] = None,
     retrieved_contexts: Optional[List[str]] = None,
+    structured_artifacts: Optional[Dict[str, Any]] = None,
+    high_signal_grounding: bool = False,
 ) -> Dict[str, Any]:
     """Add a flagged_fields section to the benchmark card for low-confidence fields.
 
@@ -407,6 +537,12 @@ def flag_benchmark_card_fields(
     grounded in the retrieved source text (not merely asserted by the composer):
     the NLI model may fail to match wording, but the claim must still appear in a
     real source for the flag to be lifted.
+
+    When structured_artifacts is given ({"eee": <json>, "hf": <json>}), a claimed
+    structured source is verified against the actual artifact instead of being
+    trusted on the composer's say-so; with no artifact on disk the claim falls
+    back to prose grounding. structured_artifacts=None preserves the legacy
+    blind-trust behavior (needed for byte-identical re-application of old runs).
     """
 
     flagged_card = copy.deepcopy(benchmark_card)
@@ -420,29 +556,49 @@ def flag_benchmark_card_fields(
 
         should_flag, reason, reason_desc = _determine_flag_reason(field_stats, threshold)
 
-        if should_flag and provenance:
+        if should_flag:
             parts = field_name.split(".")
             section_key = parts[0] if len(parts) > 0 else ""
             field_key = parts[1] if len(parts) > 1 else ""
 
-            section_prov = provenance.get(section_key, {})
+            section_prov = (provenance or {}).get(section_key, {})
             field_prov = section_prov.get(field_key, {})
+            evidence = field_prov.get("evidence") or ""
 
-            if (
-                field_prov.get("source")
-                and field_prov.get("evidence")
-                and (
-                    _is_structured_source(field_prov.get("source"))
-                    or _evidence_grounded_in_contexts(field_prov["evidence"], retrieved_contexts)
+            if structured_artifacts is None:
+                # Legacy: trust the composer's structured-source label outright.
+                unflag = bool(
+                    field_prov.get("source")
+                    and evidence
+                    and (
+                        _is_structured_source(field_prov.get("source"))
+                        or _evidence_grounded_in_contexts(evidence, retrieved_contexts)
+                    )
                 )
-            ):
-                # Either a verified structured fact, or evidence genuinely present in
-                # the retrieved source (NLI just missed the wording). Not a hallucination.
+            else:
+                # Artifact verification is a RESCUE, not a veto, and runs on the
+                # field VALUE itself (plus evidence) regardless of what source the
+                # composer claims -- a claim whose numbers/names/config keys are
+                # really in the eee/hf artifact is grounded even if the composer
+                # forgot or mislabeled its provenance. Independently, evidence
+                # genuinely present in the retrieved text also lifts the flag.
+                # Blind label-trust is gone.
+                section_val = benchmark_card.get(section_key)
+                value = section_val.get(field_key) if isinstance(section_val, dict) else None
+                bench_name = (benchmark_card.get("benchmark_details") or {}).get("name")
+                verified = verify_against_artifacts(
+                    value, evidence, structured_artifacts, benchmark_name=bench_name
+                )
+                grounded = bool(evidence) and _evidence_grounded_in_contexts(
+                    evidence, retrieved_contexts, high_signal=high_signal_grounding
+                )
+                unflag = (verified is True) or grounded
+            if unflag:
                 should_flag = False
                 logger.debug(
-                    "Skipping flag for %s: provenance evidence grounded in source (source=%s)",
+                    "Skipping flag for %s: claim grounded (source=%s)",
                     field_name,
-                    field_prov["source"],
+                    field_prov.get("source"),
                 )
 
         if should_flag:
@@ -455,6 +611,12 @@ def flag_benchmark_card_fields(
                 flag_reason = f"[Factuality Score: {avg_prob:.2f}], low factual alignment with source material"
 
             flagged_fields[field_name] = flag_reason
+
+    # Deterministic absence-placeholder pass over the card values (catches fields
+    # the composer abstained on but that slipped past the canonical sentinel, so
+    # they were never atomized). Never overwrites an NLI reason.
+    for path, reason in detect_absence_placeholders(benchmark_card).items():
+        flagged_fields.setdefault(path, reason)
 
     if flagged_fields:
         flagged_card["flagged_fields"] = flagged_fields
@@ -510,7 +672,7 @@ def main():
         help="Factuality threshold for flagging fields",
     )
     parser.add_argument("--no-debug", action="store_true", help="Disable debug mode")
-    parser.add_argument("--use-priors", action="store_true", help="Use atom/context priors")
+    parser.add_argument("--revise-atoms", action="store_true", help="Decontextualize atoms before scoring")
 
     args = parser.parse_args()
 
@@ -540,7 +702,7 @@ def main():
             cache_dir=args.cache_dir,
             merlin_path=args.merlin_path,
             debug_mode=False,
-            use_priors=args.use_priors,
+            revise_atoms=args.revise_atoms,
         )
 
         output_path = os.path.join(args.output_dir, f"factuality_results_{benchmark_name}.json")

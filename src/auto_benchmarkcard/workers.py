@@ -40,26 +40,9 @@ from auto_benchmarkcard.tools.rag.indexer import MetadataIndexer
 from auto_benchmarkcard.tools.rag.rag_retriever import RAGRetriever
 from auto_benchmarkcard.tools.unitxt import unitxt_tool
 
-logger = logging.getLogger(__name__)
+from auto_benchmarkcard.validation_policy import ANALYTICAL_FIELDS, IDENTITY_FIELDS
 
-# Identity fields describe what the benchmark IS (name, domains, audience).
-# They're pulled from multiple sources, so NLI-based contradiction checks produce
-# false positives — use a relaxed threshold for these.
-#
-# Analytical fields are reasoned by the LLM from context (limitations,
-# out-of-scope uses, interpretation). They can't be fact-checked against
-# source docs because they don't appear verbatim anywhere — skip NLI flagging.
-_IDENTITY_FIELDS = {
-    "benchmark_details.overview", "benchmark_details.domains",
-    "benchmark_details.data_type", "benchmark_details.similar_benchmarks",
-    "purpose_and_intended_users.goal", "purpose_and_intended_users.audience",
-    "purpose_and_intended_users.tasks",
-}
-_ANALYTICAL_FIELDS = {
-    "purpose_and_intended_users.limitations",
-    "purpose_and_intended_users.out_of_scope_uses",
-    "methodology.interpretation",
-}
+logger = logging.getLogger(__name__)
 
 
 def handle_error(error: Exception, operation: str, state) -> Dict[str, Any]:
@@ -788,7 +771,6 @@ def run_factreasoner(state):
             cache_dir=Config.FACTREASONER_CACHE_DIR,
             merlin_path=str(Config.MERLIN_BIN),
             debug_mode=False,
-            use_priors=False,
         )
 
         factuality_filename = f"factuality_results_{benchmark_name}.json"
@@ -816,15 +798,17 @@ def run_factreasoner(state):
             threshold=Config.DEFAULT_FACTUALITY_THRESHOLD,
             provenance=provenance_data,
             retrieved_contexts=retrieved_contexts,
+            structured_artifacts={"eee": state.get("eee_metadata"), "hf": state.get("hf_json")},
         )
 
         if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
+            field_details = field_analysis.get("field_details", {})
             fields_to_unflag = []
             for field_name, flag_reason in flagged_card["flagged_fields"].items():
-                if field_name in _ANALYTICAL_FIELDS:
+                if field_name in ANALYTICAL_FIELDS:
                     fields_to_unflag.append(field_name)
                     logger.debug("Unflagging analytical field %s (reasoned, not extracted)", field_name)
-                elif field_name in _IDENTITY_FIELDS and "Possible Hallucination" in str(flag_reason):
+                elif field_name in IDENTITY_FIELDS and field_details.get(field_name, {}).get("all_neutral") is True:
                     fields_to_unflag.append(field_name)
                     logger.debug("Unflagging identity field %s (neutral NLI expected for descriptive content)", field_name)
             for field_name in fields_to_unflag:
