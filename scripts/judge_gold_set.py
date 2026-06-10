@@ -16,7 +16,7 @@ Usage:
   # -> /tmp/gold/judge_inputs_v31/<name>.json  (one file per card, with source_text)
   # run the judge workflow, save its {name: verdict} result to a json file
   python scripts/judge_gold_set.py ingest --label v31 --results /tmp/gold/judge_results_v31.json
-  # -> gold_set/judge_v31.json + gold_set/calibration_sample.csv (+ calibration_key.json)
+  # -> gold_set/judge_<label>.json + gold_set/calibration_sample_<label>.csv (+ key)
 """
 
 import argparse
@@ -25,6 +25,7 @@ import glob
 import json
 import os
 import sys
+from datetime import date
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -43,28 +44,41 @@ JUDGE_SKIP = set(DETERMINISTIC_FIELDS) | {
 }
 
 # Documented judge prompt (reproducibility). The workflow embeds this per card.
+JUDGE_PROMPT_VERSION = "v2-eee"
+
 JUDGE_PROMPT = """You are a careful faithfulness judge for an AI-benchmark documentation card.
 You are NOT the model that wrote the card. Judge ONLY against the provided source text.
 
 Read the file {input_path} (JSON). It has: name, source_text (the benchmark's own
-paper/webpage/README plus retrieved context), fields (card fields to judge), risks.
+paper/webpage/README, an [EEE EVALUATION DATA] block with machine-collected evaluation
+results for this benchmark, plus retrieved context), fields (card fields to judge), risks.
 
 For EACH entry in fields:
   - If is_ns is true (the field is 'Not specified'): set status='not_specified',
-    specificity='na', and info_in_source='yes' if the source text actually contains
-    the information this field would hold (so the card MISSED it), else 'no' (a
-    correct abstention). Briefly say where in note.
+    specificity='na', and info_in_source='yes_primary' if a source OTHER than the
+    [EEE EVALUATION DATA] block actually contains the information this field would
+    hold (so the card MISSED it), 'yes_eee_only' if ONLY the [EEE EVALUATION DATA]
+    block contains it, else 'no' (a correct abstention). Briefly say where in note.
   - If is_ns is false: judge whether the field VALUE is supported by the source:
-    status='supported' (fully backed), 'partial' (partly backed / overreaches), or
-    'unsupported' (not in source / contradicted). Set info_in_source='na'. Also set
-    specificity='specific' (concrete, benchmark-specific) or 'generic' (vague filler
-    that could apply to any benchmark). Quote/point to the evidence in note.
+    status='supported' (fully backed by the paper/webpage/README/retrieved context,
+    i.e. WITHOUT needing the [EEE EVALUATION DATA] block),
+    'supported_by_eee_only' (fully backed, but only when the [EEE EVALUATION DATA]
+    block is counted -- without it the claim would not be fully backed),
+    'partial' (partly backed / overreaches, even counting ALL sources including EEE),
+    or 'unsupported' (not in any source / contradicted). Set info_in_source='na'.
+    Also set specificity='specific' (concrete, benchmark-specific) or 'generic'
+    (vague filler that could apply to any benchmark). Quote/point to the evidence in
+    note; for 'supported_by_eee_only', point to the EEE evidence.
 
 For EACH risk category: set relevant_and_grounded='yes' if the risk is both relevant
-to this benchmark AND supported by the source, else 'no'.
+to this benchmark AND supported by the source (here the [EEE EVALUATION DATA] block
+counts as source like any other), else 'no'.
 
-Be strict: plausible-sounding claims with no source support are 'unsupported'. Do not
-reward fluency. Return the structured verdict; cover every field and risk."""
+Be strict: plausible-sounding claims with no source support are 'unsupported'. A claim
+backed only by the [EEE EVALUATION DATA] block is 'supported_by_eee_only', never
+'supported'. If the primary sources (paper/webpage/README/retrieved context) fully back
+a claim, it is 'supported' even where the EEE data differs from them. Do not reward
+fluency. Return the structured verdict; cover every field and risk."""
 
 JUDGE_SCHEMA = {
     "type": "object",
@@ -81,9 +95,11 @@ JUDGE_SCHEMA = {
                 "properties": {
                     "path": {"type": "string"},
                     "status": {"type": "string",
-                               "enum": ["supported", "partial", "unsupported", "not_specified"]},
+                               "enum": ["supported", "supported_by_eee_only", "partial",
+                                        "unsupported", "not_specified"]},
                     "specificity": {"type": "string", "enum": ["specific", "generic", "na"]},
-                    "info_in_source": {"type": "string", "enum": ["yes", "no", "na"]},
+                    "info_in_source": {"type": "string",
+                                       "enum": ["yes_primary", "yes_eee_only", "no", "na"]},
                     "note": {"type": "string"},
                 },
             },
@@ -145,12 +161,14 @@ def _rag_contexts(rag_dir):
 
 
 def assemble_source(run_dir):
-    """Primary = paper/doc + webpage + README; fill remaining budget with retrieved context."""
+    """Primary = paper/doc + webpage + README, then the EEE artifact block (reserved
+    budget, lowest trust tier), then retrieved context filling the rest."""
     to = os.path.join(run_dir, "tool_output")
     doc = _text(_load(_first(os.path.join(to, "docling", "*.json"))))
     html = _text(_load(_first(os.path.join(to, "html", "*.json"))))
     hf = _load(_first(os.path.join(to, "hf", "*.json"))) or {}
     readme = hf.get("readme_markdown") or hf.get("readme") or ""
+    eee = _load(_first(os.path.join(to, "eee", "*.json")))
 
     parts = []
     if doc:
@@ -161,8 +179,15 @@ def assemble_source(run_dir):
         parts.append("[HF README]\n" + readme)
     primary = "\n\n".join(parts)
 
-    if len(primary) >= SOURCE_CAP:
-        return primary[:SOURCE_CAP]
+    # EEE artifacts are small (~3KB); reserve their budget so the primary
+    # truncation can never drop the block.
+    eee_block = "[EEE EVALUATION DATA]\n" + json.dumps(eee, indent=2, ensure_ascii=False) if eee else ""
+    budget = max(0, SOURCE_CAP - (len(eee_block) + 2)) if eee_block else SOURCE_CAP
+    if len(primary) >= budget:
+        primary = primary[:budget]
+        return (primary + "\n\n" + eee_block)[:SOURCE_CAP] if eee_block else primary
+    if eee_block:
+        primary = (primary + "\n\n" + eee_block) if primary else eee_block
     rag = "\n\n".join(_rag_contexts(os.path.join(to, "rag")))
     if rag:
         primary += "\n\n[RETRIEVED CONTEXT]\n" + rag
@@ -229,24 +254,36 @@ def _agg(verdicts):
         return round(n / d, 3) if d else None
 
     n_sup = sum(f["status"] == "supported" for f in filled)
+    n_eee = sum(f["status"] == "supported_by_eee_only" for f in filled)
     n_unsup = sum(f["status"] == "unsupported" for f in filled)
     n_partial = sum(f["status"] == "partial" for f in filled)
     n_specific = sum(f["specificity"] == "specific" for f in filled)
-    n_missed = sum(f["info_in_source"] == "yes" for f in ns)
+    # "yes" = legacy v31 two-way label (counts as primary)
+    n_missed_primary = sum(f["info_in_source"] in ("yes_primary", "yes") for f in ns)
+    n_missed_eee = sum(f["info_in_source"] == "yes_eee_only" for f in ns)
+    n_missed = n_missed_primary + n_missed_eee
     n_grounded = sum(r["relevant_and_grounded"] == "yes" for r in rvs)
     return {
         "n_filled": len(filled), "n_ns": len(ns), "n_risks": len(rvs),
-        "supported": n_sup, "partial": n_partial, "unsupported": n_unsup,
+        "supported": n_sup, "supported_by_eee_only": n_eee,
+        "partial": n_partial, "unsupported": n_unsup,
         "support_rate": frac(n_sup, len(filled)),
         "unsupported_rate": frac(n_unsup, len(filled)),
         "specific_rate": frac(n_specific, len(filled)),
-        "ns_missed": n_missed, "ns_correct_abstain": len(ns) - n_missed,
+        "ns_missed": n_missed, "ns_missed_primary": n_missed_primary,
+        "ns_missed_eee_only": n_missed_eee,
+        "ns_correct_abstain": len(ns) - n_missed,
         "completeness_miss_rate": frac(n_missed, len(ns)),
+        "completeness_miss_rate_primary": frac(n_missed_primary, len(ns)),
         "risk_grounded_rate": frac(n_grounded, len(rvs)),
     }
 
 
-def ingest(label, results_path):
+_FIELD_STATUSES = {"supported", "supported_by_eee_only", "partial", "unsupported", "not_specified"}
+_INFO_VALUES = {"yes_primary", "yes_eee_only", "yes", "no", "na"}  # "yes" = legacy v31
+
+
+def ingest(label, results_path, judge_model=None, prompt_version=None):
     raw = _load(results_path)
     if isinstance(raw, dict) and "result" in raw and isinstance(raw["result"], dict):
         raw = raw["result"]  # tolerate a saved task-output wrapper
@@ -264,12 +301,30 @@ def ingest(label, results_path):
         if not v:
             missing.append(name)
             continue
+        if not v.get("field_verdicts"):
+            sys.exit(f"{name}: empty or missing field_verdicts")
+        # An off-enum value would silently fall out of every _agg bucket.
+        bad = [fv.get("status") for fv in v.get("field_verdicts", [])
+               if fv.get("status") not in _FIELD_STATUSES]
+        bad += [fv.get("info_in_source") for fv in v.get("field_verdicts", [])
+                if fv.get("info_in_source") not in _INFO_VALUES]
+        # NS rows must say where the info was (or 'no'); 'na' would silently
+        # count as a correct abstention in _agg.
+        bad += [f"ns-na:{fv.get('path')}" for fv in v.get("field_verdicts", [])
+                if fv.get("status") == "not_specified"
+                and fv.get("info_in_source") not in ("yes_primary", "yes_eee_only", "yes", "no")]
+        bad += [rv.get("relevant_and_grounded") for rv in v.get("risk_verdicts", [])
+                if rv.get("relevant_and_grounded") not in ("yes", "no")]
+        if bad:
+            sys.exit(f"{name}: invalid enum values in verdicts: {sorted(set(map(str, bad)))}")
         per_card[name] = {"stratum": strata[name],
                           "field_verdicts": v.get("field_verdicts", []),
                           "risk_verdicts": v.get("risk_verdicts", []),
                           "aggregate": _agg([v])}
 
     out = {"label": label, "n_cards": len(per_card),
+           "judge_info": {"model": judge_model, "prompt_version": prompt_version,
+                          "judged_on": date.today().isoformat()},
            "aggregate": _agg(list(per_card.values())),
            "per_card": per_card}
     out_path = os.path.join(GOLD_DIR, f"judge_{label}.json")
@@ -280,11 +335,12 @@ def ingest(label, results_path):
 
     a = out["aggregate"]
     print(f"Judged {len(per_card)}/{len(order)} cards. Missing: {', '.join(missing) or 'none'}\n")
-    print(f"  Support      supported={a['supported']} partial={a['partial']} unsupported={a['unsupported']}"
+    print(f"  Support      supported={a['supported']} eee_only={a['supported_by_eee_only']} "
+          f"partial={a['partial']} unsupported={a['unsupported']}"
           f"  -> support_rate={_pct(a['support_rate'])} unsupported_rate={_pct(a['unsupported_rate'])}")
     print(f"  Specificity  specific_rate={_pct(a['specific_rate'])} over {a['n_filled']} filled fields")
     print(f"  Completeness NS missed={a['ns_missed']}/{a['n_ns']} = {_pct(a['completeness_miss_rate'])}"
-          f"  (info was in source but field left empty)")
+          f"  (primary={a['ns_missed_primary']}, eee_only={a['ns_missed_eee_only']})")
     print(f"  Risks        grounded_rate={_pct(a['risk_grounded_rate'])} over {a['n_risks']} risks")
     print(f"\nJudge -> {os.path.relpath(out_path, REPO)}")
 
@@ -302,8 +358,8 @@ def _write_calibration(label, per_card, target=50):
     step = max(1, len(rows) // target)
     sample = rows[::step][:target]
 
-    csv_path = os.path.join(GOLD_DIR, "calibration_sample.csv")
-    key_path = os.path.join(GOLD_DIR, "calibration_key.json")
+    csv_path = os.path.join(GOLD_DIR, f"calibration_sample_{label}.csv")
+    key_path = os.path.join(GOLD_DIR, f"calibration_key_{label}.json")
     key = []
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
@@ -316,8 +372,10 @@ def _write_calibration(label, per_card, target=50):
             key.append({"card": name, "field_path": fv["path"], "judge_label": label_val,
                         "specificity": fv.get("specificity")})
     with open(key_path, "w") as f:
-        json.dump({"label": label, "rubric": "filled: supported/partial/unsupported; "
-                   "not_specified: info_in_source yes/no", "key": key}, f, indent=2)
+        json.dump({"label": label,
+                   "rubric": "filled: supported/supported_by_eee_only/partial/unsupported; "
+                   "not_specified: info_in_source yes_primary/yes_eee_only/no", "key": key},
+                  f, indent=2)
     print(f"Calibration  {len(sample)} fields -> {os.path.relpath(csv_path, REPO)} "
           f"(labels hidden; key in {os.path.relpath(key_path, REPO)})")
 
@@ -345,12 +403,16 @@ def main():
     i = sub.add_parser("ingest")
     i.add_argument("--label", default="v31")
     i.add_argument("--results", required=True)
+    i.add_argument("--judge-model", default=None, help="judge model id recorded in judge_info")
+    i.add_argument("--prompt-version", default=JUDGE_PROMPT_VERSION,
+                   help="recorded in judge_info; set explicitly when re-ingesting results "
+                        "judged with an older prompt")
     args = ap.parse_args()
 
     if args.cmd == "prepare":
         prepare(args.label)
     elif args.cmd == "ingest":
-        ingest(args.label, args.results)
+        ingest(args.label, args.results, args.judge_model, args.prompt_version)
 
 
 if __name__ == "__main__":

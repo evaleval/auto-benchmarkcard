@@ -326,10 +326,14 @@ def print_report(rep):
           f"abstain ok={s['abstain_correct']} bad={s['abstain_wrong']}")
     fa = a.get("faithfulness")
     if fa:
+        eee = f" eee-only={fa['supported_by_eee_only']}" if "supported_by_eee_only" in fa else ""
+        comp = f"completeness-miss={pct(fa['completeness_miss_rate'])} ({fa['ns_missed']}/{fa['n_ns']})"
+        if fa.get("completeness_miss_rate_primary") is not None:
+            comp += (f" [primary {pct(fa['completeness_miss_rate_primary'])}, "
+                     f"eee-only {fa.get('ns_missed_eee_only', 0)}]")
         print(f"  Faithfulness   support={pct(fa['support_rate'])} unsupported={pct(fa['unsupported_rate'])} "
-              f"specific={pct(fa['specific_rate'])} (over {fa['n_filled']} filled); "
-              f"completeness-miss={pct(fa['completeness_miss_rate'])} ({fa['ns_missed']}/{fa['n_ns']}); "
-              f"risk-grounded={pct(fa['risk_grounded_rate'])}")
+              f"specific={pct(fa['specific_rate'])} (over {fa['n_filled']} filled{eee}); "
+              f"{comp}; risk-grounded={pct(fa['risk_grounded_rate'])}")
     fq = a.get("flag_quality")
     if fq:
         u = fq["unsupported"]
@@ -372,6 +376,10 @@ def print_compare(before, after):
             ("Faithful: unsupported", fa["unsupported_rate"], fb["unsupported_rate"], True),
             ("Faithful: specific", fa["specific_rate"], fb["specific_rate"], True),
             ("Completeness miss", fa["completeness_miss_rate"], fb["completeness_miss_rate"], True),
+            # v31-comparable variant: a v2-eee judge sees EEE info the v31 judge could not.
+            ("Completeness miss (prim)",
+             fa.get("completeness_miss_rate_primary", fa["completeness_miss_rate"]),
+             fb.get("completeness_miss_rate_primary", fb["completeness_miss_rate"]), True),
             ("Risk grounded", fa["risk_grounded_rate"], fb["risk_grounded_rate"], True),
         ]
     qa, qb = a.get("flag_quality"), b.get("flag_quality")
