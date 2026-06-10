@@ -26,7 +26,7 @@ from auto_benchmarkcard.tools.docling.docling_tool import extract_paper_with_doc
 from auto_benchmarkcard.tools.html.html_tool import extract_html_content
 from auto_benchmarkcard.tools.extractor.extractor_tool import extract_ids
 from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import (
-    evaluate_factuality,
+    evaluate_factuality_two_tier,
     flag_benchmark_card_fields,
 )
 from auto_benchmarkcard.tools.eee.paper_resolver import resolve_paper
@@ -38,6 +38,10 @@ from auto_benchmarkcard.tools.rag.format_converter import (
 )
 from auto_benchmarkcard.tools.rag.indexer import MetadataIndexer
 from auto_benchmarkcard.tools.rag.rag_retriever import RAGRetriever
+from auto_benchmarkcard.tools.rag.source_retrieval import (
+    assemble_source_text,
+    source_scoped_rag,
+)
 from auto_benchmarkcard.tools.unitxt import unitxt_tool
 
 from auto_benchmarkcard.validation_policy import ANALYTICAL_FIELDS, IDENTITY_FIELDS
@@ -765,18 +769,61 @@ def run_factreasoner(state):
         benchmark_name = sanitize_benchmark_name(state["query"])
         rag_results = state["rag_results"]
 
-        factuality_results = evaluate_factuality(
-            formatted_rag_results=rag_results,
+        # Ship config: source-scoped NLI contexts + neutral escalation against
+        # the primary source without RAG fill (measured on the gold set).
+        generation_contexts = (
+            [c.get("text", "") for c in rag_results.get("contexts", [])]
+            if isinstance(rag_results, dict)
+            else []
+        )
+        scoped_rag, scope_info = source_scoped_rag(
+            rag_results,
+            benchmark_name,
+            docling_data=state.get("docling_output"),
+            html_data=state.get("html_content"),
+            hf_json=state.get("hf_json"),
+        )
+        if not scope_info.get("source_scoped"):
+            logger.warning(
+                "Source-scoped retrieval unavailable (%s); falling back to generation contexts",
+                scope_info.get("fallback"),
+            )
+        # Empty source on fallback keeps escalation structurally skipped: the
+        # fallback path must equal the pre-ship behavior (plain FR1 on
+        # generation contexts), not a hybrid that was never measured.
+        source_text = (
+            assemble_source_text(
+                docling_data=state.get("docling_output"),
+                html_data=state.get("html_content"),
+                hf_json=state.get("hf_json"),
+            )
+            if scope_info.get("source_scoped")
+            else ""
+        )
+        factuality_results = evaluate_factuality_two_tier(
+            formatted_rag_results=scoped_rag,
+            source_text=source_text,
             model=Config.FACTREASONER_MODEL,
             cache_dir=Config.FACTREASONER_CACHE_DIR,
             merlin_path=str(Config.MERLIN_BIN),
-            debug_mode=False,
         )
+        factuality_results["retrieval"] = scope_info
 
         factuality_filename = f"factuality_results_{benchmark_name}.json"
         factuality_output = state["output_manager"].save_tool_output(
             factuality_results, "factreasoner", factuality_filename
         )
+        if scope_info.get("source_scoped"):
+            # Audit copy. Must not land in tool_output/rag/: the generation
+            # formatted_rag_results there is the frozen input for revalidation
+            # and the judge bundles every file under rag/.
+            save_formatted_results(
+                scoped_rag,
+                os.path.join(
+                    state["output_manager"].get_tool_output_path("factreasoner"),
+                    f"source_scoped_rag_{benchmark_name}.jsonl",
+                ),
+            )
 
         risk_card_src = state.get("risk_enhanced_card") or state.get("composed_card") or {}
         clean_card = extract_card(risk_card_src)
@@ -787,8 +834,8 @@ def run_factreasoner(state):
         field_analysis = factuality_results.get("field_analysis", {})
 
         retrieved_contexts = (
-            [c.get("text", "") for c in rag_results.get("contexts", [])]
-            if isinstance(rag_results, dict)
+            [c.get("text", "") for c in scoped_rag.get("contexts", [])]
+            if isinstance(scoped_rag, dict)
             else []
         )
 
@@ -799,6 +846,7 @@ def run_factreasoner(state):
             provenance=provenance_data,
             retrieved_contexts=retrieved_contexts,
             structured_artifacts={"eee": state.get("eee_metadata"), "hf": state.get("hf_json")},
+            high_signal_grounding=scope_info.get("source_scoped", False),
         )
 
         if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
@@ -817,7 +865,9 @@ def run_factreasoner(state):
                 logger.info("Field-type-aware scoring: unflagged %d identity/analytical fields", len(fields_to_unflag))
 
         if provenance_data:
-            flagged_card = backfill_from_provenance(flagged_card, provenance_data, retrieved_contexts)
+            # Card values backfill from the generation-time contexts; only the
+            # unflag decisions see the source-scoped contexts.
+            flagged_card = backfill_from_provenance(flagged_card, provenance_data, generation_contexts)
 
         flagged_card = normalize_not_specified(flagged_card)
 

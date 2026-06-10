@@ -7,9 +7,9 @@ revalidate label (e.g. fr1_ph). This lets pure flag-post-processing changes
 isolated from NLI run-to-run variance.
 
 Usage:
-  python scripts/reapply_flags.py --source-label fr1_ph --label selftest --self-test
-  python scripts/reapply_flags.py --source-label fr1_ph --label fr1A
-  python scripts/reapply_flags.py --source-label fr1_ph --label fr1B --artifact-verify --legacy-policy
+  python scripts/reapply_flags.py --source-label fr1_ph_clean --label selftest --self-test
+  python scripts/reapply_flags.py --source-label fr1_ph_clean --label fr1A
+  python scripts/reapply_flags.py --source-label fr1_ph_clean --label fr1B --artifact-verify --legacy-policy
   python scripts/reapply_flags.py --source-label fr1_ph --label fr1ABC --artifact-verify --high-signal
 
 --self-test forces the legacy toggles and byte-compares every produced card
