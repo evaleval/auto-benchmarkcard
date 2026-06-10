@@ -155,8 +155,12 @@ def _determine_flag_reason(field_stats: Dict[str, Any], threshold: float) -> tup
         return False, "", ""
 
     if all_neutral:
-        reason = "all_atoms_neutral"
-        reason_desc = f"All {neutral_count} atoms have neutral scores (no evidence found)"
+        if field_stats.get("escalated_still_neutral"):
+            reason = "all_atoms_neutral_escalated"
+            reason_desc = f"All {neutral_count} atoms neutral after full-source escalation"
+        else:
+            reason = "all_atoms_neutral"
+            reason_desc = f"All {neutral_count} atoms have neutral scores (no evidence found)"
     else:
         reason = "low_factuality_score"
         reason_desc = f"Average factuality score {avg_probability:.3f} below threshold {threshold}"
@@ -522,6 +526,156 @@ def evaluate_factuality(
     }
 
 
+def _window_text(text: str, window_chars: int = 12000, overlap_chars: int = 500) -> List[str]:
+    """Deterministic overlapping character windows covering the full text."""
+    if not text:
+        return []
+    if len(text) <= window_chars:
+        return [text]
+    step = window_chars - overlap_chars
+    return [text[i:i + window_chars] for i in range(0, max(len(text) - overlap_chars, 1), step)]
+
+
+def evaluate_factuality_two_tier(
+    formatted_rag_results: Dict[str, Any],
+    source_text: str,
+    model: str = "llama-3.3-70b-instruct",
+    cache_dir: str = "factreasoner_cache",
+    merlin_path: str = "merlin/bin/merlin",
+    revise_atoms: bool = False,
+    window_chars: int = 12000,
+    overlap_chars: int = 500,
+) -> Dict[str, Any]:
+    """Two-tier factuality: top-k pass, then escalate only the all-neutral atoms
+    against large windows of the full source text.
+
+    First pass is evaluate_factuality unchanged. Atoms whose marginal stays at
+    exactly 0.5 (= no informative NLI relation at all) get a second pass where
+    their contexts are overlapping windows covering the whole source. After
+    that, "still neutral" genuinely means "not in the source": affected fields
+    are marked escalated_still_neutral so the flag reason is distinguishable.
+    Second-pass marginals win for escalated atoms (the first-pass 0.5 carries
+    zero information by construction); non-escalated atoms are untouched, so
+    their scores stay bit-identical to a plain run.
+    """
+    first = evaluate_factuality(
+        formatted_rag_results, model=model, cache_dir=cache_dir,
+        merlin_path=merlin_path, revise_atoms=revise_atoms,
+    )
+    if revise_atoms:
+        logger.warning("two-tier escalation scores the unrevised atom texts")
+    neutral_ids = [m["variable"] for m in first["marginals"] if m.get("p_true") == 0.5]
+    if not neutral_ids:
+        first["escalation"] = {"skipped": "no_neutral_atoms"}
+        return first
+    if not (source_text or "").strip():
+        first["escalation"] = {"skipped": "no_source"}
+        return first
+
+    windows = _window_text(source_text, window_chars, overlap_chars)
+    contexts = [
+        {"id": f"esc_w{i}", "title": f"source window {i + 1}/{len(windows)}", "text": w}
+        for i, w in enumerate(windows)
+    ]
+    atoms_by_id = {a["id"]: a for a in formatted_rag_results.get("atoms", [])}
+    esc_atoms = [
+        {**atoms_by_id[aid], "contexts": [c["id"] for c in contexts]}
+        for aid in neutral_ids if aid in atoms_by_id
+    ]
+    # Escalate in small groups with one retry each: atoms x windows in a single
+    # asyncio.gather is hundreds of long-premise NLI calls, and one request
+    # timeout would otherwise void the whole card's escalation (observed on
+    # RITS). A group that fails twice just leaves its atoms neutral.
+    second_by_var: Dict[str, Any] = {}
+    failed_groups = 0
+    group_size = 4
+    for gi in range(0, len(esc_atoms), group_size):
+        group = esc_atoms[gi:gi + group_size]
+        # from_dict_with_contexts requires input/output keys on the dict.
+        esc_rag = {
+            "input": formatted_rag_results.get("input", ""),
+            "output": formatted_rag_results.get("output", ""),
+            "topic": formatted_rag_results.get("topic"),
+            "atoms": group,
+            "contexts": contexts,
+        }
+        for attempt in (1, 2):
+            try:
+                second = evaluate_factuality(
+                    esc_rag, model=model, cache_dir=cache_dir,
+                    merlin_path=merlin_path, revise_atoms=False,
+                )
+                second_by_var.update({m["variable"]: m for m in second["marginals"]})
+                break
+            except Exception as e:  # noqa: BLE001 - degrade this group to neutral
+                if attempt == 2:
+                    failed_groups += 1
+                    logger.warning(
+                        "escalation group %d failed twice (%s); its atoms stay neutral",
+                        gi // group_size, e,
+                    )
+
+    if not second_by_var:
+        logger.warning("escalation produced no marginals; keeping first-pass results")
+        first["escalation"] = {
+            "failed": f"all {failed_groups} groups failed",
+            "escalated_atoms": len(neutral_ids), "num_windows": len(windows),
+        }
+        return first
+    neutral_set = set(neutral_ids)
+    merged = [
+        second_by_var.get(m["variable"], m) if m["variable"] in neutral_set else m
+        for m in first["marginals"]
+    ]
+
+    entropy = 0.0
+    eps = 1e-7
+    for m in merged:
+        p_true = max(m.get("p_true", 0.5), eps)
+        p_false = max(1.0 - p_true, eps)
+        entropy += -p_true * math.log10(p_true) - p_false * math.log10(p_false)
+    n = len(merged)
+
+    field_analysis = analyze_factuality_by_field(formatted_rag_results, merged)
+    # Post-merge, any atom still at 0.5 was escalated and stayed neutral, so an
+    # all_neutral field here survived a full-source check -- but only claim that
+    # when every escalation group actually ran; atoms in failed groups were
+    # never checked against the full source.
+    if failed_groups == 0:
+        for stats in field_analysis.get("field_details", {}).values():
+            if stats.get("all_neutral"):
+                stats["escalated_still_neutral"] = True
+
+    still_neutral = [
+        aid for aid in neutral_ids
+        if second_by_var.get(aid, {}).get("p_true", 0.5) == 0.5
+    ]
+    out = dict(first)
+    out["marginals"] = merged
+    out["field_analysis"] = field_analysis
+    out["atom_summary"] = create_atom_summary(formatted_rag_results, merged)
+    out["entropy_metrics"] = {
+        "total_entropy": entropy,
+        "normalized_entropy": entropy / n if n else 0.0,
+        "scaled_entropy": entropy / math.log10(n) if n > 1 else 0.0,
+        "num_variables": n,
+    }
+    out["escalation"] = {
+        "escalated_atoms": len(neutral_ids),
+        "num_windows": len(windows),
+        "window_chars": window_chars,
+        "source_chars": len(source_text),
+        "failed_groups": failed_groups,
+        "resolved": {
+            aid: second_by_var[aid]["p_true"]
+            for aid in neutral_ids
+            if aid in second_by_var and second_by_var[aid].get("p_true") != 0.5
+        },
+        "still_neutral": still_neutral,
+    }
+    return out
+
+
 def flag_benchmark_card_fields(
     benchmark_card: Dict[str, Any],
     field_analysis: Dict[str, Any],
@@ -602,7 +756,11 @@ def flag_benchmark_card_fields(
                 )
 
         if should_flag:
-            if reason == "all_atoms_neutral":
+            if reason == "all_atoms_neutral_escalated":
+                flag_reason = (
+                    "[Probable Hallucination], no supporting evidence found in full source material"
+                )
+            elif reason == "all_atoms_neutral":
                 flag_reason = (
                     "[Possible Hallucination], no supporting evidence found in source material"
                 )
