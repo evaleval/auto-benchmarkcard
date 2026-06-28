@@ -2,7 +2,7 @@
 
 Automated generation of validated benchmark documentation for AI/NLP benchmarks.
 
-Benchmark documentation is often incomplete, inconsistent, or scattered across different sources. Auto-BenchmarkCard pulls together metadata from Hugging Face, Unitxt, and academic papers, synthesizes it into a structured BenchmarkCard using LLMs, and then fact-checks the result against the original sources using [FactReasoner](https://github.com/evaleval/FactReasoner).
+Benchmark documentation is often incomplete, inconsistent, or scattered across different sources. Auto-BenchmarkCard pulls together metadata from Hugging Face, Unitxt, and academic papers, synthesizes it into a structured BenchmarkCard using LLMs, and then fact-checks the result against the original sources using [FactReasoner](https://github.com/arishofmann/FactReasoner).
 
 <img width="1050" height="335" alt="Auto-BenchmarkCard architecture diagram" src="https://github.com/user-attachments/assets/c4c1992e-b0c9-4a3c-bc5a-89716b9ff215" />
 
@@ -106,18 +106,6 @@ state = workflow.invoke({
 })
 ```
 
-### Batch processing
-
-The batch script processes all benchmarks from the Unitxt catalog:
-
-```bash
-python scripts/batch_process.py
-python scripts/batch_process.py --limit 10       # first 10 only
-python scripts/batch_process.py --no-skip         # reprocess existing
-```
-
-It tracks progress, skips already-processed benchmarks, and saves failure logs for review.
-
 ## Output
 
 Each run creates a timestamped directory:
@@ -132,7 +120,7 @@ output/glue_2025-01-08_14-30/
 │   ├── rag/               # Evidence retrieval results
 │   ├── factreasoner/      # Factuality scores
 │   └── ai_atlas_nexus/    # Risk assessment
-└── auto_benchmarkcard/
+└── benchmarkcard/
     └── benchmark_card_glue.json
 ```
 
@@ -162,7 +150,7 @@ auto_benchmarkcard/
 │       ├── factreasoner/  # Fact verification
 │       └── eee/           # Evaluation data adapter
 ├── scripts/
-│   └── batch_process.py
+│   └── batch_generate.py
 ├── external/
 │   └── merlin/
 ├── pyproject.toml
