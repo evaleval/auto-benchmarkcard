@@ -42,7 +42,6 @@ env/
 output/
 batch_output/
 test_batch/
-cards_for_avijit/
 hf-eee-dataset/
 factreasoner_cache/
 external/merlin/
