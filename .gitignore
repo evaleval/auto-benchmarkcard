@@ -82,6 +82,13 @@ test_output*/
 manual_output/
 missing_output/
 
+# Gold-set eval-run snapshots (regenerable; only the truth/manifest/judge/
+# calibration fixtures are tracked, not these per-run reports)
+gold_set/report_*.json
+gold_set/revalidate_*.json
+gold_set/revalidate/
+gold_set/reapply_selftest.json
+
 # pip install artifacts
 =*
 
