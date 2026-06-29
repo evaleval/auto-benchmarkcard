@@ -1,0 +1,101 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+
+# Output directories
+output/
+batch_output/
+test_batch/
+hf-eee-dataset/
+factreasoner_cache/
+external/merlin/
+external/FactReasoner/
+external/every_eval_ever/
+.paper_cache.json
+
+# Local scratch / external experiments (not part of the package)
+.firecrawl/
+multitasking-benchmarks-experiments/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.cache.json
+to_be_reviewed/
+notebooks/
+
+# Generated output
+batch_output/
+test_output*/
+manual_output/
+missing_output/
+
+# Gold-set evaluation data and outputs are kept local-only (not part of the public package)
+gold_set/
+
+# pip install artifacts
+=*
+
+# ChromaDB files
+src/auto_benchmarkcard/tools/rag/chroma_db/
+
+# Ruff / mypy
+.ruff_cache/
+.mypy_cache/
+
+# Pip artifacts
+=*
+
+# Internal/private scripts
+scripts/_internal/

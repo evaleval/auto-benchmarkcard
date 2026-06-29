@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "evaluation_id": "gsm8k/meta-llama/Llama-3.1-8B-Instruct/1707000000",
+  "evaluation_timestamp": "2026-02-13T00:00:00Z",
+  "retrieved_timestamp": "1707000000",
+  "source_metadata": {
+    "source_name": "Test Leaderboard",
+    "source_type": "evaluation_run",
+    "source_organization_name": "Test Org",
+    "source_organization_url": "https://test.org",
+    "evaluator_relationship": "first_party"
+  },
+  "model_info": {
+    "name": "Llama 3.1 8B Instruct",
+    "id": "meta-llama/Llama-3.1-8B-Instruct"
+  },
+  "evaluation_results": [
+    {
+      "evaluation_name": "GSM8K",
+      "source_data": {
+        "dataset_name": "gsm8k",
+        "source_type": "hf_dataset",
+        "hf_repo": "openai/gsm8k",
+        "hf_split": "test"
+      },
+      "metric_config": {
+        "lower_is_better": false,
+        "score_type": "continuous",
+        "min_score": 0.0,
+        "max_score": 100.0
+      },
+      "score_details": {
+        "score": 75.2
+      }
+    }
+  ]
+}
