@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "release_projection": "public-sanitized-v1",
+  "raw_participant_returns_public": false,
+  "participant_labels_changed": false,
+  "participant_evidence_urls_changed": false,
+  "participant_notes": "Removed uniformly from R1-R3 and V1 public tables. Notes are not used by the final scorers.",
+  "r1_normalization": {
+    "canonical_columns": [
+      "item_id",
+      "card",
+      "field_path",
+      "kind",
+      "field_value",
+      "human_label",
+      "human_note"
+    ],
+    "rows": 75,
+    "label_rule": "Use final_label when non-empty; otherwise use auto_label. This normalization was confirmed with the participant before release.",
+    "normalized_private_input_sha256": "5606c1e10db64e23beaf05359ec8cedb83856102074d7afb899fc51973f52934"
+  },
+  "private_input_sha256": {
+    "human_design_artifact": "1f58ae3a80e1deaa557442ee5d5484f2a9442ed500c4ee6f453576cfd885c8f0",
+    "ratings_r1": "5606c1e10db64e23beaf05359ec8cedb83856102074d7afb899fc51973f52934",
+    "ratings_r2": "13d50e3a9ebbc6129b101340d566baa8fab176c15f7dacb687049e868a40e3e4",
+    "ratings_r3": "2f87c22eb1c886434ee0571ec5cf7b0b0d3c098bcd26ca1c2a6c099f77e9e885",
+    "human_adjudication": "10299c851b77a6d80328ca07cc7a4853b1ae3f432c473017fa672110ab3a0bcf",
+    "human_scores": "98e0938fd3d501d81a9b6d648c19dca813324e6ff0be5bd786ea47e3e456a150",
+    "screen_lock": "efd4ecccaec789cd747571acb35d193121f55ae0134dfa6902f2c431a1405fb7",
+    "screen_verifier_raw": "473728e319c503e464c5c348d377300e1595e820ab0d0633382ad67e097c8f7e",
+    "screen_author_overlap": "d0ad2316597fc809e6d6a92eaad980ea8e1cbfba808c8c5c236347165950bcc4",
+    "screen_contamination": "3eef16ba5bc415f918274bfec349e08c7390d5a17c15fc387e0e3e5ba14ddda9",
+    "screen_scores": "b35b38e4e023a2211ca17d2b0638d9703e32c57c224ce521cd0242d22312aca4"
+  }
+}

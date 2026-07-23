@@ -1,0 +1,1021 @@
+{
+  "schema_version": 1,
+  "label": "analysis_s150_source_parity_judge_only",
+  "design": {
+    "sample_file": "eval/s150/sample.json",
+    "sample_md5": "fc1483d524d4db81894f7d3ad31cb468",
+    "judge_file": "eval/s150/judge_s150_source_parity_analysis.json",
+    "screen_file": null,
+    "tag": "corpus_v3",
+    "n_sampled": 150,
+    "n_analyzed": 150,
+    "n_missing_judge": 0,
+    "missing_judge": [],
+    "n_screened": 0,
+    "strata": {
+      "flagged": {
+        "N": 152,
+        "n": 75,
+        "weight": 2.026667
+      },
+      "unflagged": {
+        "N": 378,
+        "n": 75,
+        "weight": 5.04
+      }
+    },
+    "seed_sample": 20260704,
+    "seed_bootstrap": 20260704,
+    "B": 5000,
+    "amendments_applied": 0,
+    "flags_source": "corpus cards (flagged_fields)",
+    "fpc_ignored": true,
+    "notes": "combined ratio estimator; CIs card-clustered stratified bootstrap with shared replicates; wilson-neff fallback for rare events; FPC ignored (conservative at ~0.3 sampling fractions)"
+  },
+  "metrics": {
+    "judge.unsupported_rate": {
+      "name": "judge.unsupported_rate",
+      "value": 0.014834706230926285,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.00874153216132595,
+        0.022350728710889105
+      ],
+      "ci95_wilson_neff": [
+        0.009389091776258664,
+        0.02336424938650756
+      ],
+      "n_eff": 1204.8392066510512,
+      "counts": {
+        "num": 30.0,
+        "den": 2035.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 14.0,
+            "den": 965.0
+          },
+          "unflagged": {
+            "num": 16.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.00874153216132595,
+        0.022350728710889105
+      ],
+      "sensitivity_mean_of_card_rates": 0.012656536344025403
+    },
+    "judge.support_rate": {
+      "name": "judge.support_rate",
+      "value": 0.7857930815994881,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.7580325826198889,
+        0.8088114231327478
+      ],
+      "ci95_wilson_neff": [
+        0.7592043065230969,
+        0.810179971068165
+      ],
+      "n_eff": 993.3605305626755,
+      "counts": {
+        "num": 1575.0,
+        "den": 2035.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 718.0,
+            "den": 965.0
+          },
+          "unflagged": {
+            "num": 857.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.7580325826198889,
+        0.8088114231327478
+      ],
+      "sensitivity_mean_of_card_rates": 0.6477674503471613
+    },
+    "judge.support_rate_incl_eee": {
+      "name": "judge.support_rate_incl_eee",
+      "value": 0.8608375363016555,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.845532399481387,
+        0.8752301338749037
+      ],
+      "ci95_wilson_neff": [
+        0.8453462253759634,
+        0.8750065580661177
+      ],
+      "n_eff": 2092.7385893351566,
+      "counts": {
+        "num": 1746.0,
+        "den": 2035.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 821.0,
+            "den": 965.0
+          },
+          "unflagged": {
+            "num": 925.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.845532399481387,
+        0.8752301338749037
+      ],
+      "sensitivity_mean_of_card_rates": 0.8816724261258678
+    },
+    "judge.partial_rate": {
+      "name": "judge.partial_rate",
+      "value": 0.12432775746741817,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.11220822852553017,
+        0.13668338225386023
+      ],
+      "ci95_wilson_neff": [
+        0.11242260584287782,
+        0.13729860341314323
+      ],
+      "n_eff": 2704.495108390068,
+      "counts": {
+        "num": 259.0,
+        "den": 2035.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 130.0,
+            "den": 965.0
+          },
+          "unflagged": {
+            "num": 129.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.11220822852553017,
+        0.13668338225386023
+      ],
+      "sensitivity_mean_of_card_rates": 0.10567103753010657
+    },
+    "judge.specific_rate": {
+      "name": "judge.specific_rate",
+      "value": 0.9372174036807892,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.9289850266604605,
+        0.9451135659404096
+      ],
+      "ci95_wilson_neff": [
+        0.928623462220436,
+        0.9448380749158017
+      ],
+      "n_eff": 3447.517903051363,
+      "counts": {
+        "num": 1904.0,
+        "den": 2035.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 899.0,
+            "den": 965.0
+          },
+          "unflagged": {
+            "num": 1005.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.9289850266604605,
+        0.9451135659404096
+      ],
+      "sensitivity_mean_of_card_rates": 0.9469883333960702
+    },
+    "judge.completeness_miss_rate": {
+      "name": "judge.completeness_miss_rate",
+      "value": 0.183674366817733,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.14569063812003238,
+        0.22346489272128559
+      ],
+      "ci95_wilson_neff": [
+        0.14786908008935173,
+        0.22585169542866546
+      ],
+      "n_eff": 377.55964186170627,
+      "counts": {
+        "num": 244.0,
+        "den": 1415.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 113.0,
+            "den": 760.0
+          },
+          "unflagged": {
+            "num": 131.0,
+            "den": 655.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.14569063812003238,
+        0.22346489272128559
+      ],
+      "sensitivity_mean_of_card_rates": 0.1890944231191578
+    },
+    "judge.completeness_miss_rate_primary": {
+      "name": "judge.completeness_miss_rate_primary",
+      "value": 0.11984797781082432,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.08431098428495226,
+        0.16386439324280033
+      ],
+      "ci95_wilson_neff": [
+        0.08609615405556847,
+        0.1644504296051078
+      ],
+      "n_eff": 265.3297511020414,
+      "counts": {
+        "num": 151.0,
+        "den": 1415.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 60.0,
+            "den": 760.0
+          },
+          "unflagged": {
+            "num": 91.0,
+            "den": 655.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.08431098428495226,
+        0.16386439324280033
+      ],
+      "sensitivity_mean_of_card_rates": 0.15842763435005283
+    },
+    "judge.risk_grounded_rate": {
+      "name": "judge.risk_grounded_rate",
+      "value": 0.748351513135232,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.6938486579427771,
+        0.7994730375808277
+      ],
+      "ci95_wilson_neff": [
+        0.6914633138653784,
+        0.7978176140140495
+      ],
+      "n_eff": 253.23735110677177,
+      "counts": {
+        "num": 547.0,
+        "den": 761.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 246.0,
+            "den": 379.0
+          },
+          "unflagged": {
+            "num": 301.0,
+            "den": 382.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.6938486579427771,
+        0.7994730375808277
+      ],
+      "sensitivity_mean_of_card_rates": 0.7459438107888139
+    },
+    "judge.ns_rate_judged_fields": {
+      "name": "judge.ns_rate_judged_fields",
+      "value": 0.3971670788867046,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.34847448955719185,
+        0.44905485457698596
+      ],
+      "ci95_wilson_neff": [
+        0.3481329442424314,
+        0.4483573586238346
+      ],
+      "n_eff": 362.57955169212113,
+      "counts": {
+        "num": 1415.0,
+        "den": 3450.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 760.0,
+            "den": 1725.0
+          },
+          "unflagged": {
+            "num": 655.0,
+            "den": 1725.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.34847448955719185,
+        0.44905485457698596
+      ],
+      "sensitivity_mean_of_card_rates": 0.3971670788867046
+    },
+    "flags.precision_strict": {
+      "name": "flags.precision_strict",
+      "value": 0.0303030303030303,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "wilson-neff",
+      "ci95_bootstrap": [
+        0.0,
+        0.10344827586206898
+      ],
+      "ci95_wilson_neff": [
+        0.005232064651511298,
+        0.15659712871767303
+      ],
+      "n_eff": 31.808921048857826,
+      "counts": {
+        "num": 1.0,
+        "den": 33.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 1.0,
+            "den": 33.0
+          },
+          "unflagged": {
+            "num": 0.0,
+            "den": 0.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.005232064651511298,
+        0.15659712871767303
+      ],
+      "sensitivity_mean_of_card_rates": 0.025
+    },
+    "flags.recall_strict": {
+      "name": "flags.recall_strict",
+      "value": 0.018591000304935164,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "wilson-neff",
+      "ci95_bootstrap": [
+        0.0,
+        0.06998266516028731
+      ],
+      "ci95_wilson_neff": [
+        0.002848496786842611,
+        0.11159890722460514
+      ],
+      "n_eff": 44.027646026363136,
+      "counts": {
+        "num": 1.0,
+        "den": 30.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 1.0,
+            "den": 14.0
+          },
+          "unflagged": {
+            "num": 0.0,
+            "den": 16.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.002848496786842611,
+        0.11159890722460514
+      ],
+      "sensitivity_mean_of_card_rates": 0.022558625442625765
+    },
+    "flags.recall_flaggable_strict": {
+      "name": "flags.recall_flaggable_strict",
+      "value": 0.030424343257632377,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "wilson-neff",
+      "ci95_bootstrap": [
+        0.0,
+        0.12801797860613587
+      ],
+      "ci95_wilson_neff": [
+        0.003921157030957495,
+        0.2000805070305165
+      ],
+      "n_eff": 21.360329916028824,
+      "counts": {
+        "num": 1.0,
+        "den": 18.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 1.0,
+            "den": 8.0
+          },
+          "unflagged": {
+            "num": 0.0,
+            "den": 10.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.003921157030957495,
+        0.2000805070305165
+      ],
+      "sensitivity_mean_of_card_rates": 0.04097035521029322
+    },
+    "flags.false_omission_strict": {
+      "name": "flags.false_omission_strict",
+      "value": 0.014692633875569707,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.00854218003284159,
+        0.022281184120177076
+      ],
+      "ci95_wilson_neff": [
+        0.009224159668016919,
+        0.023326724200991193
+      ],
+      "n_eff": 1173.994509238308,
+      "counts": {
+        "num": 29.0,
+        "den": 2002.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 13.0,
+            "den": 932.0
+          },
+          "unflagged": {
+            "num": 16.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.00854218003284159,
+        0.022281184120177076
+      ],
+      "sensitivity_mean_of_card_rates": 0.012471908207440029
+    },
+    "flags.f1_strict": {
+      "name": "flags.f1_strict",
+      "value": 0.023044270991736022,
+      "provenance": "S-weighted",
+      "estimator": "derived-from-replicates",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95": [
+        0.017513539868833142,
+        0.08524958381945219
+      ],
+      "n_bootstrap_degenerate": 1874
+    },
+    "flags.precision_lenient": {
+      "name": "flags.precision_lenient",
+      "value": 0.1515151515151515,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "wilson-neff",
+      "ci95_bootstrap": [
+        0.03125,
+        0.27272727272727276
+      ],
+      "ci95_wilson_neff": [
+        0.06533123009153285,
+        0.3132838977015013
+      ],
+      "n_eff": 31.580736025762672,
+      "counts": {
+        "num": 5.0,
+        "den": 33.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 5.0,
+            "den": 33.0
+          },
+          "unflagged": {
+            "num": 0.0,
+            "den": 0.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.06533123009153285,
+        0.3132838977015013
+      ],
+      "sensitivity_mean_of_card_rates": 0.11666666666666665
+    },
+    "flags.recall_lenient": {
+      "name": "flags.recall_lenient",
+      "value": 0.009908994880278736,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "wilson-neff",
+      "ci95_bootstrap": [
+        0.0018655473888767138,
+        0.021083079876589157
+      ],
+      "ci95_wilson_neff": [
+        0.0036838705369873666,
+        0.02637506081371016
+      ],
+      "n_eff": 363.83262622098346,
+      "counts": {
+        "num": 5.0,
+        "den": 289.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 5.0,
+            "den": 144.0
+          },
+          "unflagged": {
+            "num": 0.0,
+            "den": 145.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.0036838705369873666,
+        0.02637506081371016
+      ],
+      "sensitivity_mean_of_card_rates": 0.011594962353772022
+    },
+    "flags.recall_flaggable_lenient": {
+      "name": "flags.recall_flaggable_lenient",
+      "value": 0.016760024979864858,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "wilson-neff",
+      "ci95_bootstrap": [
+        0.0030795449972473273,
+        0.03565238392713415
+      ],
+      "ci95_wilson_neff": [
+        0.006216003572377789,
+        0.04439064007383213
+      ],
+      "n_eff": 213.44543856973712,
+      "counts": {
+        "num": 5.0,
+        "den": 166.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 5.0,
+            "den": 77.0
+          },
+          "unflagged": {
+            "num": 0.0,
+            "den": 89.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.006216003572377789,
+        0.04439064007383213
+      ],
+      "sensitivity_mean_of_card_rates": 0.017371639658366987
+    },
+    "flags.false_omission_lenient": {
+      "name": "flags.false_omission_lenient",
+      "value": 0.13904900761577613,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.12464446722059117,
+        0.15452697621461967
+      ],
+      "ci95_wilson_neff": [
+        0.12476087111840128,
+        0.15468428525310723
+      ],
+      "n_eff": 2054.7080612060818,
+      "counts": {
+        "num": 284.0,
+        "den": 2002.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 139.0,
+            "den": 932.0
+          },
+          "unflagged": {
+            "num": 145.0,
+            "den": 1070.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.12464446722059117,
+        0.15452697621461967
+      ],
+      "sensitivity_mean_of_card_rates": 0.11825331678694671
+    },
+    "flags.f1_lenient": {
+      "name": "flags.f1_lenient",
+      "value": 0.018601465693620606,
+      "provenance": "S-weighted",
+      "estimator": "derived-from-replicates",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95": [
+        0.0037753475577295046,
+        0.03875647006310275
+      ],
+      "n_bootstrap_degenerate": 87
+    },
+    "flags.miss_share_strict": {
+      "name": "flags.miss_share_strict",
+      "value": 0.9814089996950648,
+      "estimator": "combined-ratio",
+      "provenance": "S-weighted",
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "ci95_bootstrap": [
+        0.9300173348397126,
+        1.0
+      ],
+      "ci95_wilson_neff": [
+        0.888401092775395,
+        0.9971515032131574
+      ],
+      "n_eff": 44.02764602636325,
+      "counts": {
+        "num": 29.0,
+        "den": 30.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 13.0,
+            "den": 14.0
+          },
+          "unflagged": {
+            "num": 16.0,
+            "den": 16.0
+          }
+        }
+      },
+      "n_bootstrap_degenerate": 0,
+      "ci95": [
+        0.9300173348397126,
+        1.0
+      ],
+      "sensitivity_mean_of_card_rates": 0.9774413745573742
+    },
+    "flags.n_flags_outside_universe_raw": {
+      "name": "flags.n_flags_outside_universe_raw",
+      "value": 100.0,
+      "estimator": "raw-count",
+      "provenance": "S-weighted",
+      "note": "flags on fields the judge did not label; excluded from the budget-match universe",
+      "ci95": null,
+      "ci_method": null
+    },
+    "budget_match": {
+      "universe": "judge-labeled filled fields",
+      "budget_weighted_flagged_fields": 66.88001100000002,
+      "total_fields_weighted": 7348.533655000004,
+      "total_errors_weighted_strict": 109.01333800000002,
+      "caught_flag_weighted": 2.026667,
+      "caught_random_expected_weighted": 0.9921453159061184,
+      "catch_ratio_strict": {
+        "name": "budget.catch_ratio_strict",
+        "value": 2.042711856326269,
+        "provenance": "S-weighted",
+        "estimator": "derived-from-replicates",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95": [
+          0.0,
+          7.6554369722998805
+        ],
+        "n_bootstrap_degenerate": 0
+      },
+      "catch_diff_weighted_strict": {
+        "name": "budget.catch_diff_weighted_strict",
+        "value": 1.0345216840938818,
+        "provenance": "S-weighted",
+        "estimator": "derived-from-replicates",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95": [
+          -1.4157306380722676,
+          5.358873974624982
+        ],
+        "n_bootstrap_degenerate": 0
+      },
+      "recall_flag_strict": {
+        "name": "budget.recall_flag_strict",
+        "value": 0.01859100030493516,
+        "provenance": "S-weighted",
+        "estimator": "derived-from-replicates",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95": [
+          0.0,
+          0.06998266516028731
+        ],
+        "n_bootstrap_degenerate": 0
+      },
+      "budget_fraction": {
+        "name": "budget.budget_fraction",
+        "value": 0.009101136926071545,
+        "provenance": "S-weighted",
+        "estimator": "derived-from-replicates",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95": [
+          0.005227862062869788,
+          0.013527711723813366
+        ],
+        "n_bootstrap_degenerate": 0
+      },
+      "budget_table": {
+        "A": {
+          "budget_fraction": 0.01,
+          "flags_catch_share": 0.01948125494455638,
+          "random_catch_share": 0.01,
+          "flags_for_remainder": 0.014692633875569702,
+          "random_for_remainder": 0.01483470623092628
+        },
+        "B": {
+          "budget_fraction": 0.05,
+          "flags_catch_share": 0.05909817393669552,
+          "random_catch_share": 0.05,
+          "flags_for_remainder": 0.014692633875569702,
+          "random_for_remainder": 0.01483470623092628
+        },
+        "C": {
+          "budget_fraction": 0.009101136926071545,
+          "flags_catch_share": 0.01859100030493516,
+          "random_catch_share": 0.009101136926071545,
+          "flags_for_remainder": 0.014692633875569702,
+          "random_for_remainder": 0.01483470623092628
+        }
+      }
+    }
+  },
+  "by_provenance": {
+    "refresh": {
+      "judge.unsupported_rate": {
+        "name": "judge.unsupported_rate[refresh]",
+        "value": 0.01630575684065613,
+        "estimator": "combined-ratio",
+        "provenance": "S-weighted",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95_bootstrap": [
+          0.009679259642363578,
+          0.024427343272485486
+        ],
+        "ci95_wilson_neff": [
+          0.010350274390035497,
+          0.025599346313845882
+        ],
+        "n_eff": 1109.41914327551,
+        "counts": {
+          "num": 30.0,
+          "den": 1864.0,
+          "by_stratum": {
+            "flagged": {
+              "num": 14.0,
+              "den": 899.0
+            },
+            "unflagged": {
+              "num": 16.0,
+              "den": 965.0
+            }
+          }
+        },
+        "n_bootstrap_degenerate": 0,
+        "ci95": [
+          0.009679259642363578,
+          0.024427343272485486
+        ],
+        "sensitivity_mean_of_card_rates": 0.014227060634381053
+      },
+      "judge.support_rate": {
+        "name": "judge.support_rate[refresh]",
+        "value": 0.7826603731013009,
+        "estimator": "combined-ratio",
+        "provenance": "S-weighted",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95_bootstrap": [
+          0.7536522916269156,
+          0.8069585354445323
+        ],
+        "ci95_wilson_neff": [
+          0.7548983694244927,
+          0.8080773027591462
+        ],
+        "n_eff": 922.2087849929028,
+        "counts": {
+          "num": 1434.0,
+          "den": 1864.0,
+          "by_stratum": {
+            "flagged": {
+              "num": 662.0,
+              "den": 899.0
+            },
+            "unflagged": {
+              "num": 772.0,
+              "den": 965.0
+            }
+          }
+        },
+        "n_bootstrap_degenerate": 0,
+        "ci95": [
+          0.7536522916269156,
+          0.8069585354445323
+        ],
+        "sensitivity_mean_of_card_rates": 0.6508194724437567
+      },
+      "judge.completeness_miss_rate": {
+        "name": "judge.completeness_miss_rate[refresh]",
+        "value": 0.18617669067051096,
+        "estimator": "combined-ratio",
+        "provenance": "S-weighted",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95_bootstrap": [
+          0.14312293787125838,
+          0.23168850771928967
+        ],
+        "ci95_wilson_neff": [
+          0.14632213088949114,
+          0.23391221722234384
+        ],
+        "n_eff": 302.0954534444015,
+        "counts": {
+          "num": 217.0,
+          "den": 1264.0,
+          "by_stratum": {
+            "flagged": {
+              "num": 106.0,
+              "den": 734.0
+            },
+            "unflagged": {
+              "num": 111.0,
+              "den": 530.0
+            }
+          }
+        },
+        "n_bootstrap_degenerate": 0,
+        "ci95": [
+          0.14312293787125838,
+          0.23168850771928967
+        ],
+        "sensitivity_mean_of_card_rates": 0.189257355292436
+      },
+      "n_cards": 136
+    },
+    "regen": {
+      "judge.unsupported_rate": {
+        "name": "judge.unsupported_rate[regen]",
+        "value": 0.0,
+        "estimator": "combined-ratio",
+        "provenance": "S-weighted",
+        "ci_method": "wilson-neff",
+        "ci95_bootstrap": [
+          0.0,
+          0.0
+        ],
+        "ci95_wilson_neff": [
+          0.0,
+          0.021971097968438207
+        ],
+        "n_eff": 171.0,
+        "counts": {
+          "num": 0.0,
+          "den": 171.0,
+          "by_stratum": {
+            "flagged": {
+              "num": 0.0,
+              "den": 66.0
+            },
+            "unflagged": {
+              "num": 0.0,
+              "den": 105.0
+            }
+          }
+        },
+        "n_bootstrap_degenerate": 0,
+        "ci95": [
+          0.0,
+          0.021971097968438207
+        ],
+        "sensitivity_mean_of_card_rates": 0.0
+      },
+      "judge.support_rate": {
+        "name": "judge.support_rate[regen]",
+        "value": 0.8173846597344296,
+        "estimator": "combined-ratio",
+        "provenance": "S-weighted",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95_bootstrap": [
+          0.6996946952464081,
+          0.8838004921499347
+        ],
+        "ci95_wilson_neff": [
+          0.7075374466920605,
+          0.8922566434573262
+        ],
+        "n_eff": 65.87760375088577,
+        "counts": {
+          "num": 141.0,
+          "den": 171.0,
+          "by_stratum": {
+            "flagged": {
+              "num": 56.0,
+              "den": 66.0
+            },
+            "unflagged": {
+              "num": 85.0,
+              "den": 105.0
+            }
+          }
+        },
+        "n_bootstrap_degenerate": 0,
+        "ci95": [
+          0.6996946952464081,
+          0.8838004921499347
+        ],
+        "sensitivity_mean_of_card_rates": 0.6231718240168093
+      },
+      "judge.completeness_miss_rate": {
+        "name": "judge.completeness_miss_rate[regen]",
+        "value": 0.168430921946797,
+        "estimator": "combined-ratio",
+        "provenance": "S-weighted",
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "ci95_bootstrap": [
+          0.09705398761072291,
+          0.2453375739074239
+        ],
+        "ci95_wilson_neff": [
+          0.10707572110104625,
+          0.2549067086373792
+        ],
+        "n_eff": 97.56612517631366,
+        "counts": {
+          "num": 27.0,
+          "den": 151.0,
+          "by_stratum": {
+            "flagged": {
+              "num": 7.0,
+              "den": 26.0
+            },
+            "unflagged": {
+              "num": 20.0,
+              "den": 125.0
+            }
+          }
+        },
+        "n_bootstrap_degenerate": 0,
+        "ci95": [
+          0.09705398761072291,
+          0.2453375739074239
+        ],
+        "sensitivity_mean_of_card_rates": 0.18778138581984974
+      },
+      "n_cards": 14
+    }
+  }
+}

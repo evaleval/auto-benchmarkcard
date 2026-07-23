@@ -35,6 +35,8 @@ def extract_missing_fields(data: Any, prefix: str = "") -> List[str]:
             if key in _SKIP_SECTIONS:
                 continue
             current_path = f"{prefix}.{key}" if prefix else key
+            if current_path in _DISPLAY_ONLY_FIELDS:  # display-only: never measured (contract S8)
+                continue
 
             if is_not_specified(value):
                 missing_fields.append(current_path)
@@ -62,17 +64,42 @@ GOLD_SECTIONS = (
 
 # Fields with a structured external source (HF tags / EEE metadata) that can be
 # filled deterministically. Everything else in the gold sections counts as prose.
-# This split drives the prose-vs-deterministic Not-specified breakdown; tune here.
-DETERMINISTIC_FIELDS = {
+# This split drives the prose-vs-deterministic Not-specified breakdown.
+# FROZEN measurement instrument for the v31 -> v32 before/after comparison: do NOT
+# edit these 6. Any new deterministic count goes into a separate DETERMINISTIC_FIELDS_V2.
+DETERMINISTIC_FIELDS = frozenset({
     "benchmark_details.languages",
     "benchmark_details.data_type",
     "ethical_and_legal_considerations.data_licensing",
     "data.size",
     "data.format",
     "methodology.metrics",
-}
+})
 
-_FIELD_SKIP = {"provenance", "flagged_fields", "missing_fields"}
+# Display-only fields: shown to humans, never measured. Single source of truth for
+# every exclusion site (eval denominator, judge skip, atomizer strip). Adding a new
+# display field is a one-line extension here. Kept out of every _V2 metric (contract S8).
+_DISPLAY_ONLY_FIELDS = frozenset({
+    "benchmark_details.authors",
+    "benchmark_details.logo",
+    # org_url is the orchestrator-pre-approved S8 registry extension (schema_v2_field_specs,
+    # 2026-06-18); the schema field itself is requested from [B+V] via Aenderungsmeldung.
+    "benchmark_details.org_url",
+})
+
+# Fields excluded from the card_field_stats prose/deterministic NS split. Beyond the
+# bookkeeping keys: structured-typed v2 fields (object / bool / int -- not prose) and the
+# EEE-injected appears_in/benchmark_type (links/enums, not prose). Display fields are
+# excluded set-driven via _DISPLAY_ONLY_FIELDS (the dotted check in card_field_stats), so
+# they are NOT repeated here. (judge_* use [B+V]'s flat field names, bv-to-0 meldung.)
+# ACCOUNTING (trap #7a): dropping appears_in/benchmark_type from the prose count shifts the
+# NS denominator vs v31. The leak-corrected v31b baseline recount MUST use this same
+# accounting, otherwise the v31->v32 NS-delta silently absorbs this structural component.
+_FIELD_SKIP = {
+    "provenance", "flagged_fields", "missing_fields",
+    "appears_in", "benchmark_type",
+    "size_breakdown", "judge_uses_llm", "judge_num", "judge_models",
+}
 
 
 # Composer abstentions that leak through as a field VALUE instead of being
@@ -127,6 +154,8 @@ def card_field_stats(card: Dict[str, Any]) -> Dict[str, int]:
             continue
         for k, v in fields.items():
             if k in _FIELD_SKIP:
+                continue
+            if f"{sec}.{k}" in _DISPLAY_ONLY_FIELDS:
                 continue
             n_fields += 1
             ns = 1 if is_not_specified(v) else 0
@@ -351,14 +380,39 @@ def _is_structured_source(source: Optional[str]) -> bool:
     return any(t in s for t in _STRUCTURED_SOURCES)
 
 
+# Prose (free-text) fields where backfilling a provenance quote AS the field value is
+# safe. With verbatim quotes as evidence (v2), non-prose fields (enum / list /
+# deterministic) must not receive a raw quote as their value (contract S2 / S10 / S11.2).
+_PROSE_BACKFILL_FIELDS = frozenset({
+    "benchmark_details.overview",
+    "purpose_and_intended_users.goal",
+    "purpose_and_intended_users.limitations",
+    "purpose_and_intended_users.out_of_scope_uses",
+    "data.source",
+    "data.annotation",
+    "methodology.calculation",
+    "methodology.validation",
+    "methodology.validity_justification",
+    "ethical_and_legal_considerations.privacy_and_anonymity",
+    "ethical_and_legal_considerations.consent_procedures",
+    "ethical_and_legal_considerations.compliance_with_regulations",
+})
+
+
 def backfill_from_provenance(
     card: Dict[str, Any],
     provenance: Dict[str, Any],
     retrieved_contexts: Optional[List[str]] = None,
+    prose_only: bool = False,
 ) -> Dict[str, Any]:
     """Fill 'Not specified' fields from provenance evidence, but only when that evidence
     is grounded in the retrieved source or is a structured fact -- never on the composer's
-    unverified say-so alone."""
+    unverified say-so alone.
+
+    prose_only gates backfill to the prose allowlist (v2 scoping, contract S2/S11.2): the
+    production v2 path sets it True so a verbatim quote is never written as the value of an
+    enum/list/deterministic field. Default False reproduces the legacy v31 behaviour, so the
+    reapply self-test stays a no-op by construction."""
     for section_key, section_val in card.items():
         if not isinstance(section_val, dict):
             continue
@@ -367,6 +421,8 @@ def backfill_from_provenance(
             continue
 
         for field_key, field_val in section_val.items():
+            if prose_only and f"{section_key}.{field_key}" not in _PROSE_BACKFILL_FIELDS:
+                continue
             field_prov = section_prov.get(field_key, {})
             if not field_prov or not field_prov.get("evidence"):
                 continue
@@ -396,6 +452,7 @@ def normalize_not_specified(card: Dict[str, Any]) -> Dict[str, Any]:
     list_fields = {
         "domains", "languages", "similar_benchmarks", "resources",
         "audience", "tasks", "out_of_scope_uses", "methods", "metrics",
+        "audience_evaluators", "audience_consumers", "authors", "judge_models",
     }
 
     for section_key, section_val in card.items():
@@ -403,6 +460,11 @@ def normalize_not_specified(card: Dict[str, Any]) -> Dict[str, Any]:
             continue
         for field_key, field_val in section_val.items():
             if field_key in ("provenance", "flagged_fields", "missing_fields", "card_info", "possible_risks"):
+                continue
+
+            # A real bool/int value (judge_uses_llm=False, judge_num=0) is a filled
+            # answer, not an empty cell -- never coerce it to the sentinel.
+            if isinstance(field_val, (bool, int)):
                 continue
 
             is_list_field = field_key in list_fields
@@ -414,6 +476,62 @@ def normalize_not_specified(card: Dict[str, Any]) -> Dict[str, Any]:
             ):
                 card[section_key][field_key] = ["Not specified"]
 
+    return card
+
+
+_BENCHMARK_TYPE_MAP = {
+    "composite": "composite_suite",
+    "sub-benchmark": "single",
+    "single": "single",
+    "composite_suite": "composite_suite",
+    "leaderboard_aggregate": "leaderboard_aggregate",
+}
+
+
+def map_benchmark_type(raw: Any) -> str:
+    """Map a raw benchmark_type onto the Tier-1 enum (contract S4.2):
+    single | composite_suite | leaderboard_aggregate. EEE emits single|composite;
+    sub-benchmark -> single (S11.4 default). Unknown -> single. Idempotent."""
+    return _BENCHMARK_TYPE_MAP.get(str(raw).strip().lower(), "single")
+
+
+def apply_single_judge_bias_rule(card: Dict[str, Any]) -> Dict[str, Any]:
+    """Append a bias-risk entry to possible_risks when scoring uses exactly one
+    LLM judge. Deterministic, rule-based, no new card key. Reads [B+V]'s flat
+    methodology fields (judge_uses_llm / judge_num); no-op until they are filled.
+
+    Sentinel guards are mandatory: both fields default to the string sentinel
+    "Not specified", so judge_uses_llm must be exactly True (never a truthy
+    sentinel string) and judge_num must be a real int -- isinstance, excluding
+    bool -- before the <= 1 comparison; a raw "Not specified" <= 1 would raise.
+    judge_models is NOT used to infer a single judge: its sentinel default is
+    ["Not specified"] (one element), which would misfire a length-1 check."""
+    methodology = card.get("methodology")
+    if not isinstance(methodology, dict):
+        return card
+    if methodology.get("judge_uses_llm") is not True:
+        return card
+    judge_num = methodology.get("judge_num")
+    if not (isinstance(judge_num, int) and not isinstance(judge_num, bool) and judge_num <= 1):
+        return card
+
+    risks = card.setdefault("possible_risks", [])
+    if not isinstance(risks, list):
+        return card
+
+    category = "Evaluation bias (single LLM judge)"
+    if any(isinstance(r, dict) and r.get("category") == category for r in risks):
+        return card
+
+    risks.append({
+        "category": category,
+        "description": (
+            "Scoring relies on a single LLM judge, which can introduce systematic "
+            "bias such as self-preference or style and length effects. Multiple "
+            "judges or human verification mitigate this."
+        ),
+        "url": None,
+    })
     return card
 
 
@@ -452,6 +570,17 @@ _LICENSE_MAP = {
     "odc-by": "Open Data Commons Attribution License",
     "odbl": "Open Data Commons Open Database License",
     "pddl": "Open Data Commons Public Domain Dedication and License",
+    "cc-by-2.0": "Creative Commons Attribution 2.0",
+    "cc-by-3.0": "Creative Commons Attribution 3.0",
+    "cc-by-sa-2.0": "Creative Commons Attribution-ShareAlike 2.0",
+    "cc-by-sa-3.0": "Creative Commons Attribution-ShareAlike 3.0",
+    "cc-by-nc-2.0": "Creative Commons Attribution-NonCommercial 2.0",
+    "cc-by-nc-3.0": "Creative Commons Attribution-NonCommercial 3.0",
+    "cc-by-nd-4.0": "Creative Commons Attribution-NoDerivatives 4.0",
+    "afl-3.0": "Academic Free License v3.0",
+    "gpl-2.0": "GNU General Public License v2.0",
+    "agpl-3.0": "GNU Affero General Public License v3.0",
+    "mpl-2.0": "Mozilla Public License 2.0",
 }
 
 _SIZE_CATEGORY_MAP = {
@@ -466,6 +595,55 @@ _SIZE_CATEGORY_MAP = {
     "10B<n<100B": "10B to 100B examples",
     "100B<n<1T": "100B to 1T examples",
 }
+
+
+# Programming-language / code signals in HF tags. A code benchmark rarely carries a code
+# modality tag, so the modality/language derivation in extract_hf_tags mislabels it (e.g.
+# modality:text -> "text", language:code -> ["code"]). These tokens pin the S4.3 code shape.
+_CODE_SIGNAL_TOKENS = {"code", "coding", "programming"}
+
+
+def _tags_signal_code(tags: List[str]) -> bool:
+    """True when HF tags carry an explicit code signal: a bare 'code' tag, a code/programming
+    task tag, or a language:code value. Tokens are split on -/_/space so 'decode'/'barcode'
+    never trip it."""
+    for tag in tags:
+        if not isinstance(tag, str):
+            continue
+        prefix, sep, value = tag.partition(":")
+        if sep and prefix not in ("language", "task_categories", "task_ids"):
+            continue
+        candidate = (value if sep else tag).strip().lower()
+        tokens = candidate.replace("-", " ").replace("_", " ").split()
+        if _CODE_SIGNAL_TOKENS.intersection(tokens):
+            return True
+    return False
+
+
+# Bare serialization / hosting tokens. When one of these is presented as data.format it
+# describes how the dataset is STORED on the Hub, not what one example contains, so it is
+# relabelled as the hosting format rather than left to masquerade as the data structure.
+STORAGE_FORMAT_TOKENS = frozenset({
+    "json", "jsonl", "csv", "tsv", "parquet", "txt", "text", "xml", "yaml", "yml",
+    "zip", "arrow", "hdf5", "npz", "pickle", "pkl",
+})
+
+# License tags that name no specific license (ambiguous version / placeholder). Skipped so a
+# junk tag never clobbers a more specific license already on the card.
+_AMBIGUOUS_LICENSE_TAGS = ("other", "unknown", "cc")
+
+
+def _label_hosting_format(token: Any) -> Any:
+    """Mark a bare storage token as the HuggingFace hosting format: 'parquet' ->
+    'parquet (HuggingFace hosting format)'. Anything that is not a bare storage token
+    (already labelled, or a real instance-structure description) is returned unchanged,
+    so the relabel is idempotent."""
+    if not isinstance(token, str):
+        return token
+    t = token.strip()
+    if t.lower() in STORAGE_FORMAT_TOKENS:
+        return f"{t} (HuggingFace hosting format)"
+    return t
 
 
 def extract_hf_tags(hf_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -518,7 +696,7 @@ def extract_hf_tags(hf_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
             size = _SIZE_CATEGORY_MAP.get(value, value)
 
         elif prefix == "license":
-            if value not in ("other", "unknown"):
+            if value not in _AMBIGUOUS_LICENSE_TAGS:
                 license_val = _LICENSE_MAP.get(value, value)
 
     if languages:
@@ -528,11 +706,17 @@ def extract_hf_tags(hf_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if task_labels:
         result["purpose_and_intended_users.tasks"] = sorted(set(task_labels))
     if fmt:
-        result["data.format"] = fmt
+        result["data.format"] = _label_hosting_format(fmt)
     if size:
         result["data.size"] = size
     if license_val:
         result["ethical_and_legal_considerations.data_licensing"] = license_val
+
+    # Code benchmark: override the modality/language derivation above with the contract S4.3
+    # code shape (data_type "code", languages not-applicable). Runs last so it wins.
+    if _tags_signal_code(tags):
+        result["benchmark_details.data_type"] = "code"
+        result["benchmark_details.languages"] = ["not-applicable"]
 
     return result
 

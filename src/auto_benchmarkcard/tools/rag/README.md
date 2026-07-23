@@ -85,9 +85,9 @@ Requires `llm_handler` module for:
 ## Usage Example
 
 ```python
-from auto_benchmarkcard.tools.rag.rag_retriever import RAGRetriever
-from auto_benchmarkcard.tools.rag.indexer import MetadataIndexer
-from auto_benchmarkcard.tools.rag.atomizer import atomize_benchmark_card
+from tools.rag.rag_retriever import RAGRetriever
+from tools.rag.indexer import MetadataIndexer
+from tools.rag.atomizer import atomize_benchmark_card
 
 # 1. Index documents
 indexer = MetadataIndexer()
@@ -125,7 +125,7 @@ for statement in statements:
 ## Directory Structure
 
 ```
-src/auto_benchmarkcard/tools/rag/
+tools/rag/
 ├── README.md              # This file
 ├── rag_retriever.py       # Main retrieval system
 ├── indexer.py            # Document indexing

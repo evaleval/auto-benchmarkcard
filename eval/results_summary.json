@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "frozen_corpus": {
+    "attempted": 531,
+    "published": 530,
+    "completion_rate": 0.9981,
+    "hf_revision": "0a86cea5b55d6070bd7f1f020f01281e1631adba",
+    "fingerprint_md5": "81a7a3001f2ed7ec4ca1f914a03d8542",
+    "binding_paths": {
+      "no_paper_honest": 159,
+      "pre_set_gate_verified": 127,
+      "search_llm_verified": 245
+    }
+  },
+  "sample": {
+    "n_cards": 150,
+    "seed": 20260704,
+    "flagged": {
+      "N": 152,
+      "n": 75,
+      "weight": 2.026667
+    },
+    "unflagged": {
+      "N": 378,
+      "n": 75,
+      "weight": 5.04
+    }
+  },
+  "source_bounded_judge": {
+    "scope": "23 content fields per sampled card; rates are S-weighted over filled fields unless stated otherwise.",
+    "field_rows": 3450.0,
+    "filled_rows": 2035.0,
+    "not_specified_rows": 1415.0,
+    "supported_including_eee": 0.8608375363016555,
+    "partial": 0.12432775746741817,
+    "unsupported": 0.014834706230926285
+  },
+  "human_validation": {
+    "n_raters": 3,
+    "n_unique_items": 75,
+    "n_cards": 49,
+    "n_adjudicated_three_way_splits": 1,
+    "probability_arm_filled": {
+      "n_rows": 17,
+      "weighted_agreement": 0.8905862911121797,
+      "cohens_kappa": 0.7087218322003674
+    },
+    "probability_arm_not_specified": {
+      "n_rows": 15,
+      "weighted_agreement": 1.0
+    },
+    "judge_error_call_confirmation": {
+      "unsupported": 27,
+      "unsupported_denominator": 30,
+      "partial": 3,
+      "partial_denominator": 13
+    }
+  },
+  "public_source_screen": {
+    "scope": "stratum-weighted share of cards with at least one screen-detected, verifier-confirmed material candidate",
+    "inference_guard": [
+      "defect prevalence",
+      "screen recall",
+      "screen accuracy",
+      "standard false-positive rate",
+      "human reliability"
+    ],
+    "n_findings": 154,
+    "raw_label_counts": {
+      "confirmed-material": 111,
+      "confirmed-trivial": 20,
+      "not-a-defect": 23,
+      "unsure": 0
+    },
+    "n_cards_with_confirmed_material_finding_raw": 70,
+    "weighted_rate": 0.4780377358490566,
+    "approximate_design_interval95": [
+      0.4017251373525483,
+      0.5543503343455649
+    ]
+  },
+  "validation_flags": {
+    "scope": "overlapping 23-field filled-field judge universe",
+    "n_flagged_fields_raw": 33.0,
+    "n_unsupported_fields_raw": 30.0,
+    "n_overlap_raw": 1.0,
+    "weighted_precision": 0.0303030303030303,
+    "weighted_recall": 0.018591000304935164,
+    "weighted_miss_share": 0.9814089996950648
+  }
+}

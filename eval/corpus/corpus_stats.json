@@ -1,0 +1,426 @@
+{
+  "generated_on": "2026-07-06",
+  "corpus": {
+    "dir": "output/auto-benchmarkcards-v3/cards",
+    "n_cards": 530,
+    "attempted": 531,
+    "completion_rate": 0.9981
+  },
+  "field_fill": {
+    "convention": "strict: all schema fields in the five sections; filled = non-empty AND not a Not-specified sentinel (THE paper number, orchestrator ruling 2026-07-05)",
+    "n_slots": 21171,
+    "n_filled": 11857,
+    "n_ns_sentinel": 9304,
+    "n_empty": 10,
+    "fill_rate": 0.5601
+  },
+  "field_fill_cardfieldstats": {
+    "convention": "card_field_stats: excludes appears_in, benchmark_type, size_breakdown, judge_uses_llm, judge_num, judge_models, authors, logo, org_url; empty values count as filled (secondary, NOT the paper number)",
+    "n_slots": 16432,
+    "n_not_specified": 6697,
+    "n_filled": 9735,
+    "fill_rate": 0.5924
+  },
+  "flags": {
+    "n_flagged_fields": 286,
+    "cards_with_flags": 152,
+    "cards_total": 530
+  },
+  "binding_paths": {
+    "n_run_dirs": 531,
+    "n_sidecars": 531,
+    "resolved_from_raw": {
+      "None": 159,
+      "binding_verified:eee_unitxt": 11,
+      "binding_verified:hf_extractor": 114,
+      "binding_verified:hf_readme": 2,
+      "openalex+batch_verification": 185,
+      "semantic_scholar+batch_verification": 60
+    },
+    "grouped": {
+      "no_paper_honest": 159,
+      "pre_set_gate_verified": 127,
+      "search_llm_verified": 245
+    },
+    "subject_actions": {
+      "abstained": 7,
+      "kept": 19
+    }
+  },
+  "runtime": null,
+  "regen_cost": {
+    "provenance": "measured-on-regen",
+    "cost_scope": "OpenRouter-served composer calls only; RITS calls (flagger, light model) are logged with cost 0",
+    "n_cards_measured": 55,
+    "total_cost_usd": 0.32871375969999994,
+    "mean_cost_per_card_usd": 0.005976613812727271,
+    "median_cost_per_card_usd": 0.006232202800000001,
+    "max_cost_per_card_usd": 0.0118489706,
+    "total_calls": 473,
+    "total_input_tokens": 1026143,
+    "total_output_tokens": 1209174,
+    "providers": [
+      "Baidu"
+    ],
+    "quantizations": [
+      "fp8"
+    ],
+    "response_formats": [
+      "json_schema"
+    ],
+    "models": [
+      "deepseek-ai/DeepSeek-V4-Flash"
+    ],
+    "regen_failed_benchmarks": [
+      {
+        "benchmark": "RAFT",
+        "kind": "single",
+        "reason": "composer_failed",
+        "reason_description": "Composer returned None or raised exception",
+        "detail": "returned None",
+        "has_hf": false,
+        "appears_in": [
+          "helm_classic"
+        ]
+      }
+    ],
+    "extrapolated": {
+      "provenance": "extrapolated",
+      "note": "mean regen cost per card x corpus size; broad_run itself had no cost instrumentation",
+      "corpus_n": 530,
+      "est_corpus_cost_usd": 3.1676053207454538
+    },
+    "per_card": {
+      "acadreason": {
+        "cost": 0.007864,
+        "input_tokens": 29110,
+        "output_tokens": 27185,
+        "calls": 11
+      },
+      "amc-2022-23": {
+        "cost": 0.002089,
+        "input_tokens": 8063,
+        "output_tokens": 7513,
+        "calls": 7
+      },
+      "anthropic-rlhf-dataset": {
+        "cost": 0.007858,
+        "input_tokens": 22062,
+        "output_tokens": 30677,
+        "calls": 9
+      },
+      "appworld-test-normal": {
+        "cost": 0.004357,
+        "input_tokens": 16382,
+        "output_tokens": 15303,
+        "calls": 10
+      },
+      "arc-agi": {
+        "cost": 0.002234,
+        "input_tokens": 9141,
+        "output_tokens": 6794,
+        "calls": 8
+      },
+      "bbq": {
+        "cost": 0.007548,
+        "input_tokens": 21355,
+        "output_tokens": 28843,
+        "calls": 9
+      },
+      "best-chatgpt-prompts": {
+        "cost": 0.003032,
+        "input_tokens": 11319,
+        "output_tokens": 10583,
+        "calls": 7
+      },
+      "big-bench": {
+        "cost": 0.00787,
+        "input_tokens": 30773,
+        "output_tokens": 25361,
+        "calls": 11
+      },
+      "boolq": {
+        "cost": 0.008639,
+        "input_tokens": 21494,
+        "output_tokens": 33296,
+        "calls": 9
+      },
+      "cnn-dailymail": {
+        "cost": 0.008782,
+        "input_tokens": 30380,
+        "output_tokens": 35109,
+        "calls": 11
+      },
+      "covost2": {
+        "cost": 0.008765,
+        "input_tokens": 31583,
+        "output_tokens": 28790,
+        "calls": 11
+      },
+      "cybench": {
+        "cost": 0.008962,
+        "input_tokens": 29218,
+        "output_tokens": 31079,
+        "calls": 10
+      },
+      "disinformation": {
+        "cost": 0.002102,
+        "input_tokens": 7499,
+        "output_tokens": 6940,
+        "calls": 5
+      },
+      "drop": {
+        "cost": 0.008016,
+        "input_tokens": 21650,
+        "output_tokens": 31482,
+        "calls": 10
+      },
+      "echo": {
+        "cost": 0.001867,
+        "input_tokens": 9417,
+        "output_tokens": 6426,
+        "calls": 5
+      },
+      "figqa": {
+        "cost": 0.002224,
+        "input_tokens": 8001,
+        "output_tokens": 7311,
+        "calls": 8
+      },
+      "gpqa": {
+        "cost": 0.00579,
+        "input_tokens": 15888,
+        "output_tokens": 22939,
+        "calls": 8
+      },
+      "hard-problems": {
+        "cost": 0.001413,
+        "input_tokens": 6946,
+        "output_tokens": 4636,
+        "calls": 5
+      },
+      "helm-capabilities": {
+        "cost": 0.001885,
+        "input_tokens": 8748,
+        "output_tokens": 5728,
+        "calls": 5
+      },
+      "helm-lite": {
+        "cost": 0.002009,
+        "input_tokens": 8997,
+        "output_tokens": 6231,
+        "calls": 5
+      },
+      "helm-mmlu": {
+        "cost": 0.006731,
+        "input_tokens": 23890,
+        "output_tokens": 23316,
+        "calls": 9
+      },
+      "ifeval": {
+        "cost": 0.007112,
+        "input_tokens": 24771,
+        "output_tokens": 23890,
+        "calls": 10
+      },
+      "imagemining": {
+        "cost": 0.004709,
+        "input_tokens": 14149,
+        "output_tokens": 17493,
+        "calls": 9
+      },
+      "imdb": {
+        "cost": 0.002538,
+        "input_tokens": 10675,
+        "output_tokens": 9515,
+        "calls": 6
+      },
+      "koala-test-dataset": {
+        "cost": 0.001825,
+        "input_tokens": 7960,
+        "output_tokens": 5305,
+        "calls": 5
+      },
+      "lbpp-v2": {
+        "cost": 0.002126,
+        "input_tokens": 8704,
+        "output_tokens": 7384,
+        "calls": 8
+      },
+      "legalbench": {
+        "cost": 0.010201,
+        "input_tokens": 29753,
+        "output_tokens": 37623,
+        "calls": 11
+      },
+      "livecodebench": {
+        "cost": 0.011527,
+        "input_tokens": 34346,
+        "output_tokens": 44324,
+        "calls": 11
+      },
+      "math": {
+        "cost": 0.007794,
+        "input_tokens": 22118,
+        "output_tokens": 30224,
+        "calls": 9
+      },
+      "mm-mind2web": {
+        "cost": 0.002298,
+        "input_tokens": 7819,
+        "output_tokens": 8698,
+        "calls": 7
+      },
+      "mmmu": {
+        "cost": 0.009213,
+        "input_tokens": 31863,
+        "output_tokens": 31135,
+        "calls": 10
+      },
+      "mmt-bench": {
+        "cost": 0.009408,
+        "input_tokens": 26372,
+        "output_tokens": 34771,
+        "calls": 10
+      },
+      "ms-marco-trec": {
+        "cost": 0.001923,
+        "input_tokens": 7859,
+        "output_tokens": 5850,
+        "calls": 5
+      },
+      "mt-bench": {
+        "cost": 0.009143,
+        "input_tokens": 30930,
+        "output_tokens": 32167,
+        "calls": 11
+      },
+      "natural-questions": {
+        "cost": 0.006611,
+        "input_tokens": 21495,
+        "output_tokens": 24005,
+        "calls": 11
+      },
+      "omni-math": {
+        "cost": 0.008026,
+        "input_tokens": 21514,
+        "output_tokens": 31703,
+        "calls": 9
+      },
+      "open-assistant": {
+        "cost": 0.001835,
+        "input_tokens": 7881,
+        "output_tokens": 6313,
+        "calls": 5
+      },
+      "openbookqa": {
+        "cost": 0.01009,
+        "input_tokens": 29828,
+        "output_tokens": 37431,
+        "calls": 11
+      },
+      "quac": {
+        "cost": 0.011849,
+        "input_tokens": 33084,
+        "output_tokens": 45365,
+        "calls": 12
+      },
+      "raft": {
+        "cost": 0.008133,
+        "input_tokens": 22703,
+        "output_tokens": 33904,
+        "calls": 9
+      },
+      "screenspot": {
+        "cost": 0.00395,
+        "input_tokens": 11876,
+        "output_tokens": 14154,
+        "calls": 9
+      },
+      "seal-0": {
+        "cost": 0.008306,
+        "input_tokens": 22321,
+        "output_tokens": 31700,
+        "calls": 9
+      },
+      "self-instruct": {
+        "cost": 0.003278,
+        "input_tokens": 11318,
+        "output_tokens": 11014,
+        "calls": 7
+      },
+      "studiogan": {
+        "cost": 0.00584,
+        "input_tokens": 18670,
+        "output_tokens": 21292,
+        "calls": 9
+      },
+      "supergpqa": {
+        "cost": 0.009238,
+        "input_tokens": 24805,
+        "output_tokens": 34586,
+        "calls": 8
+      },
+      "swe-bench": {
+        "cost": 0.003622,
+        "input_tokens": 13286,
+        "output_tokens": 12392,
+        "calls": 9
+      },
+      "terminal-bench": {
+        "cost": 0.011443,
+        "input_tokens": 30385,
+        "output_tokens": 44652,
+        "calls": 12
+      },
+      "theory-of-mind": {
+        "cost": 0.006232,
+        "input_tokens": 14068,
+        "output_tokens": 25280,
+        "calls": 10
+      },
+      "truthfulqa": {
+        "cost": 0.004464,
+        "input_tokens": 12584,
+        "output_tokens": 16516,
+        "calls": 8
+      },
+      "vip-bench": {
+        "cost": 0.005607,
+        "input_tokens": 15913,
+        "output_tokens": 21482,
+        "calls": 9
+      },
+      "vlue": {
+        "cost": 0.011218,
+        "input_tokens": 31103,
+        "output_tokens": 41610,
+        "calls": 11
+      },
+      "winogrande": {
+        "cost": 0.008823,
+        "input_tokens": 21751,
+        "output_tokens": 35640,
+        "calls": 11
+      },
+      "wmt-2014": {
+        "cost": 0.001812,
+        "input_tokens": 7981,
+        "output_tokens": 5228,
+        "calls": 5
+      },
+      "xsum": {
+        "cost": 0.002977,
+        "input_tokens": 10286,
+        "output_tokens": 9997,
+        "calls": 6
+      },
+      "zclawbench": {
+        "cost": 0.005508,
+        "input_tokens": 14056,
+        "output_tokens": 20989,
+        "calls": 8
+      }
+    }
+  }
+}

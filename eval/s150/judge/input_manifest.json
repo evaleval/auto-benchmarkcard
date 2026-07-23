@@ -1,0 +1,760 @@
+{
+  "cards": {
+    "360vot": {
+      "bytes": 14000,
+      "md5": "ac602043aa92d29ad0912b872ab0a7e6",
+      "source": "repaired_manifest"
+    },
+    "ace": {
+      "bytes": 131101,
+      "md5": "69732ffada52728f5482c6a257825d95",
+      "source": "original_manifest"
+    },
+    "acemath-rewardbench": {
+      "bytes": 197178,
+      "md5": "56f6ec1902f6c552ffa233ec4660ec3e",
+      "source": "original_manifest"
+    },
+    "actionbench": {
+      "bytes": 10532,
+      "md5": "72bc72cd654ce93c03665ab2732fb24f",
+      "source": "original_manifest"
+    },
+    "activitynet": {
+      "bytes": 15694,
+      "md5": "1f95f9ead812e6fede72355e4c703145",
+      "source": "repaired_manifest"
+    },
+    "aider": {
+      "bytes": 6835,
+      "md5": "fdc33e2a54b9121bf49e56a97df7bad2",
+      "source": "original_manifest"
+    },
+    "aime": {
+      "bytes": 5147,
+      "md5": "171af5df470e7d3b678a6c98bb6ddbf7",
+      "source": "original_manifest"
+    },
+    "androidworld": {
+      "bytes": 195606,
+      "md5": "845508738bcece839b08ae0216a25cc6",
+      "source": "original_manifest"
+    },
+    "androidworld-sr": {
+      "bytes": 213917,
+      "md5": "fcbbf10183fdb36f52dcd6846ea26b8d",
+      "source": "original_manifest"
+    },
+    "anthropic-red-team": {
+      "bytes": 4850,
+      "md5": "d4e787b93f5a11bad58d4f869a45e2d2",
+      "source": "original_manifest"
+    },
+    "apex-agents": {
+      "bytes": 137131,
+      "md5": "768e5cb80fba07578a86718fb973c5d9",
+      "source": "original_manifest"
+    },
+    "api-bank": {
+      "bytes": 108229,
+      "md5": "bb0dd37edd66fcbcb5fba8d3e9f6ca69",
+      "source": "original_manifest"
+    },
+    "arena-hard": {
+      "bytes": 147958,
+      "md5": "ca2989fac2fe657be6b111f9f480cf1d",
+      "source": "original_manifest"
+    },
+    "artifactsbench": {
+      "bytes": 198021,
+      "md5": "ce893f48cac15cb619ca7f589a33d093",
+      "source": "original_manifest"
+    },
+    "assistantbench": {
+      "bytes": 192719,
+      "md5": "3be090c704d4253260e995b5dd267629",
+      "source": "original_manifest"
+    },
+    "assistgui": {
+      "bytes": 9667,
+      "md5": "12549d95495c9f1410ce4db23f2d2b51",
+      "source": "repaired_manifest"
+    },
+    "babyvision": {
+      "bytes": 153237,
+      "md5": "f4407fbf8f879c2522386c8adaf1ed6e",
+      "source": "original_manifest"
+    },
+    "belief": {
+      "bytes": 27867,
+      "md5": "9c49a8edaf333cba7bbca799be466585",
+      "source": "original_manifest"
+    },
+    "beyond-aime": {
+      "bytes": 38189,
+      "md5": "39de4498b60cf08a1a0c869d68949f50",
+      "source": "original_manifest"
+    },
+    "bigcodebench": {
+      "bytes": 277258,
+      "md5": "4dec72119d7b2f21d1bb090bb5f787d9",
+      "source": "original_manifest"
+    },
+    "boolq": {
+      "bytes": 62917,
+      "md5": "9caab014c56e8887fa6e28c0a37c6cf5",
+      "source": "original_manifest"
+    },
+    "browsecomp": {
+      "bytes": 98217,
+      "md5": "1928c35bc72236845adbed08206a5b15",
+      "source": "repaired_manifest"
+    },
+    "cbnsl": {
+      "bytes": 7557,
+      "md5": "0b318029a44721a74810cc98c88e2566",
+      "source": "repaired_manifest"
+    },
+    "cfeval": {
+      "bytes": 5337,
+      "md5": "1d8ab8a3beed002f48b0ba4e5ccf9a45",
+      "source": "original_manifest"
+    },
+    "chartqa": {
+      "bytes": 129386,
+      "md5": "f400b177fcf9d0e5e8ebc1d75e291bc7",
+      "source": "original_manifest"
+    },
+    "churro-ds": {
+      "bytes": 293241,
+      "md5": "1f4fbb030f19a74f41d7f6d9326ad49d",
+      "source": "original_manifest"
+    },
+    "civilcomments": {
+      "bytes": 118490,
+      "md5": "0951c881656f743e68dc2b840633b525",
+      "source": "original_manifest"
+    },
+    "cnn-dailymail": {
+      "bytes": 75841,
+      "md5": "8c597a6efe09118f231067fb0f44b298",
+      "source": "original_manifest"
+    },
+    "codegolf-v2.2": {
+      "bytes": 95152,
+      "md5": "becfd73394ad5315888211e122ac1389",
+      "source": "original_manifest"
+    },
+    "core-bench-hard": {
+      "bytes": 166899,
+      "md5": "8e761bad88f2afba31783ae379544be2",
+      "source": "original_manifest"
+    },
+    "corpusqa-1m": {
+      "bytes": 138467,
+      "md5": "8e9b83fc903c1b8c47059e3a6a8a1d15",
+      "source": "original_manifest"
+    },
+    "cotd": {
+      "bytes": 127049,
+      "md5": "050fcecf5e93c16977be25641ff8d5f7",
+      "source": "original_manifest"
+    },
+    "covost2": {
+      "bytes": 72175,
+      "md5": "4223f7819b9f916eef59db6bc524f9ee",
+      "source": "original_manifest"
+    },
+    "creative-writing-v3": {
+      "bytes": 7766,
+      "md5": "0e70fb688283d60eba7d2c4d212e64e2",
+      "source": "original_manifest"
+    },
+    "cryptobench": {
+      "bytes": 17467,
+      "md5": "de4f325166c8ebaa889d889251cc0465",
+      "source": "original_manifest"
+    },
+    "csimpleqa": {
+      "bytes": 150786,
+      "md5": "17075fcf808b9b8a543bd24892fa21f6",
+      "source": "original_manifest"
+    },
+    "cyse2-interpreter-abuse": {
+      "bytes": 5335,
+      "md5": "f0c5d9c85e1e45470bbad6b192cc74b5",
+      "source": "original_manifest"
+    },
+    "cyse2-vulnerability-exploit": {
+      "bytes": 6463,
+      "md5": "003b82575928ae3fae567b9225a7ccec",
+      "source": "original_manifest"
+    },
+    "design2code": {
+      "bytes": 140768,
+      "md5": "fbe0b957c532d5c8ed8efe6479cb062a",
+      "source": "original_manifest"
+    },
+    "dexter": {
+      "bytes": 199287,
+      "md5": "bfab474e308278cdea1b3f345718661b",
+      "source": "repaired_manifest"
+    },
+    "disinformation": {
+      "bytes": 2705,
+      "md5": "0e83aa2cd66b3271b040af1ff1c8af7c",
+      "source": "original_manifest"
+    },
+    "do-not-answer": {
+      "bytes": 141406,
+      "md5": "db7963fce0d7b9dbf669d20be29a215f",
+      "source": "original_manifest"
+    },
+    "drop": {
+      "bytes": 69237,
+      "md5": "bf9d679ba672665c487031cc24263efb",
+      "source": "original_manifest"
+    },
+    "ds-arena-code": {
+      "bytes": 5456,
+      "md5": "62c332fc942bf47f3990977adef8b7d9",
+      "source": "original_manifest"
+    },
+    "ds-fim-eval": {
+      "bytes": 5277,
+      "md5": "9d421ef82a658652f466c047bcd5f18b",
+      "source": "original_manifest"
+    },
+    "dtto": {
+      "bytes": 11457,
+      "md5": "9bf1a0ab7dacc8e0cafce6a3d64cdc3c",
+      "source": "repaired_manifest"
+    },
+    "dynamath": {
+      "bytes": 233509,
+      "md5": "a204bfd36868444cfe648d341c220499",
+      "source": "original_manifest"
+    },
+    "easy-problems": {
+      "bytes": 4822,
+      "md5": "16862d66383f33df1f4fac2bb8895493",
+      "source": "original_manifest"
+    },
+    "egoschema": {
+      "bytes": 181517,
+      "md5": "e95e7563fae7874399c3ccad6c266297",
+      "source": "original_manifest"
+    },
+    "erqa": {
+      "bytes": 24735,
+      "md5": "24a7725a9cff39d77ea59d796293cb30",
+      "source": "original_manifest"
+    },
+    "extremelandmarkpairs": {
+      "bytes": 5171,
+      "md5": "0afdab24b2262b4b7d2f717321cf0cfd",
+      "source": "original_manifest"
+    },
+    "finance-agent": {
+      "bytes": 141368,
+      "md5": "8c566d3034d4d54f8788b04f217badd0",
+      "source": "original_manifest"
+    },
+    "finqa": {
+      "bytes": 127888,
+      "md5": "a932136a19f5ac8639b02ec753321848",
+      "source": "original_manifest"
+    },
+    "flenqa": {
+      "bytes": 120187,
+      "md5": "b185988bc61471d3469ac7718335080e",
+      "source": "original_manifest"
+    },
+    "fleurs": {
+      "bytes": 510504,
+      "md5": "d9a3ff053031aef848c02e15b9e39868",
+      "source": "repaired_manifest"
+    },
+    "functionalmath": {
+      "bytes": 5669,
+      "md5": "04f106064f9d1a20976b052efb69f7c8",
+      "source": "original_manifest"
+    },
+    "gdm-intercode-ctf": {
+      "bytes": 160861,
+      "md5": "dbcab0c95da74228a2af58fc89e4723e",
+      "source": "original_manifest"
+    },
+    "gdpval-aa": {
+      "bytes": 172940,
+      "md5": "a4832448ea2d53baaaf20601a24e7c8e",
+      "source": "original_manifest"
+    },
+    "giantsteps-tempo": {
+      "bytes": 5980,
+      "md5": "72447d018919ef021940752b0b9785da",
+      "source": "repaired_manifest"
+    },
+    "global-piqa": {
+      "bytes": 291303,
+      "md5": "7f23b2596700034691d6b51586d3175a",
+      "source": "original_manifest"
+    },
+    "gsm-mc": {
+      "bytes": 34979,
+      "md5": "71ca00e8c8f5dc025fb9f93c63ca60f9",
+      "source": "repaired_manifest"
+    },
+    "healthbench": {
+      "bytes": 233963,
+      "md5": "776a018ef8be2bf0ca82f65afebe6e16",
+      "source": "original_manifest"
+    },
+    "helm-lite": {
+      "bytes": 10336,
+      "md5": "46d5f82b8ee75aef0a9e5fbac02c09d8",
+      "source": "original_manifest"
+    },
+    "helm-mmlu": {
+      "bytes": 108171,
+      "md5": "654b0ecda2a21100369bfd195eb0ac6e",
+      "source": "original_manifest"
+    },
+    "herb": {
+      "bytes": 33443,
+      "md5": "ddf7bce884f6893f048034cd1aa01766",
+      "source": "original_manifest"
+    },
+    "humaneval-nfr": {
+      "bytes": 13405,
+      "md5": "5c048f96082bc86745850ca23521180a",
+      "source": "original_manifest"
+    },
+    "humanevalfim-average": {
+      "bytes": 5734,
+      "md5": "c92a4d8ab84ab7c3e5c784e177345591",
+      "source": "original_manifest"
+    },
+    "hypersim": {
+      "bytes": 9268,
+      "md5": "792354ff83b0c0cfbd3fcb45688102e5",
+      "source": "repaired_manifest"
+    },
+    "ifbench": {
+      "bytes": 18327,
+      "md5": "2b4599c37867fc49df4005aecd070b62",
+      "source": "original_manifest"
+    },
+    "informative-tracking-benchmark": {
+      "bytes": 109433,
+      "md5": "292d39d663d8f138b44a8379b92b7696",
+      "source": "original_manifest"
+    },
+    "ioi": {
+      "bytes": 52485,
+      "md5": "b4c94cbdd205193c51036166c54d1d08",
+      "source": "original_manifest"
+    },
+    "iquad-v1": {
+      "bytes": 119670,
+      "md5": "66d828b173b5408bd478ca1293a90f0e",
+      "source": "original_manifest"
+    },
+    "journeybench": {
+      "bytes": 227825,
+      "md5": "38fd06eccd9caea442d256f6b2355d8c",
+      "source": "original_manifest"
+    },
+    "jrdb": {
+      "bytes": 215967,
+      "md5": "4c0bbed4e216df1f9784c137dbd4d88c",
+      "source": "original_manifest"
+    },
+    "judgebench": {
+      "bytes": 178191,
+      "md5": "cb8f3680b140af4403e057712a0da945",
+      "source": "original_manifest"
+    },
+    "lingoqa": {
+      "bytes": 168325,
+      "md5": "66b9d15c0356fe21ad0e214e9d8d12cc",
+      "source": "original_manifest"
+    },
+    "livebench": {
+      "bytes": 217876,
+      "md5": "99197da4eeb2e4fddd4f40cf2eb7b372",
+      "source": "original_manifest"
+    },
+    "livecodebench-pro": {
+      "bytes": 279809,
+      "md5": "bd8cce8e16aa7a6aabd9457af65eda12",
+      "source": "original_manifest"
+    },
+    "lmarena-text-leaderboard": {
+      "bytes": 25787,
+      "md5": "bed97e5ca4ad9e738c2f7761f7743296",
+      "source": "original_manifest"
+    },
+    "longfact-objects": {
+      "bytes": 342230,
+      "md5": "92e9a3e44954ddb281155f007d135a18",
+      "source": "repaired_manifest"
+    },
+    "lvos": {
+      "bytes": 12702,
+      "md5": "64f7e4f37c8f651c2955b8cd5c83da0a",
+      "source": "repaired_manifest"
+    },
+    "mask": {
+      "bytes": 43310,
+      "md5": "adbebbc0656bad084a3a8955d8b71607",
+      "source": "original_manifest"
+    },
+    "math": {
+      "bytes": 99358,
+      "md5": "36bac8da6aca673c86256df91c2f8a28",
+      "source": "original_manifest"
+    },
+    "mathconstruct": {
+      "bytes": 144355,
+      "md5": "7b143566321270ee866882bdd5185e48",
+      "source": "original_manifest"
+    },
+    "mathverse-mini": {
+      "bytes": 226978,
+      "md5": "658ec985fc2cc6708b9c2cde08c1029f",
+      "source": "original_manifest"
+    },
+    "mathvision": {
+      "bytes": 222274,
+      "md5": "291b51c82bf30dcf447630e6e9c0a9a9",
+      "source": "original_manifest"
+    },
+    "mc-bench": {
+      "bytes": 167658,
+      "md5": "316251ce854b3d211125541d348e4435",
+      "source": "original_manifest"
+    },
+    "mcp-mark": {
+      "bytes": 5811,
+      "md5": "125173c57f9bca46c5ee8294fecaa27a",
+      "source": "original_manifest"
+    },
+    "mega-mlqa": {
+      "bytes": 205806,
+      "md5": "5ef101ca831e64c45f9d7f22eee364bb",
+      "source": "original_manifest"
+    },
+    "mega-xcopa": {
+      "bytes": 6877,
+      "md5": "c995c9968df8477c31a7e8ae1f4a7083",
+      "source": "repaired_manifest"
+    },
+    "metaclue": {
+      "bytes": 10989,
+      "md5": "1d12255e5c0d43031d860588b01f5f27",
+      "source": "repaired_manifest"
+    },
+    "mlvu": {
+      "bytes": 152282,
+      "md5": "6ca7f53e5097b534160dda6e435ad267",
+      "source": "original_manifest"
+    },
+    "mm-mind2web": {
+      "bytes": 5769,
+      "md5": "2119721e48eddfb34a292e36dad11ef8",
+      "source": "original_manifest"
+    },
+    "mmau": {
+      "bytes": 189157,
+      "md5": "e1622e3b42d7e7d89538be401f45aa52",
+      "source": "original_manifest"
+    },
+    "mme": {
+      "bytes": 145040,
+      "md5": "d7de63540381866ebce974da50c682eb",
+      "source": "original_manifest"
+    },
+    "mme-realworld": {
+      "bytes": 235755,
+      "md5": "6cbad357f6fbbbbda2fd3e3f15c7d9e8",
+      "source": "original_manifest"
+    },
+    "mmlu-french": {
+      "bytes": 10524,
+      "md5": "86ad93c3ccaa5c556debaebf5b041c52",
+      "source": "original_manifest"
+    },
+    "mmmu": {
+      "bytes": 534293,
+      "md5": "02e6933a21206f1c3777360d4f87efb0",
+      "source": "repaired_manifest"
+    },
+    "mmsearch-plus": {
+      "bytes": 191792,
+      "md5": "137f0e95179a53e098780ffb4f2e8eda",
+      "source": "original_manifest"
+    },
+    "mmvet": {
+      "bytes": 163764,
+      "md5": "a27c2a56a73a5dc13a4a6f62a08851aa",
+      "source": "original_manifest"
+    },
+    "mtvqa": {
+      "bytes": 105643,
+      "md5": "9ad7f97a655ed8c57b8948a75f49da2a",
+      "source": "original_manifest"
+    },
+    "multi-if": {
+      "bytes": 46760,
+      "md5": "078e6b1c3b74d0128199f900c8daf379",
+      "source": "original_manifest"
+    },
+    "multipl-e": {
+      "bytes": 86963,
+      "md5": "33c688a7a379c378489f2455a3364fb9",
+      "source": "repaired_manifest"
+    },
+    "music-avqa": {
+      "bytes": 11481,
+      "md5": "87d4e22a8c872ce40dd9336d873c1876",
+      "source": "repaired_manifest"
+    },
+    "musiccaps": {
+      "bytes": 6119,
+      "md5": "fd78a41997ab4ef784a742d42afeff52",
+      "source": "original_manifest"
+    },
+    "nih-multi-needle": {
+      "bytes": 5454,
+      "md5": "9888d5320c4468f8d230ca44d163dd1c",
+      "source": "original_manifest"
+    },
+    "nmos": {
+      "bytes": 4954,
+      "md5": "a7ebffd495c0c286722463d352f29bd0",
+      "source": "original_manifest"
+    },
+    "nt-vot211": {
+      "bytes": 13285,
+      "md5": "10f90dfa7dc6a4918f57be8669f5ee19",
+      "source": "repaired_manifest"
+    },
+    "objectron": {
+      "bytes": 108918,
+      "md5": "19a452632ce4c19974ea2f00a94daa72",
+      "source": "original_manifest"
+    },
+    "ocrbench": {
+      "bytes": 142675,
+      "md5": "009a0d5692b06b8dd4444e9a4537730a",
+      "source": "original_manifest"
+    },
+    "omni-math": {
+      "bytes": 113540,
+      "md5": "1b408f222dcbe003673abb1f5fb70bdf",
+      "source": "original_manifest"
+    },
+    "omnigaia": {
+      "bytes": 195240,
+      "md5": "e306cad3f2e557740f06f51fd2855875",
+      "source": "original_manifest"
+    },
+    "pathmcqa": {
+      "bytes": 5791,
+      "md5": "0622ef13920f273d173534d2ae5cfee1",
+      "source": "original_manifest"
+    },
+    "perceptiontest": {
+      "bytes": 170214,
+      "md5": "1c8dfe2418f156094d6b88c474644aec",
+      "source": "original_manifest"
+    },
+    "pinchbench": {
+      "bytes": 5759,
+      "md5": "dab963215122b0a8ffd22c58d9e17236",
+      "source": "original_manifest"
+    },
+    "piqa": {
+      "bytes": 129420,
+      "md5": "ab40bf591c3cbafd993fa8dd665e0f55",
+      "source": "original_manifest"
+    },
+    "probe": {
+      "bytes": 10270,
+      "md5": "3a69c339fb19474d7caa379ef74e8f03",
+      "source": "original_manifest"
+    },
+    "qmsum": {
+      "bytes": 136476,
+      "md5": "90859f77190b30d405ece441deb6f384",
+      "source": "original_manifest"
+    },
+    "qwenwebbench": {
+      "bytes": 5828,
+      "md5": "6d5e6690bf757c55521a91d8be0978ce",
+      "source": "original_manifest"
+    },
+    "realworldqa": {
+      "bytes": 13923,
+      "md5": "864fe344c93ec7af5e5bfb7b5437cf8e",
+      "source": "original_manifest"
+    },
+    "repobench": {
+      "bytes": 142547,
+      "md5": "f5cd11b4268315e8bf5fa80d5cd8af47",
+      "source": "original_manifest"
+    },
+    "researchpulse-bench": {
+      "bytes": 25271,
+      "md5": "df8605cd1fc2b12bd16e9cb6fc366fcb",
+      "source": "original_manifest"
+    },
+    "sage-overall": {
+      "bytes": 5107,
+      "md5": "6bce61fc862907294bd619b21ab13276",
+      "source": "original_manifest"
+    },
+    "salad-bench": {
+      "bytes": 228565,
+      "md5": "df11abc6097e7747120b7b0914ac00c3",
+      "source": "original_manifest"
+    },
+    "scoring-verifiers": {
+      "bytes": 150909,
+      "md5": "d4fc0006b77055afae71966908fc8f9d",
+      "source": "original_manifest"
+    },
+    "seal-0": {
+      "bytes": 162294,
+      "md5": "2ed272a6b3116b559964024e3084c47e",
+      "source": "original_manifest"
+    },
+    "seccodebench": {
+      "bytes": 5605,
+      "md5": "f2bee7d56375f97502d44ce2862a2a83",
+      "source": "original_manifest"
+    },
+    "sifo": {
+      "bytes": 7434,
+      "md5": "4c2d9e572365e39e1fa610b73dacfd1b",
+      "source": "repaired_manifest"
+    },
+    "simplesafetytests": {
+      "bytes": 177406,
+      "md5": "ee58397b9e5af9bfa1bfa429880c86c8",
+      "source": "original_manifest"
+    },
+    "sunrgbd": {
+      "bytes": 22166,
+      "md5": "65f1225de2befc3a65ab8c18773b9e67",
+      "source": "repaired_manifest"
+    },
+    "swe-bench": {
+      "bytes": 14184,
+      "md5": "5a5e1fcfc20ad49089829d0304bb8a85",
+      "source": "original_manifest"
+    },
+    "swe-bench-multimodal": {
+      "bytes": 227026,
+      "md5": "8d2e2d1f36c6bbe312c77b40336d38aa",
+      "source": "original_manifest"
+    },
+    "swe-polybench": {
+      "bytes": 151126,
+      "md5": "918d102ab1dc0d99af61c2f76d858ed7",
+      "source": "original_manifest"
+    },
+    "tldr9-test": {
+      "bytes": 7084,
+      "md5": "7af7c59e851d7b2e2794ce14ba58ee3d",
+      "source": "repaired_manifest"
+    },
+    "tlp": {
+      "bytes": 100011,
+      "md5": "3d334c5352b03f7d4eab56cdb21d09e0",
+      "source": "original_manifest"
+    },
+    "tro": {
+      "bytes": 144264,
+      "md5": "e40152b79dfc38c3617dbb88bf54311c",
+      "source": "original_manifest"
+    },
+    "tydiqa": {
+      "bytes": 151872,
+      "md5": "6d2165ff7a31c1356295fff9809798d9",
+      "source": "original_manifest"
+    },
+    "uniform-bar-exam": {
+      "bytes": 29370,
+      "md5": "e8ea2ba9f87ea3b6418a33e8e61065c6",
+      "source": "repaired_manifest"
+    },
+    "union14m": {
+      "bytes": 68454,
+      "md5": "1da1feb121c7d3f00f6af7adc1b567d6",
+      "source": "repaired_manifest"
+    },
+    "video-mme": {
+      "bytes": 20550,
+      "md5": "a716ab264777bbf5ecc21ad7bb650c57",
+      "source": "repaired_manifest"
+    },
+    "vinabench": {
+      "bytes": 192326,
+      "md5": "28b56ef0fa51bf97751af7ba111259ca",
+      "source": "original_manifest"
+    },
+    "vision2web": {
+      "bytes": 155658,
+      "md5": "96e0912eccdbca7f548167b366b1ec26",
+      "source": "original_manifest"
+    },
+    "visual-commonsense-reasoning": {
+      "bytes": 132805,
+      "md5": "c40c35ff208f72c8fbbc4cec884a4720",
+      "source": "original_manifest"
+    },
+    "vl-checklist": {
+      "bytes": 93894,
+      "md5": "d4102d6a0db668d1060ffe665eb7cf91",
+      "source": "repaired_manifest"
+    },
+    "vqa-rad": {
+      "bytes": 64336,
+      "md5": "9f77da4792ef0f82d0ee1744ad86cf38",
+      "source": "repaired_manifest"
+    },
+    "wmt24": {
+      "bytes": 104783,
+      "md5": "054fd7ba1d07387539d1a3dc5d7138cb",
+      "source": "original_manifest"
+    },
+    "wordle-arena": {
+      "bytes": 41041,
+      "md5": "72b1d5146603cbe831ea3fc0834b4937",
+      "source": "original_manifest"
+    },
+    "worldvqa": {
+      "bytes": 108551,
+      "md5": "8a477c08e7bea1ca3f697374d910e00f",
+      "source": "original_manifest"
+    },
+    "writingbench": {
+      "bytes": 197059,
+      "md5": "bc5b0c01f2dde8fe621b66acd94d81c7",
+      "source": "original_manifest"
+    },
+    "xsum": {
+      "bytes": 6658,
+      "md5": "61394c10637c0b26b73c4aaa0ae40008",
+      "source": "repaired_manifest"
+    }
+  },
+  "n_cards": 150,
+  "n_corrected": 29,
+  "n_retained": 121,
+  "n_schema_corrected": 1,
+  "n_source_corrected": 28,
+  "version": "s150-source-parity-merge-v2"
+}

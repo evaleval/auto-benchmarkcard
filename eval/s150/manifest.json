@@ -1,0 +1,759 @@
+{
+  "n": 150,
+  "strata": [
+    "flagged",
+    "unflagged"
+  ],
+  "cards": [
+    {
+      "name": "360vot",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/360vot/benchmarkcard/benchmark_card_360vot.json"
+    },
+    {
+      "name": "ace",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/ace/benchmarkcard/benchmark_card_ace.json"
+    },
+    {
+      "name": "actionbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/actionbench/benchmarkcard/benchmark_card_actionbench.json"
+    },
+    {
+      "name": "activitynet",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/activitynet/benchmarkcard/benchmark_card_activitynet.json"
+    },
+    {
+      "name": "aider",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/aider/benchmarkcard/benchmark_card_aider.json"
+    },
+    {
+      "name": "apex-agents",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/apex-agents/benchmarkcard/benchmark_card_apex-agents.json"
+    },
+    {
+      "name": "arena-hard",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/arena-hard/benchmarkcard/benchmark_card_arena-hard.json"
+    },
+    {
+      "name": "artifactsbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/artifactsbench/benchmarkcard/benchmark_card_artifactsbench.json"
+    },
+    {
+      "name": "assistantbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/assistantbench/benchmarkcard/benchmark_card_assistantbench.json"
+    },
+    {
+      "name": "assistgui",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/assistgui/benchmarkcard/benchmark_card_assistgui.json"
+    },
+    {
+      "name": "belief",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/belief/benchmarkcard/benchmark_card_belief.json"
+    },
+    {
+      "name": "cbnsl",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/cbnsl/benchmarkcard/benchmark_card_cbnsl.json"
+    },
+    {
+      "name": "cfeval",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/cfeval/benchmarkcard/benchmark_card_cfeval.json"
+    },
+    {
+      "name": "churro-ds",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/churro-ds/benchmarkcard/benchmark_card_churro-ds.json"
+    },
+    {
+      "name": "creative-writing-v3",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/creative-writing-v3/benchmarkcard/benchmark_card_creative-writing-v3.json"
+    },
+    {
+      "name": "cryptobench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/cryptobench/benchmarkcard/benchmark_card_cryptobench.json"
+    },
+    {
+      "name": "cyse2-interpreter-abuse",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/cyse2-interpreter-abuse/benchmarkcard/benchmark_card_cyse2-interpreter-abuse.json"
+    },
+    {
+      "name": "dexter",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/dexter/benchmarkcard/benchmark_card_dexter.json"
+    },
+    {
+      "name": "do-not-answer",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/do-not-answer/benchmarkcard/benchmark_card_do-not-answer.json"
+    },
+    {
+      "name": "ds-arena-code",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/ds-arena-code/benchmarkcard/benchmark_card_ds-arena-code.json"
+    },
+    {
+      "name": "ds-fim-eval",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/ds-fim-eval/benchmarkcard/benchmark_card_ds-fim-eval.json"
+    },
+    {
+      "name": "finance-agent",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/finance-agent/benchmarkcard/benchmark_card_finance-agent.json"
+    },
+    {
+      "name": "finqa",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/finqa/benchmarkcard/benchmark_card_finqa.json"
+    },
+    {
+      "name": "functionalmath",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/functionalmath/benchmarkcard/benchmark_card_functionalmath.json"
+    },
+    {
+      "name": "gdm-intercode-ctf",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/gdm-intercode-ctf/benchmarkcard/benchmark_card_gdm-intercode-ctf.json"
+    },
+    {
+      "name": "healthbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/healthbench/benchmarkcard/benchmark_card_healthbench.json"
+    },
+    {
+      "name": "helm-mmlu",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/helm-mmlu/benchmarkcard/benchmark_card_helm-mmlu.json"
+    },
+    {
+      "name": "humaneval-nfr",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/humaneval-nfr/benchmarkcard/benchmark_card_humaneval-nfr.json"
+    },
+    {
+      "name": "hypersim",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/hypersim/benchmarkcard/benchmark_card_hypersim.json"
+    },
+    {
+      "name": "ifbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/ifbench/benchmarkcard/benchmark_card_ifbench.json"
+    },
+    {
+      "name": "journeybench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/journeybench/benchmarkcard/benchmark_card_journeybench.json"
+    },
+    {
+      "name": "judgebench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/judgebench/benchmarkcard/benchmark_card_judgebench.json"
+    },
+    {
+      "name": "lingoqa",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/lingoqa/benchmarkcard/benchmark_card_lingoqa.json"
+    },
+    {
+      "name": "lmarena-text-leaderboard",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/lmarena-text-leaderboard/benchmarkcard/benchmark_card_lmarena-text-leaderboard.json"
+    },
+    {
+      "name": "lvos",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/lvos/benchmarkcard/benchmark_card_lvos.json"
+    },
+    {
+      "name": "mask",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mask/benchmarkcard/benchmark_card_mask.json"
+    },
+    {
+      "name": "math",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/math/benchmarkcard/benchmark_card_math.json"
+    },
+    {
+      "name": "mathconstruct",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mathconstruct/benchmarkcard/benchmark_card_mathconstruct.json"
+    },
+    {
+      "name": "mathverse-mini",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mathverse-mini/benchmarkcard/benchmark_card_mathverse-mini.json"
+    },
+    {
+      "name": "mathvision",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mathvision/benchmarkcard/benchmark_card_mathvision.json"
+    },
+    {
+      "name": "mega-xcopa",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mega-xcopa/benchmarkcard/benchmark_card_mega-xcopa.json"
+    },
+    {
+      "name": "metaclue",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/metaclue/benchmarkcard/benchmark_card_metaclue.json"
+    },
+    {
+      "name": "mlvu",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mlvu/benchmarkcard/benchmark_card_mlvu.json"
+    },
+    {
+      "name": "mme",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mme/benchmarkcard/benchmark_card_mme.json"
+    },
+    {
+      "name": "mme-realworld",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mme-realworld/benchmarkcard/benchmark_card_mme-realworld.json"
+    },
+    {
+      "name": "mmlu-french",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/mmlu-french/benchmarkcard/benchmark_card_mmlu-french.json"
+    },
+    {
+      "name": "multipl-e",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/multipl-e/benchmarkcard/benchmark_card_multipl-e.json"
+    },
+    {
+      "name": "music-avqa",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/music-avqa/benchmarkcard/benchmark_card_music-avqa.json"
+    },
+    {
+      "name": "musiccaps",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/musiccaps/benchmarkcard/benchmark_card_musiccaps.json"
+    },
+    {
+      "name": "nih-multi-needle",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/nih-multi-needle/benchmarkcard/benchmark_card_nih-multi-needle.json"
+    },
+    {
+      "name": "ocrbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/ocrbench/benchmarkcard/benchmark_card_ocrbench.json"
+    },
+    {
+      "name": "omni-math",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/omni-math/benchmarkcard/benchmark_card_omni-math.json"
+    },
+    {
+      "name": "pathmcqa",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/pathmcqa/benchmarkcard/benchmark_card_pathmcqa.json"
+    },
+    {
+      "name": "perceptiontest",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/perceptiontest/benchmarkcard/benchmark_card_perceptiontest.json"
+    },
+    {
+      "name": "pinchbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/pinchbench/benchmarkcard/benchmark_card_pinchbench.json"
+    },
+    {
+      "name": "probe",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/probe/benchmarkcard/benchmark_card_probe.json"
+    },
+    {
+      "name": "qwenwebbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/qwenwebbench/benchmarkcard/benchmark_card_qwenwebbench.json"
+    },
+    {
+      "name": "repobench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/repobench/benchmarkcard/benchmark_card_repobench.json"
+    },
+    {
+      "name": "scoring-verifiers",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/scoring-verifiers/benchmarkcard/benchmark_card_scoring-verifiers.json"
+    },
+    {
+      "name": "seal-0",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/seal-0/benchmarkcard/benchmark_card_seal-0.json"
+    },
+    {
+      "name": "seccodebench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/seccodebench/benchmarkcard/benchmark_card_seccodebench.json"
+    },
+    {
+      "name": "sifo",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/sifo/benchmarkcard/benchmark_card_sifo.json"
+    },
+    {
+      "name": "sunrgbd",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/sunrgbd/benchmarkcard/benchmark_card_sunrgbd.json"
+    },
+    {
+      "name": "swe-polybench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/swe-polybench/benchmarkcard/benchmark_card_swe-polybench.json"
+    },
+    {
+      "name": "tldr9-test",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/tldr9-test/benchmarkcard/benchmark_card_tldr9-test.json"
+    },
+    {
+      "name": "tro",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/tro/benchmarkcard/benchmark_card_tro.json"
+    },
+    {
+      "name": "uniform-bar-exam",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/uniform-bar-exam/benchmarkcard/benchmark_card_uniform-bar-exam.json"
+    },
+    {
+      "name": "union14m",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/union14m/benchmarkcard/benchmark_card_union14m.json"
+    },
+    {
+      "name": "video-mme",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/video-mme/benchmarkcard/benchmark_card_video-mme.json"
+    },
+    {
+      "name": "vinabench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/vinabench/benchmarkcard/benchmark_card_vinabench.json"
+    },
+    {
+      "name": "vl-checklist",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/vl-checklist/benchmarkcard/benchmark_card_vl-checklist.json"
+    },
+    {
+      "name": "vqa-rad",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/vqa-rad/benchmarkcard/benchmark_card_vqa-rad.json"
+    },
+    {
+      "name": "wmt24",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/wmt24/benchmarkcard/benchmark_card_wmt24.json"
+    },
+    {
+      "name": "wordle-arena",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/wordle-arena/benchmarkcard/benchmark_card_wordle-arena.json"
+    },
+    {
+      "name": "writingbench",
+      "stratum": "flagged",
+      "card_path": "eval/s150/rundirs/writingbench/benchmarkcard/benchmark_card_writingbench.json"
+    },
+    {
+      "name": "acemath-rewardbench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/acemath-rewardbench/benchmarkcard/benchmark_card_acemath-rewardbench.json"
+    },
+    {
+      "name": "aime",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/aime/benchmarkcard/benchmark_card_aime.json"
+    },
+    {
+      "name": "androidworld",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/androidworld/benchmarkcard/benchmark_card_androidworld.json"
+    },
+    {
+      "name": "androidworld-sr",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/androidworld-sr/benchmarkcard/benchmark_card_androidworld-sr.json"
+    },
+    {
+      "name": "anthropic-red-team",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/anthropic-red-team/benchmarkcard/benchmark_card_anthropic-red-team.json"
+    },
+    {
+      "name": "api-bank",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/api-bank/benchmarkcard/benchmark_card_api-bank.json"
+    },
+    {
+      "name": "babyvision",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/babyvision/benchmarkcard/benchmark_card_babyvision.json"
+    },
+    {
+      "name": "beyond-aime",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/beyond-aime/benchmarkcard/benchmark_card_beyond-aime.json"
+    },
+    {
+      "name": "bigcodebench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/bigcodebench/benchmarkcard/benchmark_card_bigcodebench.json"
+    },
+    {
+      "name": "boolq",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/boolq/benchmarkcard/benchmark_card_boolq.json"
+    },
+    {
+      "name": "browsecomp",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/browsecomp/benchmarkcard/benchmark_card_browsecomp.json"
+    },
+    {
+      "name": "chartqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/chartqa/benchmarkcard/benchmark_card_chartqa.json"
+    },
+    {
+      "name": "civilcomments",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/civilcomments/benchmarkcard/benchmark_card_civilcomments.json"
+    },
+    {
+      "name": "cnn-dailymail",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/cnn-dailymail/benchmarkcard/benchmark_card_cnn-dailymail.json"
+    },
+    {
+      "name": "codegolf-v2.2",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/codegolf-v2.2/benchmarkcard/benchmark_card_codegolf-v2.2.json"
+    },
+    {
+      "name": "core-bench-hard",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/core-bench-hard/benchmarkcard/benchmark_card_core-bench-hard.json"
+    },
+    {
+      "name": "corpusqa-1m",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/corpusqa-1m/benchmarkcard/benchmark_card_corpusqa-1m.json"
+    },
+    {
+      "name": "cotd",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/cotd/benchmarkcard/benchmark_card_cotd.json"
+    },
+    {
+      "name": "covost2",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/covost2/benchmarkcard/benchmark_card_covost2.json"
+    },
+    {
+      "name": "csimpleqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/csimpleqa/benchmarkcard/benchmark_card_csimpleqa.json"
+    },
+    {
+      "name": "cyse2-vulnerability-exploit",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/cyse2-vulnerability-exploit/benchmarkcard/benchmark_card_cyse2-vulnerability-exploit.json"
+    },
+    {
+      "name": "design2code",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/design2code/benchmarkcard/benchmark_card_design2code.json"
+    },
+    {
+      "name": "disinformation",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/disinformation/benchmarkcard/benchmark_card_disinformation.json"
+    },
+    {
+      "name": "drop",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/drop/benchmarkcard/benchmark_card_drop.json"
+    },
+    {
+      "name": "dtto",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/dtto/benchmarkcard/benchmark_card_dtto.json"
+    },
+    {
+      "name": "dynamath",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/dynamath/benchmarkcard/benchmark_card_dynamath.json"
+    },
+    {
+      "name": "easy-problems",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/easy-problems/benchmarkcard/benchmark_card_easy-problems.json"
+    },
+    {
+      "name": "egoschema",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/egoschema/benchmarkcard/benchmark_card_egoschema.json"
+    },
+    {
+      "name": "erqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/erqa/benchmarkcard/benchmark_card_erqa.json"
+    },
+    {
+      "name": "extremelandmarkpairs",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/extremelandmarkpairs/benchmarkcard/benchmark_card_extremelandmarkpairs.json"
+    },
+    {
+      "name": "flenqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/flenqa/benchmarkcard/benchmark_card_flenqa.json"
+    },
+    {
+      "name": "fleurs",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/fleurs/benchmarkcard/benchmark_card_fleurs.json"
+    },
+    {
+      "name": "gdpval-aa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/gdpval-aa/benchmarkcard/benchmark_card_gdpval-aa.json"
+    },
+    {
+      "name": "giantsteps-tempo",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/giantsteps-tempo/benchmarkcard/benchmark_card_giantsteps-tempo.json"
+    },
+    {
+      "name": "global-piqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/global-piqa/benchmarkcard/benchmark_card_global-piqa.json"
+    },
+    {
+      "name": "gsm-mc",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/gsm-mc/benchmarkcard/benchmark_card_gsm-mc.json"
+    },
+    {
+      "name": "helm-lite",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/helm-lite/benchmarkcard/benchmark_card_helm-lite.json"
+    },
+    {
+      "name": "herb",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/herb/benchmarkcard/benchmark_card_herb.json"
+    },
+    {
+      "name": "humanevalfim-average",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/humanevalfim-average/benchmarkcard/benchmark_card_humanevalfim-average.json"
+    },
+    {
+      "name": "informative-tracking-benchmark",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/informative-tracking-benchmark/benchmarkcard/benchmark_card_informative-tracking-benchmark.json"
+    },
+    {
+      "name": "ioi",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/ioi/benchmarkcard/benchmark_card_ioi.json"
+    },
+    {
+      "name": "iquad-v1",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/iquad-v1/benchmarkcard/benchmark_card_iquad-v1.json"
+    },
+    {
+      "name": "jrdb",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/jrdb/benchmarkcard/benchmark_card_jrdb.json"
+    },
+    {
+      "name": "livebench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/livebench/benchmarkcard/benchmark_card_livebench.json"
+    },
+    {
+      "name": "livecodebench-pro",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/livecodebench-pro/benchmarkcard/benchmark_card_livecodebench-pro.json"
+    },
+    {
+      "name": "longfact-objects",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/longfact-objects/benchmarkcard/benchmark_card_longfact-objects.json"
+    },
+    {
+      "name": "mc-bench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mc-bench/benchmarkcard/benchmark_card_mc-bench.json"
+    },
+    {
+      "name": "mcp-mark",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mcp-mark/benchmarkcard/benchmark_card_mcp-mark.json"
+    },
+    {
+      "name": "mega-mlqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mega-mlqa/benchmarkcard/benchmark_card_mega-mlqa.json"
+    },
+    {
+      "name": "mm-mind2web",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mm-mind2web/benchmarkcard/benchmark_card_mm-mind2web.json"
+    },
+    {
+      "name": "mmau",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mmau/benchmarkcard/benchmark_card_mmau.json"
+    },
+    {
+      "name": "mmmu",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mmmu/benchmarkcard/benchmark_card_mmmu.json"
+    },
+    {
+      "name": "mmsearch-plus",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mmsearch-plus/benchmarkcard/benchmark_card_mmsearch-plus.json"
+    },
+    {
+      "name": "mmvet",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mmvet/benchmarkcard/benchmark_card_mmvet.json"
+    },
+    {
+      "name": "mtvqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/mtvqa/benchmarkcard/benchmark_card_mtvqa.json"
+    },
+    {
+      "name": "multi-if",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/multi-if/benchmarkcard/benchmark_card_multi-if.json"
+    },
+    {
+      "name": "nmos",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/nmos/benchmarkcard/benchmark_card_nmos.json"
+    },
+    {
+      "name": "nt-vot211",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/nt-vot211/benchmarkcard/benchmark_card_nt-vot211.json"
+    },
+    {
+      "name": "objectron",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/objectron/benchmarkcard/benchmark_card_objectron.json"
+    },
+    {
+      "name": "omnigaia",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/omnigaia/benchmarkcard/benchmark_card_omnigaia.json"
+    },
+    {
+      "name": "piqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/piqa/benchmarkcard/benchmark_card_piqa.json"
+    },
+    {
+      "name": "qmsum",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/qmsum/benchmarkcard/benchmark_card_qmsum.json"
+    },
+    {
+      "name": "realworldqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/realworldqa/benchmarkcard/benchmark_card_realworldqa.json"
+    },
+    {
+      "name": "researchpulse-bench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/researchpulse-bench/benchmarkcard/benchmark_card_researchpulse-bench.json"
+    },
+    {
+      "name": "sage-overall",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/sage-overall/benchmarkcard/benchmark_card_sage-overall.json"
+    },
+    {
+      "name": "salad-bench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/salad-bench/benchmarkcard/benchmark_card_salad-bench.json"
+    },
+    {
+      "name": "simplesafetytests",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/simplesafetytests/benchmarkcard/benchmark_card_simplesafetytests.json"
+    },
+    {
+      "name": "swe-bench",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/swe-bench/benchmarkcard/benchmark_card_swe-bench.json"
+    },
+    {
+      "name": "swe-bench-multimodal",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/swe-bench-multimodal/benchmarkcard/benchmark_card_swe-bench-multimodal.json"
+    },
+    {
+      "name": "tlp",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/tlp/benchmarkcard/benchmark_card_tlp.json"
+    },
+    {
+      "name": "tydiqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/tydiqa/benchmarkcard/benchmark_card_tydiqa.json"
+    },
+    {
+      "name": "vision2web",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/vision2web/benchmarkcard/benchmark_card_vision2web.json"
+    },
+    {
+      "name": "visual-commonsense-reasoning",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/visual-commonsense-reasoning/benchmarkcard/benchmark_card_visual-commonsense-reasoning.json"
+    },
+    {
+      "name": "worldvqa",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/worldvqa/benchmarkcard/benchmark_card_worldvqa.json"
+    },
+    {
+      "name": "xsum",
+      "stratum": "unflagged",
+      "card_path": "eval/s150/rundirs/xsum/benchmarkcard/benchmark_card_xsum.json"
+    }
+  ]
+}

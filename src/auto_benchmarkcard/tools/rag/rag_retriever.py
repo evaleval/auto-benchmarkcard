@@ -15,6 +15,7 @@ import re
 import warnings
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional, TypedDict
+from uuid import uuid4
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -76,6 +77,7 @@ class RAGRetriever:
         parent_chunk_size: int = 2048,
         child_chunk_size: int = 512,
         top_k: int = 3,
+        collection_name: Optional[str] = None,
     ):
         """Initialize RAG retriever.
 
@@ -89,11 +91,16 @@ class RAGRetriever:
             parent_chunk_size: Size of parent chunks for hierarchical chunking
             child_chunk_size: Size of child chunks for precise retrieval
             top_k: Number of results to return per query
+            collection_name: Chroma collection name. Defaults to a unique name so
+                separate retrievers in the same process never share a collection
+                (chromadb caches clients by settings, so the default "langchain"
+                collection would otherwise be shared across instances).
         """
         self.embedding_model = embedding_model
         self.embeddings = self._initialize_embeddings(embedding_model)
 
         self.persist_directory = persist_directory
+        self.collection_name = collection_name or f"bc_{uuid4().hex}"
         self.vectorstore = None
         self.retriever = None
         self.enable_llm_reranking = enable_llm_reranking
@@ -313,6 +320,8 @@ class RAGRetriever:
                 self.vectorstore = Chroma.from_documents(
                     documents=documents,
                     embedding=self.embeddings,
+                    collection_name=self.collection_name,
+                    persist_directory=self.persist_directory,
                 )
             else:
                 self.vectorstore.add_documents(documents)
@@ -336,6 +345,23 @@ class RAGRetriever:
                 "lambda_mult": 0.8,
             },
         )
+
+    def cleanup(self) -> None:
+        """Drop this retriever's Chroma collection so it leaves no residue.
+
+        chromadb caches clients by settings within a process, so a collection
+        outlives the retriever object. Without this, a later benchmark could
+        retrieve an earlier one's chunks. Safe to call multiple times.
+        """
+        if self.vectorstore is None:
+            return
+        try:
+            self.vectorstore.delete_collection()
+        except Exception as e:
+            logger.warning(f"Failed to delete Chroma collection '{self.collection_name}': {e}")
+        finally:
+            self.vectorstore = None
+            self.retriever = None
 
     def _build_graph(self):
         """Build the retrieval graph.

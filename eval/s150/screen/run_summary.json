@@ -1,0 +1,31 @@
+{
+  "model": "claude-sonnet-4-6",
+  "transport": "anthropic-api-sync",
+  "prompt_prefix_md5": "66133051f8aecb9703c28e83491d9984",
+  "config_md5": "460a0f5f75a2c2ab94da24eec553ceac",
+  "request_params": {
+    "max_tokens": 16000,
+    "temperature": 0.0,
+    "tools": [
+      {
+        "type": "web_search_20260209",
+        "name": "web_search",
+        "max_uses": 8
+      }
+    ],
+    "stream": false,
+    "sdk_timeout_s": 600,
+    "sdk_max_retries": 2
+  },
+  "sdk_version": "0.94.0",
+  "total_cost_est_usd": 44.342,
+  "total_usage": {
+    "input_tokens": 841402,
+    "output_tokens": 685769,
+    "cache_read_input_tokens": 35989814,
+    "cache_creation_input_tokens": 2387821
+  },
+  "total_web_searches": 1178,
+  "web_search_cost_usd_per_request": 0.01,
+  "request_ids_included": false
+}

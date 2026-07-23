@@ -1,0 +1,171 @@
+{
+  "author_v1_overlap": {
+    "comparison": "descriptive author-V1 consistency on the fixed answer-blind overlap",
+    "confusion": {
+      "confirmed-material": {
+        "confirmed-material": 15,
+        "confirmed-trivial": 3,
+        "not-a-defect": 0,
+        "unsure": 0
+      },
+      "confirmed-trivial": {
+        "confirmed-material": 0,
+        "confirmed-trivial": 2,
+        "not-a-defect": 0,
+        "unsure": 0
+      },
+      "not-a-defect": {
+        "confirmed-material": 0,
+        "confirmed-trivial": 0,
+        "not-a-defect": 3,
+        "unsure": 0
+      },
+      "unsure": {
+        "confirmed-material": 0,
+        "confirmed-trivial": 0,
+        "not-a-defect": 0,
+        "unsure": 0
+      }
+    },
+    "confusion_orientation": {
+      "columns": "verifier_label",
+      "rows": "author_label"
+    },
+    "exact_agreement": 0.8695652173913043,
+    "inference_guard": "not human reliability, consensus, or category-specific reliability; both reviewers saw the screen diagnosis and claimed ground truth",
+    "n_exact_agreement": 20,
+    "n_overlap_findings": 23,
+    "n_selected_cards": 10,
+    "status": "complete"
+  },
+  "card_level": {
+    "approximate_design_interval95": {
+      "level": 0.95,
+      "lower": 0.4017251373525483,
+      "method": "normal approximation using stratified SRSWOR variance and finite-population corrections",
+      "scope": "sampling uncertainty only; excludes verifier measurement error",
+      "standard_error": 0.03893571468580667,
+      "upper": 0.5543503343455649
+    },
+    "by_stratum": {
+      "flagged": {
+        "analysis_weight": 2.026666666666667,
+        "n_sampled_cards": 75,
+        "n_screen_detected_confirmed_material_cards": 33,
+        "population_cards": 152,
+        "sample_share": 0.44,
+        "sample_variance_binary": 0.24972972972972973,
+        "srswor_variance_component": 0.0001387367631070016,
+        "weighted_detected_cards": 66.88000000000001,
+        "weighted_total_cards": 152
+      },
+      "unflagged": {
+        "analysis_weight": 5.04,
+        "n_sampled_cards": 75,
+        "n_screen_detected_confirmed_material_cards": 37,
+        "population_cards": 378,
+        "sample_share": 0.49333333333333335,
+        "sample_variance_binary": 0.2533333333333333,
+        "srswor_variance_component": 0.0013772531149875398,
+        "weighted_detected_cards": 186.48,
+        "weighted_total_cards": 378
+      }
+    },
+    "inference_guard": [
+      "defect prevalence",
+      "screen recall",
+      "screen accuracy",
+      "standard false-positive rate",
+      "human reliability"
+    ],
+    "n_sample_cards": 150,
+    "n_screen_detected_verifier_confirmed_material_cards_raw": 70,
+    "name": "stratum-weighted share of cards with at least one screen-detected, verifier-confirmed material candidate",
+    "rate": 0.4780377358490566,
+    "scope": "all 150 sampled cards with original S-to-corpus stratum weights",
+    "unsure_sensitivity": {
+      "lower_assignment": "all unsure findings are treated as not confirmed-material",
+      "lower_n_cards_raw": 70,
+      "lower_rate": 0.4780377358490566,
+      "upper_assignment": "every card with at least one unsure finding is treated as having a material candidate",
+      "upper_n_cards_raw": 70,
+      "upper_rate": 0.4780377358490566
+    },
+    "weighted_detected_cards": 253.36,
+    "weighted_total_cards": 530
+  },
+  "contamination_check": {
+    "checks": [
+      {
+        "author_assessment": "confirmed-contamination",
+        "author_evidence_url": "https://huggingface.co/datasets/Moenupa/MC-Bench",
+        "author_notes": "The repo's own README says 'Unofficial repo'. The official project page only offers Google Drive and Baidu Pan downloads.",
+        "card": "mc-bench"
+      },
+      {
+        "author_assessment": "confirmed-contamination",
+        "author_evidence_url": "https://huggingface.co/datasets/wyrx/SUNRGBD_seg",
+        "author_notes": "The repo is one user's segmentation-only rework of the data. The real benchmark is only distributed via the Princeton project page.",
+        "card": "sunrgbd"
+      },
+      {
+        "author_assessment": "confirmed-contamination",
+        "author_evidence_url": "https://huggingface.co/datasets/lmms-lab/ChartQA",
+        "author_notes": "The lmms-lab README itself says it is a reformatted version for lmms-eval, and the card even uses lmms-lab as the org URL.",
+        "card": "chartqa"
+      }
+    ],
+    "included_in_v1_scores": false,
+    "status": "complete"
+  },
+  "finding_level": {
+    "candidate_defect_confirmation": 0.8506493506493507,
+    "decided_denominator_excludes_unsure": true,
+    "inference_guard": "positive-candidate confirmation only; not screen prevalence, recall, accuracy, a standard false-positive rate, or reliability",
+    "material_defect_confirmation": 0.7207792207792207,
+    "n_decided": 154,
+    "n_findings": 154,
+    "n_unsure": 0,
+    "non_defect_share_among_decided_screen_positives": 0.14935064935064934,
+    "non_material_severe_call_share": 0.2792207792207792,
+    "raw_label_counts": {
+      "confirmed-material": 111,
+      "confirmed-trivial": 20,
+      "not-a-defect": 23,
+      "unsure": 0
+    },
+    "unsure_sensitivity_all_candidates": {
+      "candidate_defect_confirmation": {
+        "lower_numerator": 131,
+        "lower_rate": 0.8506493506493507,
+        "upper_numerator": 131,
+        "upper_rate": 0.8506493506493507
+      },
+      "denominator": 154,
+      "material_defect_confirmation": {
+        "lower_numerator": 111,
+        "lower_rate": 0.7207792207792207,
+        "upper_numerator": 111,
+        "upper_rate": 0.7207792207792207
+      },
+      "non_defect_share_among_screen_positives": {
+        "lower_numerator": 23,
+        "lower_rate": 0.14935064935064934,
+        "upper_numerator": 23,
+        "upper_rate": 0.14935064935064934
+      },
+      "non_material_severe_call_share": {
+        "lower_numerator": 43,
+        "lower_rate": 0.2792207792207792,
+        "upper_numerator": 43,
+        "upper_rate": 0.2792207792207792
+      },
+      "scope": "each range separately assigns every unsure finding outside or inside the named target class"
+    }
+  },
+  "pending_components": [],
+  "screen_embargo_clear": true,
+  "v1_return_validation_complete": true,
+  "v1_scoring_complete": true,
+  "version": "screen-verification-scores-v2"
+}

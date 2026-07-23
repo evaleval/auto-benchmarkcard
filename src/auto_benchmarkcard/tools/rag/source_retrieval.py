@@ -6,9 +6,9 @@ re-retrieval of each atom's contexts from the card's OWN source bundle
 neutral-atom escalation. The data-level functions take the in-memory tool
 outputs the production pipeline already holds in state; the *_from_run_dir /
 run_dir variants load the same JSON artifacts from a run directory for offline
-use by the gold-set evaluation harness.
+use (scripts/revalidate_gold_set.py).
 
-The gold-set judge keeps its own assemble_source variant on purpose:
+scripts/judge_gold_set.py keeps its own assemble_source variant on purpose:
 the judge is the measurement instrument (different rag-fill semantics, EEE
 block) and must not be coupled to the ship module.
 """
@@ -23,7 +23,7 @@ from collections import Counter
 from auto_benchmarkcard.tools.rag.format_converter import normalize_context_for_nli
 from auto_benchmarkcard.tools.rag.indexer import MetadataIndexer
 
-SOURCE_CAP = 280_000  # chars; gold-set judge parity
+SOURCE_CAP = 280_000  # chars; judge parity (scripts/judge_gold_set.py)
 
 _TOKEN_RE = re.compile(r"\d+\.\d+|\w+")
 _NUM_LIT_RE = re.compile(r"\d+(?:[.,]\d+)+%?|\d{2,}")
@@ -185,7 +185,7 @@ def _read_rag_context_texts(rag_dir):
 
 def assemble_source(run_dir, include_rag_fill=True):
     """Full source text for neutral escalation, loaded from a run directory;
-    mirrors the gold-set judge's assemble_source (primary docling+html+readme, RAG
+    mirrors judge_gold_set.assemble_source (primary docling+html+readme, RAG
     contexts fill the remaining budget) so 'neutral after escalation' is judged
     against the same text the judge saw. include_rag_fill=False drops the
     retrieved-context fill (no-rag-fill ship config / contamination ablation)."""

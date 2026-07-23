@@ -1,0 +1,3902 @@
+{
+  "360vot": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/360vot_2026-06-25_16-07",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 4513,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 262,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 12274,
+        "files": 1
+      }
+    }
+  },
+  "ace": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/ace_2026-06-25_16-07",
+    "sources": {
+      "docling": {
+        "bytes": 114368,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1714,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2836,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 73264,
+        "files": 1
+      }
+    }
+  },
+  "acemath-rewardbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/acemath-rewardbench_2026-06-25_16-07",
+    "sources": {
+      "docling": {
+        "bytes": 205743,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 7882,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 15851,
+        "files": 1
+      },
+      "html": {
+        "bytes": 275,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 82488,
+        "files": 1
+      }
+    }
+  },
+  "actionbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/actionbench_2026-06-25_16-07",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3456,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 509562,
+        "files": 1
+      },
+      "html": {
+        "bytes": 273,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2067,
+        "files": 1
+      }
+    }
+  },
+  "activitynet": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/activitynet_2026-06-25_16-14",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2282,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 25115,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 10198,
+        "files": 1
+      }
+    }
+  },
+  "aider": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/aider_2026-06-25_16-19",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2872,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3108,
+        "files": 1
+      }
+    }
+  },
+  "aime": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/aime_2026-06-25_16-11",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2119,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 982,
+        "files": 1
+      }
+    }
+  },
+  "androidworld": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/androidworld_2026-06-25_16-14",
+    "sources": {
+      "docling": {
+        "bytes": 302779,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2138,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 144,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 38667,
+        "files": 1
+      }
+    }
+  },
+  "androidworld-sr": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/androidworld-sr_2026-06-25_16-23",
+    "sources": {
+      "docling": {
+        "bytes": 302779,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3236,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 153,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 60381,
+        "files": 1
+      }
+    }
+  },
+  "anthropic-red-team": {
+    "primary_empty": true,
+    "run_dir": "output/broad_run/output/anthropic-red-team_2026-06-25_16-35",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1792,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "apex-agents": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/apex-agents_2026-06-25_16-42",
+    "sources": {
+      "docling": {
+        "bytes": 99061,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3381,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 100791,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 78204,
+        "files": 1
+      }
+    }
+  },
+  "api-bank": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/api-bank_2026-06-26_02-32",
+    "sources": {
+      "docling": {
+        "bytes": 103895,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2428,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 3688,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 53916,
+        "files": 1
+      }
+    }
+  },
+  "arena-hard": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/arena-hard_2026-06-25_16-56",
+    "sources": {
+      "docling": {
+        "bytes": 169945,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3959,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 81962,
+        "files": 1
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 57741,
+        "files": 1
+      }
+    }
+  },
+  "artifactsbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/artifactsbench_2026-06-25_16-50",
+    "sources": {
+      "docling": {
+        "bytes": 197480,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 9977,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 283,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 89823,
+        "files": 1
+      }
+    }
+  },
+  "assistantbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/assistantbench_2026-06-25_16-44",
+    "sources": {
+      "docling": {
+        "bytes": 226990,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1689,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2003,
+        "files": 1
+      },
+      "html": {
+        "bytes": 2386,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 75264,
+        "files": 1
+      }
+    }
+  },
+  "assistgui": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/assistgui_2026-06-25_16-50",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2232,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 13908,
+        "files": 1
+      },
+      "html": {
+        "bytes": 249,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 7041,
+        "files": 1
+      }
+    }
+  },
+  "babyvision": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/babyvision_2026-06-25_16-55",
+    "sources": {
+      "docling": {
+        "bytes": 202122,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2363,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 5201,
+        "files": 1
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 43450,
+        "files": 1
+      }
+    }
+  },
+  "belief": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/belief_2026-06-25_17-16",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3079,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 21670,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2056,
+        "files": 1
+      }
+    }
+  },
+  "beyond-aime": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/beyond-aime_2026-06-25_17-16",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2112,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 5579,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 28945,
+        "files": 1
+      }
+    }
+  },
+  "bigcodebench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/bigcodebench_2026-06-25_17-06",
+    "sources": {
+      "docling": {
+        "bytes": 391404,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3763,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 11401,
+        "files": 1
+      },
+      "html": {
+        "bytes": 144,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 70557,
+        "files": 1
+      }
+    }
+  },
+  "boolq": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/boolq_2026-07-04_23-34",
+    "sources": {
+      "docling": {
+        "bytes": 106582,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3425,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1707,
+        "files": 1
+      }
+    }
+  },
+  "browsecomp": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/browsecomp_2026-06-25_17-23",
+    "sources": {
+      "docling": {
+        "bytes": 59855,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3701,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 8535,
+        "files": 1
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 42529,
+        "files": 1
+      }
+    }
+  },
+  "cbnsl": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/cbnsl_2026-06-25_17-16",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2056,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 5979,
+        "files": 1
+      }
+    }
+  },
+  "cfeval": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/cfeval_2026-06-25_17-10",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2029,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 126,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1527,
+        "files": 1
+      }
+    }
+  },
+  "chartqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/chartqa_2026-06-25_17-38",
+    "sources": {
+      "docling": {
+        "bytes": 156283,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3472,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2549,
+        "files": 1
+      },
+      "html": {
+        "bytes": 129,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 45359,
+        "files": 1
+      }
+    }
+  },
+  "churro-ds": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/churro-ds_2026-06-25_17-40",
+    "sources": {
+      "docling": {
+        "bytes": 459099,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3814,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 383,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 69753,
+        "files": 1
+      }
+    }
+  },
+  "civilcomments": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/civilcomments_2026-06-25_17-12",
+    "sources": {
+      "docling": {
+        "bytes": 95945,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1696,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 9858,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 57578,
+        "files": 1
+      }
+    }
+  },
+  "cnn-dailymail": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/cnn-dailymail_2026-07-05_00-51",
+    "sources": {
+      "docling": {
+        "bytes": 102718,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1697,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 19833,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 2910,
+        "files": 1
+      }
+    }
+  },
+  "codegolf-v2.2": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/codegolf-v2.2_2026-06-25_17-39",
+    "sources": {
+      "docling": {
+        "bytes": 83108,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2400,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 147,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 50326,
+        "files": 1
+      }
+    }
+  },
+  "core-bench-hard": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/core-bench-hard_2026-06-25_17-43",
+    "sources": {
+      "docling": {
+        "bytes": 216224,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1736,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 8698,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 45731,
+        "files": 1
+      }
+    }
+  },
+  "corpusqa-1m": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/corpusqa-1m_2026-06-25_18-05",
+    "sources": {
+      "docling": {
+        "bytes": 90027,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2262,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 94716,
+        "files": 1
+      }
+    }
+  },
+  "cotd": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/cotd_2026-06-25_17-34",
+    "sources": {
+      "docling": {
+        "bytes": 101534,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 4152,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 72366,
+        "files": 1
+      }
+    }
+  },
+  "covost2": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/covost2_2026-07-04_23-10",
+    "sources": {
+      "docling": {
+        "bytes": 69952,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2230,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 185588,
+        "files": 1
+      },
+      "html": {
+        "bytes": 129,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2544,
+        "files": 1
+      }
+    }
+  },
+  "creative-writing-v3": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/creative-writing-v3_2026-06-25_17-52",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3508,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 165,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3610,
+        "files": 1
+      }
+    }
+  },
+  "cryptobench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/cryptobench_2026-06-25_17-40",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 8302,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 7464,
+        "files": 1
+      },
+      "html": {
+        "bytes": 251,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 4357,
+        "files": 1
+      }
+    }
+  },
+  "csimpleqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/csimpleqa_2026-06-25_17-49",
+    "sources": {
+      "docling": {
+        "bytes": 165881,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2939,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 63522,
+        "files": 1
+      }
+    }
+  },
+  "cyse2-interpreter-abuse": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/cyse2-interpreter-abuse_2026-06-25_18-24",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2018,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 534,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1001,
+        "files": 1
+      }
+    }
+  },
+  "cyse2-vulnerability-exploit": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/cyse2-vulnerability-exploit_2026-06-25_17-57",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3017,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 542,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1449,
+        "files": 1
+      }
+    }
+  },
+  "design2code": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/design2code_2026-06-25_17-55",
+    "sources": {
+      "docling": {
+        "bytes": 152359,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2077,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 123837,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 58817,
+        "files": 1
+      }
+    }
+  },
+  "dexter": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/dexter_2026-06-25_18-27",
+    "sources": {
+      "docling": {
+        "bytes": 167051,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 7068,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 259,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 98512,
+        "files": 1
+      }
+    }
+  },
+  "disinformation": {
+    "primary_empty": true,
+    "run_dir": "output/regen_run/output/disinformation_2026-07-05_00-12",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 353,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "do-not-answer": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/do-not-answer_2026-06-25_18-31",
+    "sources": {
+      "docling": {
+        "bytes": 182140,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 352,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 51728,
+        "files": 1
+      }
+    }
+  },
+  "drop": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/drop_2026-07-04_23-34",
+    "sources": {
+      "docling": {
+        "bytes": 116577,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3594,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1295,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2831,
+        "files": 1
+      }
+    }
+  },
+  "ds-arena-code": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/ds-arena-code_2026-06-25_18-03",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2048,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 147,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1680,
+        "files": 1
+      }
+    }
+  },
+  "ds-fim-eval": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/ds-fim-eval_2026-06-25_18-36",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1924,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2040,
+        "files": 1
+      }
+    }
+  },
+  "dtto": {
+    "primary_empty": true,
+    "run_dir": "output/broad_run/output/dtto_2026-06-25_17-48",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 6288,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "dynamath": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/dynamath_2026-06-25_18-10",
+    "sources": {
+      "docling": {
+        "bytes": 302969,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 5544,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 11038,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 67555,
+        "files": 1
+      }
+    }
+  },
+  "easy-problems": {
+    "primary_empty": true,
+    "run_dir": "output/broad_run/output/easy-problems_2026-06-25_18-41",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1826,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "egoschema": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/egoschema_2026-06-25_18-05",
+    "sources": {
+      "docling": {
+        "bytes": 125340,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2874,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4227,
+        "files": 1
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 72696,
+        "files": 1
+      }
+    }
+  },
+  "erqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/erqa_2026-06-25_18-44",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3425,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2783,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 18719,
+        "files": 1
+      }
+    }
+  },
+  "extremelandmarkpairs": {
+    "primary_empty": true,
+    "run_dir": "output/broad_run/output/extremelandmarkpairs_2026-06-25_18-11",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1982,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "finance-agent": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/finance-agent_2026-06-25_18-12",
+    "sources": {
+      "docling": {
+        "bytes": 105663,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2677,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2541897,
+        "files": 1
+      },
+      "html": {
+        "bytes": 147,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 81121,
+        "files": 1
+      }
+    }
+  },
+  "finqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/finqa_2026-06-25_18-46",
+    "sources": {
+      "docling": {
+        "bytes": 129147,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2327,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2168,
+        "files": 1
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 61953,
+        "files": 1
+      }
+    }
+  },
+  "flenqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/flenqa_2026-06-25_19-04",
+    "sources": {
+      "docling": {
+        "bytes": 98129,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2246,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4737,
+        "files": 1
+      },
+      "html": {
+        "bytes": 126,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 68399,
+        "files": 1
+      }
+    }
+  },
+  "fleurs": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/fleurs_2026-06-25_18-54",
+    "sources": {
+      "docling": {
+        "bytes": 197751,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2681,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 577765,
+        "files": 1
+      },
+      "html": {
+        "bytes": 126,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 65219,
+        "files": 1
+      }
+    }
+  },
+  "functionalmath": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/functionalmath_2026-06-25_19-05",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2210,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 150,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1586,
+        "files": 1
+      }
+    }
+  },
+  "gdm-intercode-ctf": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/gdm-intercode-ctf_2026-06-25_18-41",
+    "sources": {
+      "docling": {
+        "bytes": 220153,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1924,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 9406,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 37815,
+        "files": 1
+      }
+    }
+  },
+  "gdpval-aa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/gdpval-aa_2026-06-25_18-24",
+    "sources": {
+      "docling": {
+        "bytes": 179547,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2965,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 80494,
+        "files": 1
+      }
+    }
+  },
+  "giantsteps-tempo": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/giantsteps-tempo_2026-06-25_18-14",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2028,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 156,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2126,
+        "files": 1
+      }
+    }
+  },
+  "global-piqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/global-piqa_2026-06-25_18-49",
+    "sources": {
+      "docling": {
+        "bytes": 512918,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 15006,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2322931,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 86537,
+        "files": 1
+      }
+    }
+  },
+  "gsm-mc": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/gsm-mc_2026-06-25_19-05",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1855,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 1687,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 28154,
+        "files": 1
+      }
+    }
+  },
+  "healthbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/healthbench_2026-06-25_19-38",
+    "sources": {
+      "docling": {
+        "bytes": 268304,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2540,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1730,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 99361,
+        "files": 1
+      }
+    }
+  },
+  "helm-lite": {
+    "primary_empty": true,
+    "run_dir": "output/regen_run/output/helm-lite_2026-07-04_23-06",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 6898,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "helm-mmlu": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run_heavy/output/helm-mmlu_2026-07-04_23-34",
+    "sources": {
+      "docling": {
+        "bytes": 183070,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 9474,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 2528,
+        "files": 1
+      }
+    }
+  },
+  "herb": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/herb_2026-06-25_18-46",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2004,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 20478,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 8776,
+        "files": 1
+      }
+    }
+  },
+  "humaneval-nfr": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/humaneval-nfr_2026-06-25_19-27",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 8844,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 295,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2726,
+        "files": 1
+      }
+    }
+  },
+  "humanevalfim-average": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/humanevalfim-average_2026-06-25_18-49",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2045,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 168,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2329,
+        "files": 1
+      }
+    }
+  },
+  "hypersim": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/hypersim_2026-06-25_18-46",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2361,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 40039924,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 4622,
+        "files": 1
+      }
+    }
+  },
+  "ifbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/ifbench_2026-06-25_20-05",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3061,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4111,
+        "files": 1
+      },
+      "html": {
+        "bytes": 129,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 11278,
+        "files": 1
+      }
+    }
+  },
+  "informative-tracking-benchmark": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/informative-tracking-benchmark_2026-06-25_20-10",
+    "sources": {
+      "docling": {
+        "bytes": 106414,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 8516,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 48011,
+        "files": 1
+      }
+    }
+  },
+  "ioi": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/ioi_2026-06-25_18-58",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3231,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1355,
+        "files": 1
+      },
+      "html": {
+        "bytes": 3169,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 45907,
+        "files": 1
+      }
+    }
+  },
+  "iquad-v1": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/iquad-v1_2026-06-25_20-19",
+    "sources": {
+      "docling": {
+        "bytes": 116173,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 9162,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 229,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 52573,
+        "files": 1
+      }
+    }
+  },
+  "journeybench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/journeybench_2026-06-25_20-19",
+    "sources": {
+      "docling": {
+        "bytes": 308292,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3018,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2944,
+        "files": 1
+      },
+      "html": {
+        "bytes": 306,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 57352,
+        "files": 1
+      }
+    }
+  },
+  "jrdb": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/jrdb_2026-06-25_20-16",
+    "sources": {
+      "docling": {
+        "bytes": 209995,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 4577,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 257,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 111394,
+        "files": 1
+      }
+    }
+  },
+  "judgebench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/judgebench_2026-06-25_19-37",
+    "sources": {
+      "docling": {
+        "bytes": 185317,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1805,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4215,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 82756,
+        "files": 1
+      }
+    }
+  },
+  "lingoqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/lingoqa_2026-06-25_19-46",
+    "sources": {
+      "docling": {
+        "bytes": 171122,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2204,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2416,
+        "files": 1
+      },
+      "html": {
+        "bytes": 129,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 74355,
+        "files": 1
+      }
+    }
+  },
+  "livebench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/livebench_2026-06-25_19-21",
+    "sources": {
+      "docling": {
+        "bytes": 286869,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 10632,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 66276,
+        "files": 1
+      }
+    }
+  },
+  "livecodebench-pro": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/livecodebench-pro_2026-06-25_19-12",
+    "sources": {
+      "docling": {
+        "bytes": 379471,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 7566,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 87699,
+        "files": 1
+      },
+      "html": {
+        "bytes": 159,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 84278,
+        "files": 1
+      }
+    }
+  },
+  "lmarena-text-leaderboard": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/lmarena-text-leaderboard_2026-06-25_20-31",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2338,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 1138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 21929,
+        "files": 1
+      }
+    }
+  },
+  "longfact-objects": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/longfact-objects_2026-06-26_02-53",
+    "sources": {
+      "docling": {
+        "bytes": 661298,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2161,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 2834,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 25670,
+        "files": 1
+      }
+    }
+  },
+  "lvos": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/lvos_2026-06-25_20-43",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 5760,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 251,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 6457,
+        "files": 1
+      }
+    }
+  },
+  "mask": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mask_2026-06-25_20-12",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2045,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 8477,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 34333,
+        "files": 1
+      }
+    }
+  },
+  "math": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/math_2026-07-05_00-57",
+    "sources": {
+      "docling": {
+        "bytes": 171897,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3991,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3842,
+        "files": 1
+      }
+    }
+  },
+  "mathconstruct": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mathconstruct_2026-06-25_20-27",
+    "sources": {
+      "docling": {
+        "bytes": 158388,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 7151,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 243,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 57217,
+        "files": 1
+      }
+    }
+  },
+  "mathverse-mini": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mathverse-mini_2026-06-25_20-42",
+    "sources": {
+      "docling": {
+        "bytes": 311579,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1984,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 150,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 64524,
+        "files": 1
+      }
+    }
+  },
+  "mathvision": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mathvision_2026-06-25_20-47",
+    "sources": {
+      "docling": {
+        "bytes": 269925,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3556,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 15281,
+        "files": 1
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 73156,
+        "files": 1
+      }
+    }
+  },
+  "mc-bench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mc-bench_2026-06-25_20-09",
+    "sources": {
+      "docling": {
+        "bytes": 216800,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 5383,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2509,
+        "files": 1
+      },
+      "html": {
+        "bytes": 265,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 45492,
+        "files": 1
+      }
+    }
+  },
+  "mcp-mark": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mcp-mark_2026-06-25_20-59",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2598,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 950,
+        "files": 1
+      }
+    }
+  },
+  "mega-mlqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mega-mlqa_2026-06-25_21-01",
+    "sources": {
+      "docling": {
+        "bytes": 302552,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2316,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 54457,
+        "files": 1
+      }
+    }
+  },
+  "mega-xcopa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mega-xcopa_2026-06-26_03-28",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2342,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3880,
+        "files": 1
+      }
+    }
+  },
+  "metaclue": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/metaclue_2026-06-25_20-12",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3134,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 227,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 8087,
+        "files": 1
+      }
+    }
+  },
+  "mlvu": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mlvu_2026-06-25_20-36",
+    "sources": {
+      "docling": {
+        "bytes": 196172,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2854,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 412491,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 50459,
+        "files": 1
+      }
+    }
+  },
+  "mm-mind2web": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/mm-mind2web_2026-07-04_23-05",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2399,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 635,
+        "files": 1
+      }
+    }
+  },
+  "mmau": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mmau_2026-06-25_21-02",
+    "sources": {
+      "docling": {
+        "bytes": 252331,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2048,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 50312,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 56773,
+        "files": 1
+      }
+    }
+  },
+  "mme": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mme_2026-06-25_20-19",
+    "sources": {
+      "docling": {
+        "bytes": 144268,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2366,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2297,
+        "files": 1
+      },
+      "html": {
+        "bytes": 117,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 71240,
+        "files": 1
+      }
+    }
+  },
+  "mme-realworld": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mme-realworld_2026-06-25_21-16",
+    "sources": {
+      "docling": {
+        "bytes": 274103,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2174,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 10617,
+        "files": 1
+      },
+      "html": {
+        "bytes": 147,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 95737,
+        "files": 1
+      }
+    }
+  },
+  "mmlu-french": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mmlu-french_2026-06-25_22-00",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2169,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 22628,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 8461,
+        "files": 1
+      }
+    }
+  },
+  "mmmu": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run_heavy/output/mmmu_2026-07-05_00-13",
+    "sources": {
+      "docling": {
+        "bytes": 954244,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 5270,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 63543,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2985,
+        "files": 1
+      }
+    }
+  },
+  "mmsearch-plus": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mmsearch-plus_2026-06-25_21-19",
+    "sources": {
+      "docling": {
+        "bytes": 241420,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1992,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 8321,
+        "files": 1
+      },
+      "html": {
+        "bytes": 147,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 59857,
+        "files": 1
+      }
+    }
+  },
+  "mmvet": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mmvet_2026-06-25_21-40",
+    "sources": {
+      "docling": {
+        "bytes": 217345,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2312,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2692,
+        "files": 1
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 52175,
+        "files": 1
+      }
+    }
+  },
+  "mtvqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/mtvqa_2026-06-25_22-12",
+    "sources": {
+      "docling": {
+        "bytes": 118305,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2073,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 14183,
+        "files": 1
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 30935,
+        "files": 1
+      }
+    }
+  },
+  "multi-if": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/multi-if_2026-06-25_21-45",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3851,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4024,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 40126,
+        "files": 1
+      }
+    }
+  },
+  "multipl-e": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/multipl-e_2026-06-25_22-15",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3302,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 291651,
+        "files": 1
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 47179,
+        "files": 1
+      }
+    }
+  },
+  "music-avqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/music-avqa_2026-06-25_22-27",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 4604,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1082953,
+        "files": 1
+      },
+      "html": {
+        "bytes": 237,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 5329,
+        "files": 1
+      }
+    }
+  },
+  "musiccaps": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/musiccaps_2026-06-25_21-54",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2206,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 5500830,
+        "files": 1
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3136,
+        "files": 1
+      }
+    }
+  },
+  "nih-multi-needle": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/nih-multi-needle_2026-06-25_22-36",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2050,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 156,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1692,
+        "files": 1
+      }
+    }
+  },
+  "nmos": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/nmos_2026-06-25_21-52",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1799,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 1267,
+        "files": 1
+      }
+    }
+  },
+  "nt-vot211": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/nt-vot211_2026-06-25_22-29",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 6070,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 257,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 5412,
+        "files": 1
+      }
+    }
+  },
+  "objectron": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/objectron_2026-06-25_22-40",
+    "sources": {
+      "docling": {
+        "bytes": 81839,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1871,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 68100,
+        "files": 1
+      }
+    }
+  },
+  "ocrbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/ocrbench_2026-06-25_22-08",
+    "sources": {
+      "docling": {
+        "bytes": 149202,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 4674,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1858,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 63167,
+        "files": 1
+      }
+    }
+  },
+  "omni-math": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/omni-math_2026-07-05_00-49",
+    "sources": {
+      "docling": {
+        "bytes": 208866,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1739,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 3169,
+        "files": 1
+      }
+    }
+  },
+  "omnigaia": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/omnigaia_2026-06-25_22-36",
+    "sources": {
+      "docling": {
+        "bytes": 232653,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1962,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 111699,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 69948,
+        "files": 1
+      }
+    }
+  },
+  "pathmcqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/pathmcqa_2026-06-25_23-01",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2207,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2727,
+        "files": 1
+      }
+    }
+  },
+  "perceptiontest": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/perceptiontest_2026-06-25_22-35",
+    "sources": {
+      "docling": {
+        "bytes": 231421,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2598,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2274,
+        "files": 1
+      },
+      "html": {
+        "bytes": 150,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 50621,
+        "files": 1
+      }
+    }
+  },
+  "pinchbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/pinchbench_2026-06-25_22-01",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2257,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2062,
+        "files": 1
+      }
+    }
+  },
+  "piqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/piqa_2026-06-25_22-52",
+    "sources": {
+      "docling": {
+        "bytes": 75122,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3648,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 9959,
+        "files": 1
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 80293,
+        "files": 1
+      }
+    }
+  },
+  "probe": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/probe_2026-06-25_23-00",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 6059,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 10833095,
+        "files": 1
+      },
+      "html": {
+        "bytes": 241,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2644,
+        "files": 1
+      }
+    }
+  },
+  "qmsum": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/qmsum_2026-06-25_22-52",
+    "sources": {
+      "docling": {
+        "bytes": 143423,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2405,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1929,
+        "files": 1
+      },
+      "html": {
+        "bytes": 123,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 62377,
+        "files": 1
+      }
+    }
+  },
+  "qwenwebbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/qwenwebbench_2026-06-25_23-04",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2129,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 144,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3051,
+        "files": 1
+      }
+    }
+  },
+  "realworldqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/realworldqa_2026-06-25_23-21",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3737,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1764,
+        "files": 1
+      },
+      "html": {
+        "bytes": 141,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 9630,
+        "files": 1
+      }
+    }
+  },
+  "repobench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/repobench_2026-06-25_22-51",
+    "sources": {
+      "docling": {
+        "bytes": 162766,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2299,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 12307,
+        "files": 1
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 48955,
+        "files": 1
+      }
+    }
+  },
+  "researchpulse-bench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/researchpulse-bench_2026-06-25_22-23",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2579,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1328,
+        "files": 1
+      },
+      "html": {
+        "bytes": 17403,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3873,
+        "files": 1
+      }
+    }
+  },
+  "sage-overall": {
+    "primary_empty": true,
+    "run_dir": "output/broad_run/output/sage-overall_2026-06-25_23-01",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2015,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "salad-bench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/salad-bench_2026-06-25_23-07",
+    "sources": {
+      "docling": {
+        "bytes": 240665,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 350,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 113271,
+        "files": 1
+      }
+    }
+  },
+  "scoring-verifiers": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/scoring-verifiers_2026-06-25_22-35",
+    "sources": {
+      "docling": {
+        "bytes": 123992,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 8874,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4459,
+        "files": 1
+      },
+      "html": {
+        "bytes": 5666,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 70606,
+        "files": 1
+      }
+    }
+  },
+  "seal-0": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/seal-0_2026-07-05_00-36",
+    "sources": {
+      "docling": {
+        "bytes": 303008,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2585,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 126,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 3575,
+        "files": 1
+      }
+    }
+  },
+  "seccodebench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/seccodebench_2026-06-25_23-44",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1995,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 144,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 2466,
+        "files": 1
+      }
+    }
+  },
+  "sifo": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/sifo_2026-06-25_23-25",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1991,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 120,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 4237,
+        "files": 1
+      }
+    }
+  },
+  "simplesafetytests": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/simplesafetytests_2026-06-25_23-25",
+    "sources": {
+      "docling": {
+        "bytes": 181406,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1788,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 1961,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 85527,
+        "files": 1
+      }
+    }
+  },
+  "sunrgbd": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/sunrgbd_2026-06-25_23-56",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2345,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4637,
+        "files": 1
+      },
+      "html": {
+        "bytes": 129,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 16675,
+        "files": 1
+      }
+    }
+  },
+  "swe-bench": {
+    "primary_empty": false,
+    "run_dir": "output/regen_run/output/swe-bench_2026-07-04_23-47",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 4572,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4565,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 3062,
+        "files": 1
+      }
+    }
+  },
+  "swe-bench-multimodal": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/swe-bench-multimodal_2026-06-26_00-08",
+    "sources": {
+      "docling": {
+        "bytes": 312103,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2143,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 2456,
+        "files": 1
+      },
+      "html": {
+        "bytes": 168,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 67765,
+        "files": 1
+      }
+    }
+  },
+  "swe-polybench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/swe-polybench_2026-06-25_23-33",
+    "sources": {
+      "docling": {
+        "bytes": 184504,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1560,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4916,
+        "files": 1
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 53711,
+        "files": 1
+      }
+    }
+  },
+  "tldr9-test": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/tldr9-test_2026-06-26_00-15",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2090,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 356,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 4011,
+        "files": 1
+      }
+    }
+  },
+  "tlp": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/tlp_2026-06-26_00-43",
+    "sources": {
+      "docling": {
+        "bytes": 82430,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 9237,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 44583,
+        "files": 1
+      }
+    }
+  },
+  "tro": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/tro_2026-06-25_23-40",
+    "sources": {
+      "docling": {
+        "bytes": 105122,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3891,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 78503,
+        "files": 1
+      }
+    }
+  },
+  "tydiqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/tydiqa_2026-06-26_01-03",
+    "sources": {
+      "docling": {
+        "bytes": 146483,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 2225,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 17003,
+        "files": 1
+      },
+      "html": {
+        "bytes": 126,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 65413,
+        "files": 1
+      }
+    }
+  },
+  "uniform-bar-exam": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/uniform-bar-exam_2026-06-26_00-32",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2265,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 1052,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 25375,
+        "files": 1
+      }
+    }
+  },
+  "union14m": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/union14m_2026-06-25_23-52",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 9671,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 98408,
+        "files": 1
+      },
+      "html": {
+        "bytes": 219,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 33526,
+        "files": 1
+      }
+    }
+  },
+  "video-mme": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/video-mme_2026-06-26_00-51",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3385,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 4933,
+        "files": 1
+      },
+      "html": {
+        "bytes": 135,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 15274,
+        "files": 1
+      }
+    }
+  },
+  "vinabench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/vinabench_2026-06-26_01-39",
+    "sources": {
+      "docling": {
+        "bytes": 207267,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 5950,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 7368,
+        "files": 1
+      },
+      "html": {
+        "bytes": 245,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 70447,
+        "files": 1
+      }
+    }
+  },
+  "vision2web": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/vision2web_2026-06-26_00-19",
+    "sources": {
+      "docling": {
+        "bytes": 145298,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1959,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 9486,
+        "files": 1
+      },
+      "html": {
+        "bytes": 138,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 76753,
+        "files": 1
+      }
+    }
+  },
+  "visual-commonsense-reasoning": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/visual-commonsense-reasoning_2026-06-26_01-28",
+    "sources": {
+      "docling": {
+        "bytes": 224229,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3940,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 231,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 14535,
+        "files": 1
+      }
+    }
+  },
+  "vl-checklist": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/vl-checklist_2026-06-26_00-57",
+    "sources": {
+      "docling": {
+        "bytes": 83711,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 7862,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 309,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 37958,
+        "files": 1
+      }
+    }
+  },
+  "vqa-rad": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/vqa-rad_2026-06-26_01-32",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 2245,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 5675,
+        "files": 1
+      },
+      "html": {
+        "bytes": 129,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 58236,
+        "files": 1
+      }
+    }
+  },
+  "wmt24": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/wmt24_2026-06-26_01-34",
+    "sources": {
+      "docling": {
+        "bytes": 110149,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3498,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 351,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 45409,
+        "files": 1
+      }
+    }
+  },
+  "wordle-arena": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/wordle-arena_2026-06-26_00-57",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 3905,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 2119,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 36052,
+        "files": 1
+      }
+    }
+  },
+  "worldvqa": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/worldvqa_2026-06-26_01-58",
+    "sources": {
+      "docling": {
+        "bytes": 98735,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 1978,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 5409,
+        "files": 1
+      },
+      "html": {
+        "bytes": 132,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 54056,
+        "files": 1
+      }
+    }
+  },
+  "writingbench": {
+    "primary_empty": false,
+    "run_dir": "output/broad_run/output/writingbench_2026-06-26_02-21",
+    "sources": {
+      "docling": {
+        "bytes": 269461,
+        "files": 1
+      },
+      "eee": {
+        "bytes": 3706,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 144,
+        "files": 1
+      },
+      "rag": {
+        "bytes": 57291,
+        "files": 1
+      }
+    }
+  },
+  "xsum": {
+    "primary_empty": true,
+    "run_dir": "output/regen_run/output/xsum_2026-07-05_00-09",
+    "sources": {
+      "docling": {
+        "bytes": 0,
+        "files": 0
+      },
+      "eee": {
+        "bytes": 1698,
+        "files": 1
+      },
+      "hf": {
+        "bytes": 0,
+        "files": 0
+      },
+      "html": {
+        "bytes": 0,
+        "files": 0
+      },
+      "rag": {
+        "bytes": 0,
+        "files": 0
+      }
+    }
+  }
+}

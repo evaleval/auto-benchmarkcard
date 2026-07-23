@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
+from auto_benchmarkcard.tools.html.html_tool import strip_page_furniture
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,6 +76,7 @@ class MetadataIndexer:
         benchmark_name: str,
         docling_data: Optional[Dict[str, Any]] = None,
         html_data: Optional[Dict[str, Any]] = None,
+        github_data: Optional[Dict[str, Any]] = None,
     ) -> List[Document]:
         """Create searchable documents from all metadata sources.
 
@@ -84,6 +87,7 @@ class MetadataIndexer:
             docling_data: Optional extracted paper content.
             html_data: Optional extracted web page content (project sites,
                 bioRxiv landing pages, llm-stats benchmark pages, etc.).
+            github_data: Optional extracted GitHub repo README content.
 
         Returns:
             List of Document objects ready for indexing.
@@ -100,6 +104,9 @@ class MetadataIndexer:
 
         if html_data:
             docs.extend(self._process_html(html_data, benchmark_name))
+
+        if github_data:
+            docs.extend(self._process_github(github_data, benchmark_name))
 
         return docs
 
@@ -336,6 +343,9 @@ class MetadataIndexer:
 
         url = data.get("url", "")
         title = data.get("title", "")
+        # Self-guard: drop leaderboard/related-benchmarks furniture in case this indexer
+        # is fed HTML that did not pass through the patched scraper (cached/external input).
+        page_text, _ = strip_page_furniture(page_text, url)
         text_chunks = self.text_splitter.split_text(page_text)
 
         for i, chunk in enumerate(text_chunks):
@@ -349,6 +359,40 @@ class MetadataIndexer:
                         "benchmark": benchmark_name,
                         "page_url": url,
                         "page_title": title,
+                    },
+                )
+            )
+
+        return docs
+
+    def _process_github(self, data: Dict[str, Any], benchmark_name: str) -> List[Document]:
+        """Convert a GitHub repo README into documents.
+
+        Used as RAG evidence for source-starved cards (no HF card, paywalled paper) whose
+        repo README is the only substantial description of the dataset.
+        """
+        docs = []
+
+        if not data.get("success", False):
+            return docs
+
+        readme_text = data.get("text", "")
+        if not readme_text or not readme_text.strip():
+            return docs
+
+        url = data.get("url", "")
+        text_chunks = self.text_splitter.split_text(readme_text)
+
+        for i, chunk in enumerate(text_chunks):
+            docs.append(
+                Document(
+                    page_content=chunk,
+                    metadata={
+                        "source": "github_readme",
+                        "type": "readme_text",
+                        "chunk_index": i,
+                        "benchmark": benchmark_name,
+                        "page_url": url,
                     },
                 )
             )

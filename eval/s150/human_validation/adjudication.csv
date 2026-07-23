@@ -1,0 +1,2 @@
+item_id,card,field_path,kind,field_value,adjudicated_label,adjudication_note
+c052,music-avqa,methodology.baseline_results,filled,"Several baselines were developed, and a spatio-temporal grounded audio-visual network was introduced for the AVQA problem. Results demonstrate that AVQA benefits from multisensory perception and the proposed model outperforms recent A-, V-, and AVQA approaches.",supported,"Almost word for word from the paper abstract, which is outside the registry section."

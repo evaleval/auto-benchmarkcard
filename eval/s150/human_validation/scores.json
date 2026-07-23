@@ -1,0 +1,259 @@
+{
+  "analysis_policy": {
+    "combined_arm_estimate": null,
+    "error_arm_estimate": "conditional confirmation within the S judge-error pool, reported separately by judge error status",
+    "no_post_result_metric_selection": true,
+    "overall_population_estimate": "probability arm only"
+  },
+  "complete_for_judge_comparison": true,
+  "error_arm_conditional_confirmation": {
+    "partial": {
+      "card_cluster_bootstrap_sensitivity_interval95": [
+        0.0,
+        0.5
+      ],
+      "design_weighted_confirmation_rate": 0.23076923076923078,
+      "n": 13,
+      "n_cards": 12,
+      "raw_confirmation_rate": 0.23076923076923078,
+      "raw_confirms": 3,
+      "uncertainty_note": "The point estimate follows the field-SRS error design. The whole-card bootstrap is a clustering sensitivity analysis, not an exact design-based variance estimator for that field sample.",
+      "weight": "1 / error_row_pi_within_pool",
+      "weighted_human_label_distribution": {
+        "partial": 59.769230769230774,
+        "supported": 119.53846153846155,
+        "supported_by_eee_only": 19.923076923076923,
+        "unsupported": 59.769230769230774
+      }
+    },
+    "unsupported": {
+      "card_cluster_bootstrap_sensitivity_interval95": [
+        0.8,
+        1.0
+      ],
+      "design_weighted_confirmation_rate": 0.9,
+      "n": 30,
+      "n_cards": 25,
+      "raw_confirmation_rate": 0.9,
+      "raw_confirms": 27,
+      "uncertainty_note": "The point estimate follows the field-SRS error design. The whole-card bootstrap is a clustering sensitivity analysis, not an exact design-based variance estimator for that field sample.",
+      "weight": "1 / error_row_pi_within_pool",
+      "weighted_human_label_distribution": {
+        "partial": 2.0,
+        "supported": 0,
+        "supported_by_eee_only": 1.0,
+        "unsupported": 27.0
+      }
+    }
+  },
+  "inter_rater_reliability": {
+    "all_unique_items": {
+      "filled": {
+        "fleiss_kappa": 0.5463191934563439,
+        "krippendorff_alpha_nominal": 0.5488396423815864,
+        "majority_2_of_3": 25,
+        "n_items": 60,
+        "true_three_way_splits": 1,
+        "unanimous": 34
+      },
+      "not_specified": {
+        "fleiss_kappa": 0.6739130434782609,
+        "krippendorff_alpha_nominal": 0.6811594202898551,
+        "majority_2_of_3": 2,
+        "n_items": 15,
+        "true_three_way_splits": 0,
+        "unanimous": 13
+      }
+    },
+    "error_arm": {
+      "filled": {
+        "fleiss_kappa": 0.4826203208556149,
+        "krippendorff_alpha_nominal": 0.4866310160427807,
+        "majority_2_of_3": 18,
+        "n_items": 43,
+        "true_three_way_splits": 0,
+        "unanimous": 25
+      },
+      "not_specified": {
+        "fleiss_kappa": null,
+        "krippendorff_alpha_nominal": null,
+        "majority_2_of_3": 0,
+        "n_items": 0,
+        "true_three_way_splits": 0,
+        "unanimous": 0
+      }
+    },
+    "probability_arm": {
+      "filled": {
+        "fleiss_kappa": 0.44917407878017807,
+        "krippendorff_alpha_nominal": 0.4599745870393902,
+        "majority_2_of_3": 7,
+        "n_items": 17,
+        "true_three_way_splits": 1,
+        "unanimous": 9
+      },
+      "not_specified": {
+        "fleiss_kappa": 0.6739130434782609,
+        "krippendorff_alpha_nominal": 0.6811594202898551,
+        "majority_2_of_3": 2,
+        "n_items": 15,
+        "true_three_way_splits": 0,
+        "unanimous": 13
+      }
+    },
+    "scope": "unweighted and conditional on the displayed packet/arm"
+  },
+  "judge_vs_human_reference": {
+    "error_arm_raw": {
+      "filled": {
+        "cohens_kappa": 0.3676470588235295,
+        "cohens_kappa_ci95_card_clustered": [
+          0.19005328596802837,
+          0.5620827770360483
+        ],
+        "n": 43,
+        "raw_agreement": 0.6976744186046512,
+        "raw_agreement_ci95_card_clustered": [
+          0.5909090909090909,
+          0.8
+        ]
+      },
+      "not_specified": {
+        "cohens_kappa": null,
+        "cohens_kappa_ci95_card_clustered": null,
+        "n": 0,
+        "raw_agreement": null,
+        "raw_agreement_ci95_card_clustered": null
+      },
+      "scope": "unweighted and conditional on the fixed error-arm allocation; not an overall population accuracy estimate"
+    },
+    "probability_arm_raw": {
+      "filled": {
+        "cohens_kappa": 0.7384615384615384,
+        "cohens_kappa_ci95_card_clustered": [
+          0.35384615384615375,
+          1.0
+        ],
+        "n": 17,
+        "raw_agreement": 0.8823529411764706,
+        "raw_agreement_ci95_card_clustered": [
+          0.7058823529411765,
+          1.0
+        ]
+      },
+      "not_specified": {
+        "cohens_kappa": 1.0,
+        "cohens_kappa_ci95_card_clustered": [
+          1.0,
+          1.0
+        ],
+        "n": 15,
+        "raw_agreement": 1.0,
+        "raw_agreement_ci95_card_clustered": [
+          1.0,
+          1.0
+        ]
+      },
+      "scope": "unweighted probability-arm sample description; use the separately reported weighted block for corpus inference"
+    }
+  },
+  "n_dual_arm_rows": 0,
+  "n_error_arm_rows": 43,
+  "n_probability_arm_rows": 32,
+  "n_true_three_way_splits": 1,
+  "n_unique_items": 75,
+  "n_unresolved_three_way_splits": 0,
+  "probability_arm_corpus_weighted": {
+    "estimator": "two-stage inverse-probability ratio, probability arm only",
+    "filled": {
+      "cohens_kappa": 0.7087218322003674,
+      "cohens_kappa_card_bootstrap_sensitivity_interval95": [
+        0.24640674974869042,
+        1.0
+      ],
+      "confusion": {
+        "partial": {
+          "partial": 0.0,
+          "supported": 0.0,
+          "supported_by_eee_only": 0.0,
+          "unsupported": 0.0
+        },
+        "supported": {
+          "partial": 0.0,
+          "supported": 5002.5001078125,
+          "supported_by_eee_only": 0.0,
+          "unsupported": 761.8750359375
+        },
+        "supported_by_eee_only": {
+          "partial": 0.0,
+          "supported": 0.0,
+          "supported_by_eee_only": 1198.8751078125001,
+          "unsupported": 0.0
+        },
+        "unsupported": {
+          "partial": 0.0,
+          "supported": 0.0,
+          "supported_by_eee_only": 0.0,
+          "unsupported": 0.0
+        }
+      },
+      "n_sampled_cards": 11,
+      "n_sampled_rows": 17,
+      "weighted_agreement": 0.8905862911121797,
+      "weighted_agreement_card_bootstrap_sensitivity_interval95": [
+        0.6842837296841542,
+        1.0
+      ],
+      "weighted_total": 6963.2502515625
+    },
+    "low_cluster_caution": "The probability arm has few sampled cards per stratum; percentile whole-card bootstrap results are low-cluster sensitivity intervals, conditional on the realized second-stage field draw, and must not be presented as exact two-stage design-based or high-precision uncertainty.",
+    "not_specified": {
+      "cohens_kappa": 1.0,
+      "cohens_kappa_card_bootstrap_sensitivity_interval95": [
+        1.0,
+        1.0
+      ],
+      "confusion": {
+        "no": {
+          "no": 4246.3752515625,
+          "yes_eee_only": 0.0,
+          "yes_primary": 0.0
+        },
+        "yes_eee_only": {
+          "no": 0.0,
+          "yes_eee_only": 218.50003593750003,
+          "yes_primary": 0.0
+        },
+        "yes_primary": {
+          "no": 0.0,
+          "yes_eee_only": 0.0,
+          "yes_primary": 761.8750359375
+        }
+      },
+      "n_sampled_cards": 10,
+      "n_sampled_rows": 15,
+      "weighted_agreement": 1.0,
+      "weighted_agreement_card_bootstrap_sensitivity_interval95": [
+        1.0,
+        1.0
+      ],
+      "weighted_total": 5226.7503234375
+    },
+    "sampled_card_clusters_by_stratum": {
+      "flagged": 8,
+      "unflagged": 8
+    },
+    "uncertainty": "stratified whole-card percentile-bootstrap sensitivity interval",
+    "uncertainty_scope": "Conditional on the realized second-stage field draw. This is not an exact two-stage design-based interval and does not propagate a new within-card field draw in each replicate.",
+    "weight": "s_to_corpus_weight / prob_row_pi_within_s"
+  },
+  "uncertainty_policy": {
+    "bootstrap_replicates": 5000,
+    "error_interval_role": "card-clustering sensitivity interval for a field-SRS point estimate; not an exact design-based interval",
+    "finite_population_correction": false,
+    "probability_interval_role": "low-cluster sensitivity interval conditional on the realized second-stage field draw; not an exact two-stage design-based interval",
+    "probability_strata": "prob_flag_stratum",
+    "seed": 11,
+    "unit": "whole sampled card"
+  }
+}

@@ -1,0 +1,2370 @@
+{
+  "author_overlap": {
+    "cards": [
+      "api-bank",
+      "artifactsbench",
+      "babyvision",
+      "cnn-dailymail",
+      "flenqa",
+      "mask",
+      "musiccaps",
+      "pinchbench",
+      "probe",
+      "swe-bench"
+    ],
+    "cards_per_stratum": 5,
+    "columns": [
+      "row_id",
+      "card",
+      "card_reference",
+      "finding_index",
+      "category",
+      "field",
+      "issue",
+      "screen_claimed_ground_truth",
+      "author_label",
+      "author_evidence_url",
+      "author_notes"
+    ],
+    "eligible_pool_cards_by_stratum": {
+      "flagged": 35,
+      "unflagged": 40
+    },
+    "empty_worklist_sha256": "8e0f88a8a5bc23e89df01b1bc7a8e3e0ac70ab0704df89ef7da23294804da8e1",
+    "excluded_cards": [
+      "mc-bench",
+      "sunrgbd",
+      "chartqa"
+    ],
+    "n_rows": 23,
+    "protected_columns": [
+      "row_id",
+      "card",
+      "card_reference",
+      "finding_index",
+      "category",
+      "field",
+      "issue",
+      "screen_claimed_ground_truth"
+    ],
+    "protected_rows_sha256": "24e545f19aa22ef9bcb6ba3c93cf6be1b2e8e6962a6c2f273d3d1e7055dcaad4",
+    "response_columns": [
+      "author_label",
+      "author_evidence_url",
+      "author_notes"
+    ],
+    "row_ids": [
+      "18",
+      "19",
+      "37",
+      "38",
+      "39",
+      "80",
+      "81",
+      "84",
+      "85",
+      "98",
+      "99",
+      "100",
+      "107",
+      "108",
+      "109",
+      "121",
+      "139",
+      "140",
+      "143",
+      "144",
+      "145",
+      "146",
+      "147"
+    ],
+    "seed": 20260718,
+    "selection_rule": "Python Random(seed) sample of 5 sorted eligible finding cards per S flag stratum; contamination cards excluded"
+  },
+  "contamination_check": {
+    "cards": [
+      "mc-bench",
+      "sunrgbd",
+      "chartqa"
+    ],
+    "columns": [
+      "card",
+      "card_reference",
+      "screen_hf_repo_assessment",
+      "screen_repo_findings_json",
+      "screen_summary",
+      "screen_citations_json",
+      "author_assessment",
+      "author_evidence_url",
+      "author_notes"
+    ],
+    "empty_worklist_sha256": "0d0e35e411d7827051a97da1e15d2329ba934ec1390e8535f0312b4dea89d7e4",
+    "labels": [
+      "confirmed-contamination",
+      "not-contamination",
+      "unsure"
+    ],
+    "not_part_of_v1_scores": true,
+    "protected_columns": [
+      "card",
+      "card_reference",
+      "screen_hf_repo_assessment",
+      "screen_repo_findings_json",
+      "screen_summary",
+      "screen_citations_json"
+    ],
+    "protected_rows_sha256": "32f6cd0113954848fe7570a54f39598e51727e80c6b52c0b5c02be0490020c9f",
+    "response_columns": [
+      "author_assessment",
+      "author_evidence_url",
+      "author_notes"
+    ],
+    "rows": [
+      {
+        "card": "mc-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mc-bench.json",
+        "screen_citations_json": "[\"https://arxiv.org/abs/2410.12332\", \"https://arxiv.org/html/2410.12332\", \"https://arxiv.org/pdf/2410.12332\", \"https://github.com/XuYunqiu/MC-Bench\", \"https://huggingface.co/papers/2410.12332\", \"https://www.researchgate.net/publication/384974124_MC-Bench_A_Benchmark_for_Multi-Context_Visual_Grounding_in_the_Era_of_MLLMs\"]",
+        "screen_hf_repo_assessment": "wrong-kept-CONTAMINATION",
+        "screen_repo_findings_json": "[{\"severity\": \"needs-fix\", \"category\": \"wrong-section-splice\", \"field\": \"hf_repo_assessment\", \"issue\": \"The HF repo Moenupa/MC-Bench is explicitly described as an 'unofficial' repo in its README. The official dataset is distributed via Google Drive and Baidu Pan in COCO JSON format, not via HuggingFace. Including an unofficial third-party repo as the canonical HF resource is misleading.\", \"ground_truth\": \"The official MC-Bench dataset is hosted on Google Drive and Baidu Pan (COCO JSON format). There is no official HuggingFace repo. Moenupa/MC-Bench is an unofficial community upload.\"}]",
+        "screen_summary": "MC-Bench identity, authors, arxiv ID, dataset statistics (2000 samples, 1712 positive, 404 both-image, 1308 one-image), domains, metrics, and methodology are all correct. However, the card has two needs-fix issues: (1) the overview field contains the AP50 metric description instead of a benchmark overview (wrong-section-splice from EEE tool output), and (2) the size_breakdown incorrectly labels the 2000 evaluation samples as 'train' when MC-Bench is a benchmark-only dataset with a val split. Additionally, the HF repo (Moenupa/MC-Bench) is unofficial and should not be treated as the canonical repo, and the data format is listed as 'optimized-parquet' when the official format is COCO JSON. The CC BY 4.0 license is documented in the paper but omitted from the card."
+      },
+      {
+        "card": "sunrgbd",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/sunrgbd.json",
+        "screen_citations_json": "[\"https://openaccess.thecvf.com/content_cvpr_2015/html/Song_SUN_RGB-D_A_2015_CVPR_paper.html\", \"https://rgbd.cs.princeton.edu/\", \"https://ieeexplore.ieee.org/document/7298655/\", \"https://dblp.org/rec/conf/cvpr/SongLX15.html\", \"https://huggingface.co/datasets/wyrx/SUNRGBD_seg\", \"https://huggingface.co/Qwen/Qwen3.5-122B-A10B\"]",
+        "screen_hf_repo_assessment": "wrong-kept-CONTAMINATION",
+        "screen_repo_findings_json": "[{\"severity\": \"minor\", \"category\": \"other\", \"field\": \"resources / hf_repo\", \"issue\": \"wyrx/SUNRGBD_seg is a community-derived segmentation processing of the SUNRGBD dataset, not the canonical benchmark repository. The original SUNRGBD benchmark has no official HuggingFace repo. Listing this derivative repo as a primary resource is misleading.\", \"ground_truth\": \"No official HuggingFace repo exists for the original SUNRGBD benchmark. wyrx/SUNRGBD_seg is a third-party derivative segmentation dataset.\"}]",
+        "screen_summary": "The SUNRGBD benchmark card is largely correct in identity, authorship, and paper citation. The main factual issue is the 3D bounding box count: the card states 64,595 (matching the IEEE Xplore abstract) while the official Princeton project page and paper PDF state 58,657 — a known version discrepancy. The HuggingFace repo listed (wyrx/SUNRGBD_seg) is a community-derived segmentation dataset, not the canonical benchmark repo, making it a contamination risk. The leaderboard scores from llm-stats.com reference real Qwen3.5 models. No fabricated facts were found. Overall verdict: minor issues only."
+      },
+      {
+        "card": "chartqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/chartqa.json",
+        "screen_citations_json": "[\"https://arxiv.org/abs/2203.10244\", \"https://aclanthology.org/2022.findings-acl.177.pdf\", \"https://ar5iv.labs.arxiv.org/html/2203.10244\", \"https://www.researchgate.net/publication/359390370_ChartQA_A_Benchmark_for_Question_Answering_about_Charts_with_Visual_and_Logical_Reasoning\", \"https://huggingface.co/datasets/lmms-lab/ChartQA\", \"https://github.com/vis-nlp/ChartQA\"]",
+        "screen_hf_repo_assessment": "wrong-kept-CONTAMINATION",
+        "screen_repo_findings_json": "[{\"severity\": \"needs-fix\", \"category\": \"wrong-section-splice\", \"field\": \"benchmark_details.org_url + hf_repo\", \"issue\": \"The HF repo listed is lmms-lab/ChartQA, which is a reformatted version created for the lmms-eval pipeline, not the canonical original dataset. The original canonical HF dataset is from vis-nlp (the paper authors). The org_url also incorrectly points to huggingface.co/lmms-lab instead of the benchmark's actual organization (vis-nlp / York University).\", \"ground_truth\": \"The canonical HF dataset is from vis-nlp (the paper authors). lmms-lab/ChartQA explicitly states it is 'a formatted version of ChartQA' for lmms-eval. The original GitHub is https://github.com/vis-nlp/ChartQA.\"}]",
+        "screen_summary": "The ChartQA card is largely accurate: correct benchmark identity, correct paper (arxiv 2203.10244), correct authors, correct dataset statistics (9.6K human + 23.1K machine questions, 20,882 charts), and correct baseline numbers (VisionTaPas 49.80%, VL-T5 45.82% on ChartQA; 94.54% on DVQA; 61.04% human agreement). The main issues are: (1) the HF repo listed (lmms-lab/ChartQA) is a reformatted secondary version for lmms-eval, not the canonical original from vis-nlp, and org_url incorrectly points to lmms-lab; (2) the DVQA 94.54% result is presented as a ChartQA baseline when it is actually a result on a different benchmark; (3) the data size field ('1K to 10K') understates the true total of ~32.7K questions; (4) MTurk compensation details are misplaced in the interpretation field. No fabricated facts were found."
+      }
+    ],
+    "separate_from_author_overlap": true
+  },
+  "estimand_lock": {
+    "candidate_defect_confirmation": "(confirmed-material + confirmed-trivial) / decided",
+    "card_design_interval": "approximate normal 95% interval from stratified SRSWOR variance with finite-population corrections",
+    "card_result": "stratum-weighted share of all S=150 cards with at least one screen-detected, verifier-confirmed material candidate",
+    "decided": "confirmed-material + confirmed-trivial + not-a-defect",
+    "guard": "not defect prevalence, screen recall, screen accuracy, a standard false-positive rate, or human reliability",
+    "material_defect_confirmation": "confirmed-material / decided",
+    "non_defect_share_among_decided_screen_positives": "not-a-defect / decided",
+    "non_material_severe_call_share": "(confirmed-trivial + not-a-defect) / decided",
+    "unsure_sensitivity": "lower and upper rates over all 154 candidates, treating every unsure as respectively outside or inside each target class"
+  },
+  "labels": [
+    "confirmed-material",
+    "confirmed-trivial",
+    "not-a-defect",
+    "unsure"
+  ],
+  "packet": {
+    "columns": [
+      "row_id",
+      "card",
+      "card_reference",
+      "finding_index",
+      "category",
+      "field",
+      "issue",
+      "screen_claimed_ground_truth",
+      "verifier_label",
+      "evidence_url",
+      "notes"
+    ],
+    "n_cards": 77,
+    "n_findings": 154,
+    "protected_columns": [
+      "row_id",
+      "card",
+      "card_reference",
+      "finding_index",
+      "category",
+      "field",
+      "issue",
+      "screen_claimed_ground_truth"
+    ],
+    "protected_rows_sha256": "5240079f32b69c06125466c36462a507b8ca2509a8f1f0b84ae55026e5de6abd",
+    "response_columns": [
+      "verifier_label",
+      "evidence_url",
+      "notes"
+    ],
+    "rows": [
+      {
+        "card": "cbnsl",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/cbnsl.json",
+        "category": "wrong-identity",
+        "field": "benchmark_details.overview / purpose_and_intended_users",
+        "finding_index": "0",
+        "issue": "The card describes CBNSL as a benchmark for 'evaluating algorithms that learn Bayesian network structures' and frames it as an LLM benchmark (appears_in: llm-stats, categorized as math/reasoning for LLMs). The 2015 paper is a BN structure learning *algorithm* paper, not an LLM evaluation benchmark. The llm-stats.com listing has repurposed the paper name as an LLM benchmark, which is a fundamental category mismatch. The card conflates the original paper's purpose with an LLM evaluation context.",
+        "row_id": "1",
+        "screen_claimed_ground_truth": "The paper 'Curriculum Learning of Bayesian Network Structures' (ACML 2015, PMLR v45) proposes a heuristic algorithm for learning Bayesian network structures using curriculum learning. It is not an LLM benchmark. Its appearance on llm-stats.com as an LLM math/reasoning benchmark with only 1 model (Kimi K2 Instruct, score 0.956) is unverified and likely a misclassification."
+      },
+      {
+        "card": "cbnsl",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/cbnsl.json",
+        "category": "fabricated-fact",
+        "field": "methodology.metrics / benchmark_details.overview",
+        "finding_index": "1",
+        "issue": "The card states the benchmark 'evaluates structure learning performance using BDeu scoring metrics' and frames this as an LLM evaluation metric (score 0-1, proportion). BDeu is a Bayesian network scoring function used in the original 2015 paper for BN structure learning, not an LLM evaluation metric. The claim that LLMs are scored 0-1 on BDeu for BN structure learning is not supported by any verifiable source.",
+        "row_id": "2",
+        "screen_claimed_ground_truth": "BDeu (Bayesian Dirichlet equivalent uniform) is a scoring function for Bayesian network structure learning used in the 2015 paper. It is not an LLM evaluation metric. The llm-stats.com score of 0.956 for Kimi K2 Instruct on this 'benchmark' has no verifiable methodology."
+      },
+      {
+        "card": "nmos",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/nmos.json",
+        "category": "wrong-identity",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "NMOS is described as 'NMOS evaluation benchmark for assessing model performance on specialized tasks' — this is misleading. NMOS (Naturalness MOS / Natural Mean Opinion Score) is a subjective speech naturalness metric used in TTS/speech synthesis evaluation on a 1–5 scale, not a standalone general-purpose benchmark.",
+        "row_id": "3",
+        "screen_claimed_ground_truth": "NMOS = Naturalness Mean Opinion Score, a speech quality metric rated on a 1–5 scale by human listeners, used in speech synthesis papers (e.g., Qwen2.5-Omni technical report arXiv:2503.20215) to assess naturalness of generated speech."
+      },
+      {
+        "card": "nmos",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/nmos.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results / methodology.interpretation",
+        "finding_index": "1",
+        "issue": "The card reports Qwen2.5-Omni-7B NMOS score as 0.0451 on a 0–1 proportion scale. NMOS is a 1–5 scale metric; a score of 0.0451 is implausibly low (near-zero naturalness) and appears to be a normalization artifact from llm-stats.com's data pipeline, not a meaningful or accurate representation of the metric.",
+        "row_id": "4",
+        "screen_claimed_ground_truth": "NMOS scores are on a 1–5 scale. Qwen2.5-Omni's NMOS performance as reported in its technical report would be in the range of ~3–5, not 0.0451. The 0.0451 figure likely results from an erroneous scale normalization."
+      },
+      {
+        "card": "researchpulse-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/researchpulse-bench.json",
+        "category": "wrong-identity",
+        "field": "benchmark_details.overview / methodology.metrics",
+        "finding_index": "0",
+        "issue": "The card describes ResearchPulse-Bench as an image denoising benchmark (SIDD/PSNR) and 3D point cloud registration benchmark (3DMatch/Registration Recall). The real ResearchPulse-Bench is a citation-aware NLP/text benchmark for multi-document scientific inference over paper clusters, introduced in arxiv:2509.03565 (ACM MM 2025). The domain, data type, and metrics are entirely wrong.",
+        "row_id": "5",
+        "screen_claimed_ground_truth": "ResearchPulse-Bench is a text-domain benchmark for multi-document scientific inference tasks (method-tracking and experimental comparison across related scientific papers), not a computer vision benchmark. Paper: arxiv:2509.03565."
+      },
+      {
+        "card": "researchpulse-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/researchpulse-bench.json",
+        "category": "fabricated-fact",
+        "field": "methodology.metrics / methodology.baseline_results",
+        "finding_index": "1",
+        "issue": "The card reports metrics '3D Point Cloud Registration on 3DMatch' and 'Image Denoising on SIDD 2018' with a baseline of '3DSN (78.4000)' as if these are ResearchPulse-Bench metrics. These are real benchmarks and a real model score, but they have no association with ResearchPulse-Bench. This appears to be a spurious association from an alphaxiv leaderboard aggregator.",
+        "row_id": "6",
+        "screen_claimed_ground_truth": "3DMatch and SIDD are independent computer vision benchmarks unrelated to ResearchPulse-Bench. 3DSN's 78.4% registration recall is a real score on 3DMatch, but not a ResearchPulse-Bench result."
+      },
+      {
+        "card": "researchpulse-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/researchpulse-bench.json",
+        "category": "wrong-paper",
+        "field": "benchmark_details / card_info",
+        "finding_index": "2",
+        "issue": "No paper is cited in the card (paper_title: null). The introducing paper arxiv:2509.03565 ('ResearchPulse: Building Method-Experiment Chains through Multi-Document Scientific Inference', ACM MM 2025) exists and should be referenced.",
+        "row_id": "7",
+        "screen_claimed_ground_truth": "arxiv:2509.03565, authors: Qi Chen, Jingxuan Wei, Zhuoya Yao, Haiguang Wang, Gaowei Wu, Bihui Yu, Siyuan Li, Cheng Tan. Accepted at ACM MM 2025."
+      },
+      {
+        "card": "researchpulse-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/researchpulse-bench.json",
+        "category": "wrong-identity",
+        "field": "benchmark_details.data_type",
+        "finding_index": "3",
+        "issue": "Card states data_type='image'. The real ResearchPulse-Bench is a text/NLP benchmark operating on scientific paper clusters.",
+        "row_id": "8",
+        "screen_claimed_ground_truth": "Data type is text (scientific papers), not image."
+      },
+      {
+        "card": "belief",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/belief.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The card describes BELIEF as measuring 'the theoretical upper limit of an encoder model's factual knowledge recall' (the Oracle score). This is actually the description of one sub-metric ('Knowledge Coverage / Oracle Accuracy'). BELIEF is a multifaceted benchmark measuring accuracy, consistency, and reliability — not solely an Oracle upper-limit measure.",
+        "row_id": "9",
+        "screen_claimed_ground_truth": "BELIEF is a multifaceted knowledge probing benchmark evaluating PLMs on factual recall accuracy, consistency, and reliability using diverse prompts from MyriadLAMA. The Oracle metric is one of several metrics, not the defining purpose of the benchmark."
+      },
+      {
+        "card": "belief",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/belief.json",
+        "category": "wrong-paper",
+        "field": "benchmark_details.resources / authors",
+        "finding_index": "1",
+        "issue": "The card omits the introducing paper (arXiv:2406.12277) and the authors (Xin Zhao, Naoki Yoshinaga, Daisuke Oba) entirely. A clear, findable paper exists and should be cited.",
+        "row_id": "10",
+        "screen_claimed_ground_truth": "Paper: 'What Matters in Memorizing and Recalling Facts? Multifaceted Benchmarks for Knowledge Probing in Language Models', arXiv:2406.12277, EMNLP 2024 Findings. Authors: Xin Zhao, Naoki Yoshinaga, Daisuke Oba."
+      },
+      {
+        "card": "erqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/erqa.json",
+        "category": "wrong-paper",
+        "field": "benchmark_details.resources / paper",
+        "finding_index": "0",
+        "issue": "The card has no paper reference (paper_title: null), but ERQA has a clear introducing paper: arXiv:2503.20020 'Gemini Robotics: Bringing AI into the Physical World' by the Gemini Robotics Team at Google DeepMind (March 2025).",
+        "row_id": "11",
+        "screen_claimed_ground_truth": "arXiv:2503.20020 — 'Gemini Robotics: Bringing AI into the Physical World', Gemini Robotics Team, Google DeepMind, 2025"
+      },
+      {
+        "card": "erqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/erqa.json",
+        "category": "other",
+        "field": "benchmark_details.authors",
+        "finding_index": "1",
+        "issue": "Card lists authors as 'Not specified'. The benchmark was introduced by the Gemini Robotics Team at Google DeepMind.",
+        "row_id": "12",
+        "screen_claimed_ground_truth": "Gemini Robotics Team (Google DeepMind)"
+      },
+      {
+        "card": "humanevalfim-average",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/humanevalfim-average.json",
+        "category": "wrong-paper",
+        "field": "paper_resolver output (not the card itself)",
+        "finding_index": "7",
+        "issue": "The paper resolver suggested 'CodeGen: An Open Large Language Model for Code with Multi-Turn Program Synthesis' (arXiv:2203.13474) as the originating paper. This is wrong. The correct paper is Bavarian et al. (2022), arXiv:2207.14255. The card itself does not claim a paper, so the card is not wrong — but the resolver metadata is incorrect.",
+        "row_id": "13",
+        "screen_claimed_ground_truth": "arXiv:2207.14255 — 'Efficient Training of Language Models to Fill in the Middle' by Bavarian et al. (OpenAI, 2022)."
+      },
+      {
+        "card": "ace",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ace.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.similar_benchmarks",
+        "finding_index": "0",
+        "issue": "'SWEfficiency' and 'Personalens' are listed as similar benchmarks but are not verifiable as real, established benchmarks. SWE-bench, Dynabench, and JudgeLM are real; these two names appear to be hallucinated.",
+        "row_id": "14",
+        "screen_claimed_ground_truth": "The ACE paper cites SWE-bench (Jimenez et al., 2024) and related work but does not reference benchmarks named 'SWEfficiency' or 'Personalens'. These names are not traceable to any known benchmark."
+      },
+      {
+        "card": "ace",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ace.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.baseline_results / flagged_fields",
+        "finding_index": "1",
+        "issue": "The card's own flagged_fields incorrectly marks the baseline scores as 'not traceable to a retrieved source'. The arxiv abstract (2512.04921) explicitly states 'GPT 5 (Thinking = High) is the top-performing model, scoring 56.1%, followed by o3 Pro (Thinking = On) at 55.2% and GPT 5.1 (Thinking = High) at 55.1%' — exactly matching the card. The flag is a false positive that misrepresents the card's accuracy.",
+        "row_id": "15",
+        "screen_claimed_ground_truth": "arxiv:2512.04921 abstract directly states these scores. The card's baseline_results field is accurate as a paper snapshot."
+      },
+      {
+        "card": "ace",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ace.json",
+        "category": "other",
+        "field": "hf_repo (resources)",
+        "finding_index": "2",
+        "issue": "The HF verifier (hf-verification.json) rejected mercor/ACE as not matching the benchmark, but the card correctly lists it in resources. The repo mercor/ACE is confirmed as the ACE devset by Mercor's own communications. The verifier's rejection was a false negative based on the 'archipelago harness' framing mismatch, not a content mismatch. The card should not be penalized for correctly including this URL.",
+        "row_id": "16",
+        "screen_claimed_ground_truth": "huggingface.co/datasets/mercor/ACE is the official ACE devset, confirmed by Mercor tweet and HF page showing DIY/Food/Shopping/Gaming splits."
+      },
+      {
+        "card": "activitynet",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/activitynet.json",
+        "category": "fabricated-fact",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states 'Less than 1K examples' for the dataset size. The original ActivityNet (v1.0) has approximately 27,811 videos (203 classes × 137 avg videos/class), and v1.3 has ~20K videos. 'Less than 1K' is off by more than an order of magnitude and is factually wrong.",
+        "row_id": "17",
+        "screen_claimed_ground_truth": "ActivityNet v1.0 has ~27,811 videos (203 classes × avg 137 per class); v1.3 has ~19,994 videos (~648 hours). The dataset is tens of thousands of videos, not fewer than 1,000."
+      },
+      {
+        "card": "artifactsbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/artifactsbench.json",
+        "category": "fabricated-fact",
+        "field": "data.size_breakdown",
+        "finding_index": "0",
+        "issue": "Card labels 559/611/655 as train/validation/test splits. The paper explicitly states these are Easy/Medium/Hard difficulty levels (30%/40%/30% target), not dataset partitions. The HF dataset has only a single 'train' split containing all 1,825 rows.",
+        "row_id": "18",
+        "screen_claimed_ground_truth": "559/611/655 = Easy/Medium/Hard difficulty breakdown per arxiv.org/html/2507.04952v2: 'realized split 559/611/655, stable under leave-family-out resampling' referring to difficulty stratification. HF repo tencent/ArtifactsBenchmark has one split: train (1.83k rows)."
+      },
+      {
+        "card": "artifactsbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/artifactsbench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.authors",
+        "finding_index": "1",
+        "issue": "Multiple author names are garbled or incorrect: 'Dan Wu' (should be Dengpeng Wu), 'Qi Long Yi' (should be Qi Yi), 'Z. P. Xu' (should be Zenan Xu), 'Wu Zhou' (should be Wiggin Zhou), 'Guan-Hua Huang' (should be Guanhua Huang).",
+        "row_id": "19",
+        "screen_claimed_ground_truth": "Per arxiv.org/abs/2507.04952 author list: Dengpeng Wu, Guanhua Huang, Qi Yi, Zenan Xu, Wiggin Zhou, Chayse Zhou, Fengzong Lian."
+      },
+      {
+        "card": "assistantbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/assistantbench.json",
+        "category": "fabricated-fact",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states '284 examples' as the dataset size. The actual dataset has 214 tasks (confirmed by HuggingFace: 214 rows, validation=33, test=181). 284 is an invented number not matching any authoritative source.",
+        "row_id": "20",
+        "screen_claimed_ground_truth": "214 tasks total (33 validation + 181 test), as confirmed by the HuggingFace dataset page and the paper abstract."
+      },
+      {
+        "card": "assistantbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/assistantbench.json",
+        "category": "fabricated-fact",
+        "field": "data.size_breakdown",
+        "finding_index": "1",
+        "issue": "Card claims expanded set = 172 tasks. The paper explicitly states 'an additional 102 tasks' were collected via the crowdworker expansion step. The card's breakdown (70+172+42=284) is internally consistent with the wrong total but contradicts the paper. The correct breakdown is approximately seed=70, expanded=102, expert=42 = 214.",
+        "row_id": "21",
+        "screen_claimed_ground_truth": "Paper (arXiv:2407.15711v1 HTML) states the expanded set yielded 102 additional tasks, not 172."
+      },
+      {
+        "card": "assistantbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/assistantbench.json",
+        "category": "wrong-section-splice",
+        "field": "data.source",
+        "finding_index": "2",
+        "issue": "Card states the seed set was collected from '35 participants recruited via the Prolific crowdsourcing platform.' In the paper, the 35 Prolific participants were recruited for the EXPERT set (domain experts), not the seed set. The seed set used 18 participants with direct contact (not via Prolific).",
+        "row_id": "22",
+        "screen_claimed_ground_truth": "Paper (arXiv:2407.15711v2): 35 Prolific participants were for the expert/domain-expert set. The seed set used 18 participants recruited via direct contact."
+      },
+      {
+        "card": "finqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/finqa.json",
+        "category": "fabricated-fact",
+        "field": "data.source",
+        "finding_index": "0",
+        "issue": "The card states 'The dataset originates from the Spider project, a large-scale human-labeled dataset for complex and cross-domain semantic parsing and text-to-SQL tasks. It was created by Tao Yu, Rui Zhang, Kai Yang, and colleagues.' This is entirely fabricated. FinQA has no connection to Spider. Spider is a text-to-SQL dataset; FinQA data comes from earnings reports of S&P 500 companies, annotated by 11 finance professionals.",
+        "row_id": "23",
+        "screen_claimed_ground_truth": "FinQA data is sourced from earnings reports of S&P 500 companies. Eleven finance professionals collectively constructed FinQA by writing QA pairs over these financial reports. No connection to the Spider project exists."
+      },
+      {
+        "card": "gdm-intercode-ctf",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/gdm-intercode-ctf.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results / methodology.interpretation",
+        "finding_index": "0",
+        "issue": "Card claims claude-opus-4-5-20251101 scored 0.936 and gpt-5.1-2025-11-13 scored 0.897. The EEE data from the same inspect_evals source shows the top performer is claude-3-7-sonnet-20250219 at 0.8734. These specific scores are not traceable to any verified source and contradict the EEE evaluation data.",
+        "row_id": "24",
+        "screen_claimed_ground_truth": "EEE data shows top performer is anthropic/claude-3-7-sonnet-20250219 at 0.8734 accuracy; mean across 8 models is 0.6456. The model names appear in inspect_evals run-command examples but the scores 0.936 and 0.897 are unverified."
+      },
+      {
+        "card": "gdm-intercode-ctf",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/gdm-intercode-ctf.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.calculation",
+        "finding_index": "1",
+        "issue": "Card applies IoU/Jaccard Index and 'correct file paths are changed' description to the CTF evaluation. These metrics belong to the Bash task in the broader InterCode framework, not the CTF subset. CTF uses binary accuracy: flag string found or not.",
+        "row_id": "25",
+        "screen_claimed_ground_truth": "For gdm_intercode_ctf, a simple accuracy is calculated: 1 if the correct picoCTF{...} flag is found, 0 otherwise. IoU/Jaccard is used for Bash/SQL tasks in the broader InterCode framework, not CTF."
+      },
+      {
+        "card": "ifbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ifbench.json",
+        "category": "fabricated-fact",
+        "field": "data.source",
+        "finding_index": "0",
+        "issue": "Card states '162,966 bytes of data' for the HF dataset. The HF dataset page for allenai/IFBench_test shows 94.4 kB (~94,400 bytes) for the auto-converted Parquet files — a significantly different and unverifiable number.",
+        "row_id": "26",
+        "screen_claimed_ground_truth": "HF dataset allenai/IFBench_test: 94.4 kB (Parquet), 300 rows."
+      },
+      {
+        "card": "ifbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ifbench.json",
+        "category": "thin",
+        "field": "benchmark_details.authors / paper",
+        "finding_index": "1",
+        "issue": "Card lists authors as 'Not specified' and provides no paper reference, despite a clear, citable paper existing: 'Generalizing Verifiable Instruction Following' by Valentina Pyatkin et al., arxiv 2507.02833, NeurIPS 2025.",
+        "row_id": "27",
+        "screen_claimed_ground_truth": "Authors: Valentina Pyatkin, Saumya Malik, Victoria Graf, Hamish Ivison, Shengyi Huang, Pradeep Dasigi, Nathan Lambert, Hannaneh Hajishirzi. Arxiv: 2507.02833."
+      },
+      {
+        "card": "ifbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ifbench.json",
+        "category": "thin",
+        "field": "benchmark_details.org_url",
+        "finding_index": "2",
+        "issue": "Organization listed as 'Not specified'. IFBench was introduced by the Allen Institute for AI (Ai2), hosted under the 'allenai' HF organization.",
+        "row_id": "28",
+        "screen_claimed_ground_truth": "Allen Institute for AI (Ai2), https://allenai.org"
+      },
+      {
+        "card": "math",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/math.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.resources",
+        "finding_index": "0",
+        "issue": "The card lists 'https://github.com/hendrycks/apps' as a resource for the MATH dataset. That URL is the GitHub repository for the APPS benchmark (Measuring Coding Challenge Competence With the APPS Benchmark), a completely different benchmark by the same first author. The correct MATH dataset GitHub is https://github.com/hendrycks/math.",
+        "row_id": "29",
+        "screen_claimed_ground_truth": "The MATH dataset GitHub repository is https://github.com/hendrycks/math, not https://github.com/hendrycks/apps (which is the APPS coding benchmark)."
+      },
+      {
+        "card": "math",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/math.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.domains",
+        "finding_index": "1",
+        "issue": "The card lists only ['geometry'] as the domain, but MATH covers seven mathematical subjects: Prealgebra, Algebra, Number Theory, Counting and Probability, Geometry, Intermediate Algebra, and Precalculus. Listing only geometry is severely incomplete and misleading.",
+        "row_id": "30",
+        "screen_claimed_ground_truth": "MATH spans seven subjects: Prealgebra, Algebra, Number Theory, Counting and Probability, Geometry, Intermediate Algebra, and Precalculus."
+      },
+      {
+        "card": "mme",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mme.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Card lists 'Z. Qiu' and 'Wei Lin' as authors. Neither name appears in any version (v1–v5) of arxiv:2306.13394. 'Z. Qiu' is entirely absent from the paper; 'Wei Lin' appears to be a confusion with 'Xu Lin' (who is a real author). These are fabricated/hallucinated author names.",
+        "row_id": "31",
+        "screen_claimed_ground_truth": "The actual authors across all versions are: Chaoyou Fu, Peixian Chen, Yunhang Shen, Yulei Qin, Mengdan Zhang, Xu Lin, Jinrui Yang, Xiawu Zheng, Ke Li, Xing Sun, Yunsheng Wu, Rongrong Ji (v3+), Caifeng Shan, Ran He (v5). No 'Z. Qiu' or 'Wei Lin' in any version."
+      },
+      {
+        "card": "mme-realworld",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mme-realworld.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.languages",
+        "finding_index": "0",
+        "issue": "Card lists only 'English' as the language. The benchmark explicitly includes a Chinese-language component (MME-RealWorld-CN) with 5,917 QA pairs covering Chinese scenarios annotated by Chinese volunteers. The card itself flags this field with a factuality score of 0.00.",
+        "row_id": "32",
+        "screen_claimed_ground_truth": "English and Chinese. MME-RealWorld-CN is a dedicated Chinese subset with 5,917 QA pairs built from Chinese-scenario images annotated by Chinese volunteers, not a translation."
+      },
+      {
+        "card": "mme-realworld",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mme-realworld.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results",
+        "finding_index": "1",
+        "issue": "Card states 'Even the most advanced models struggle with this benchmark; none reach 60% accuracy.' This is factually wrong: as of November 2024, Awaker2.5-VL-10B by Metabrain AGI achieved 60.8% on the leaderboard, explicitly described as 'the first model with 10 billion parameters to achieve a passing performance (60.8%)'.",
+        "row_id": "33",
+        "screen_claimed_ground_truth": "As of November 2024, Awaker2.5-VL-10B achieved 60.8%, surpassing the 60% threshold. The claim that no model reaches 60% was true at initial publication but is now outdated and incorrect."
+      },
+      {
+        "card": "mme-realworld",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mme-realworld.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.similar_benchmarks",
+        "finding_index": "2",
+        "issue": "'TorchStone' is listed as a similar benchmark alongside MME, MMbench, MMStar, and MM-Vet. No evidence of a multimodal LLM benchmark called 'TorchStone' could be found in any web source. The other four benchmarks are real and well-known.",
+        "row_id": "34",
+        "screen_claimed_ground_truth": "MME, MMbench, MMStar, and MM-Vet are all real multimodal benchmarks. 'TorchStone' does not appear to be a real benchmark in this space and is likely fabricated."
+      },
+      {
+        "card": "perceptiontest",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/perceptiontest.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Card lists 'Yezhou Yang' as an author. The actual author is 'Yi Yang'. Yezhou Yang is a different researcher (Arizona State University) who is not an author of this paper. This is a fabricated/substituted author name.",
+        "row_id": "35",
+        "screen_claimed_ground_truth": "The correct author is 'Yi Yang' per the official GitHub citation (google-deepmind/perception_test), the arxiv abstract, and the Google DeepMind blog post."
+      },
+      {
+        "card": "perceptiontest",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/perceptiontest.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.resources[0]",
+        "finding_index": "1",
+        "issue": "The GitHub URL is listed as 'https://github.com/' (bare domain, no path), which is not a valid resource link. The actual GitHub repository is https://github.com/google-deepmind/perception_test.",
+        "row_id": "36",
+        "screen_claimed_ground_truth": "Official GitHub: https://github.com/google-deepmind/perception_test"
+      },
+      {
+        "card": "probe",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/probe.json",
+        "category": "fabricated-fact",
+        "field": "methodology.metrics / overview",
+        "finding_index": "0",
+        "issue": "The card refers to the compositional sub-dataset as 'Probe-C' (e.g., 'From the Probe-C dataset, this metric measures model accuracy in correctly matching two images with swapped attributes'). The actual paper (arxiv 2304.03659) names the three sub-datasets Probe-R, Probe-A, and Probe-B — there is no 'Probe-C'. The compositional/attribute sub-dataset is Probe-A.",
+        "row_id": "37",
+        "screen_claimed_ground_truth": "The paper proposes Probe-R (relational), Probe-A (compositional/attribute), and Probe-B (contextual). 'Probe-C' does not exist in the paper."
+      },
+      {
+        "card": "probe",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/probe.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.data_type",
+        "finding_index": "1",
+        "issue": "The card lists data_type as 'text', but the Probe benchmark is a multimodal (vision+language) benchmark that requires image-text matching. It evaluates V+L models on images paired with text prompts.",
+        "row_id": "38",
+        "screen_claimed_ground_truth": "Probe is a multimodal benchmark for visual-language models, involving both images and text. Data type should be 'image+text' or 'multimodal'."
+      },
+      {
+        "card": "probe",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/probe.json",
+        "category": "other",
+        "field": "benchmark_details.authors",
+        "finding_index": "2",
+        "issue": "Authors are listed as 'Not specified', but the paper has 7 named authors: Madeline Schiappa, Raiyaan Abdullah, Shehreen Azad, Jared Claypoole, Michael Cogswell, Ajay Divakaran, Yogesh Rawat.",
+        "row_id": "39",
+        "screen_claimed_ground_truth": "Authors: Madeline Schiappa, Raiyaan Abdullah, Shehreen Azad, Jared Claypoole, Michael Cogswell, Ajay Divakaran, Yogesh Rawat (University of Central Florida and SRI International)."
+      },
+      {
+        "card": "repobench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/repobench.json",
+        "category": "fabricated-fact",
+        "field": "methodology.human_baseline",
+        "finding_index": "0",
+        "issue": "Card states 'The Gold-Only condition serves as a human baseline.' This is factually wrong. Gold-Only is an oracle/reference retrieval strategy using ground-truth gold snippets, not a human baseline. The paper explicitly states these strategies 'serve only as references; they do not embody oracle capabilities.' RepoBench has no human baseline.",
+        "row_id": "40",
+        "screen_claimed_ground_truth": "Gold-Only is a reference/oracle retrieval strategy in RepoBench-P, not a human baseline. The paper (Table 4) labels it with an asterisk noting it 'serve[s] only as references.' No human baseline exists in RepoBench."
+      },
+      {
+        "card": "repobench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/repobench.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "1",
+        "issue": "The metrics field is listed as 'Not specified,' yet the benchmark has well-documented metrics: Exact Match (EM) and Edit Similarity (ES) for code completion tasks (RepoBench-C and RepoBench-P), and Accuracy@k (acc@1, acc@3, acc@5) for retrieval (RepoBench-R). The methods field partially captures this but the metrics field is left blank.",
+        "row_id": "41",
+        "screen_claimed_ground_truth": "Primary metrics are Exact Match (EM) and Edit Similarity (ES) for completion tasks; Accuracy@k (acc@1, acc@3, acc@5) for retrieval tasks."
+      },
+      {
+        "card": "seal-0",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/seal-0.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results",
+        "finding_index": "0",
+        "issue": "Card states 'QWEN3-235B-A22B fail to generalize on SEAL-0, scoring 0.0%'. The paper table shows Qwen3-235B-A22B scores 0.0% WITHOUT search but 5.4% WITH search on SEAL-0. The card presents only the w/o-search number as the model's overall score, which is misleading and factually wrong for the agentic (w/ search) evaluation condition.",
+        "row_id": "42",
+        "screen_claimed_ground_truth": "Qwen3-235B-A22B: 0.0% w/o search, 5.4% w/ search on SEAL-0 (arxiv.org/html/2506.01062 Table 1)"
+      },
+      {
+        "card": "seal-0",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/seal-0.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results",
+        "finding_index": "1",
+        "issue": "Card states 'DeepSeek-R1-Distill-Qwen shows negligible improvement from 1.5B to 14B (0.0% to 0.9%)'. The paper shows DeepSeek-R1-Distill-Qwen-1.5B scores 2.7% WITH search on SEAL-0, not 0.0%. The 0.0% figure is only for the w/o-search condition. The framing of 'negligible improvement' is also contradicted by the actual numbers.",
+        "row_id": "43",
+        "screen_claimed_ground_truth": "DeepSeek-R1-Distill-Qwen-1.5B: 0.0% w/o search, 2.7% w/ search on SEAL-0 (arxiv.org/html/2506.01062 Table 1)"
+      },
+      {
+        "card": "seal-0",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/seal-0.json",
+        "category": "wrong-section-splice",
+        "field": "data.size",
+        "finding_index": "2",
+        "issue": "Card marks size as 'Not specified'. SEAL-0 has 111 questions, verifiable from the canonical HF dataset vtllms/sealqa.",
+        "row_id": "44",
+        "screen_claimed_ground_truth": "SEAL-0 has 111 questions (huggingface.co/datasets/vtllms/sealqa)"
+      },
+      {
+        "card": "seal-0",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/seal-0.json",
+        "category": "other",
+        "field": "hf_repo_assessment",
+        "finding_index": "3",
+        "issue": "Card does not mention the canonical HuggingFace dataset vtllms/sealqa, which is publicly available and widely used.",
+        "row_id": "45",
+        "screen_claimed_ground_truth": "HF dataset: vtllms/sealqa, Apache-2.0 license, 111 rows for seal_0 split (huggingface.co/datasets/vtllms/sealqa)"
+      },
+      {
+        "card": "sifo",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/sifo.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.name / benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The card expands 'SIFO' as 'Simple Instruction Following' and describes it as evaluating 'simple, explicit instructions.' The correct expansion is 'Sequential Instruction Following' — the benchmark specifically targets multi-step sequential instruction following, not simple instructions. This misrepresents the core concept of the benchmark.",
+        "row_id": "46",
+        "screen_claimed_ground_truth": "SIFo = Sequential Instruction Following. From arXiv:2406.19999 and ACL Anthology: 'The SIFo Benchmark: Investigating the Sequential Instruction Following Ability of Large Language Models.' The benchmark evaluates models' ability to follow multiple instructions sequentially."
+      },
+      {
+        "card": "vl-checklist",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vl-checklist.json",
+        "category": "fabricated-fact",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states dataset size is '2000'. This is not the actual dataset size; it is the MAX_NUM configuration parameter in the YAML config file (a per-run evaluation cap). The actual corpora sizes per Table 1 of the paper are VG=108K, VAW=72K, HAKE=104K, SWiG=126K (~410K total). The card's own flagged_fields section correctly flags this as a probable hallucination.",
+        "row_id": "47",
+        "screen_claimed_ground_truth": "VG: 108K, VAW: 72K, HAKE: 104K, SWiG: 126K (total ~410K samples across four corpora). The '2000' figure is a MAX_NUM config parameter, not the dataset size."
+      },
+      {
+        "card": "vl-checklist",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vl-checklist.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.resources / paper title (paper-verification metadata)",
+        "finding_index": "1",
+        "issue": "The paper_resolver metadata records the paper title as 'VL-CheckList: Evaluating Pre-trained Vision-Language Models via Fine-Grained Visual Understanding', which is incorrect. The actual paper title is 'VL-CheckList: Evaluating Pre-trained Vision-Language Models with Objects, Attributes and Relations'. The arxiv URL (2207.00221) is correct.",
+        "row_id": "48",
+        "screen_claimed_ground_truth": "Actual title: 'VL-CheckList: Evaluating Pre-trained Vision-Language Models with Objects, Attributes and Relations' (arxiv:2207.00221, EMNLP 2022 System Demonstrations)"
+      },
+      {
+        "card": "vl-checklist",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vl-checklist.json",
+        "category": "fabricated-fact",
+        "field": "eee.top_performers / evaluation_summary",
+        "finding_index": "2",
+        "issue": "The EEE file lists ALBEF (score 75.62) as the sole top performer and only model evaluated. However, the paper evaluates 7 VLP models (ViLT, ALBEF, TCL, UNITER, OSCAR, LXMERT, CLIP) and explicitly states 'The ViLT achieved the best score overall.' ALBEF is not the top performer per the paper.",
+        "row_id": "49",
+        "screen_claimed_ground_truth": "Seven models evaluated: ViLT, ALBEF, TCL, UNITER, OSCAR, LXMERT, CLIP. ViLT achieved the best overall score per Table 2 of the paper."
+      },
+      {
+        "card": "vqa-rad",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vqa-rad.json",
+        "category": "fabricated-fact",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states '2106 examples' as the dataset size. This number does not correspond to any known count for VQA-RAD: not the total QA pairs (3,515), not the HF repo total (2,248), not the cleaned total (2,244), not the train split (~1,793), and not the test split (451). The number 2106 is unverifiable and appears to be fabricated.",
+        "row_id": "50",
+        "screen_claimed_ground_truth": "Total dataset: 3,515 QA pairs on 315 images. HF repo (flaviagiammarino/vqa-rad) contains 2,248 QA pairs; after dropping 4 duplicate/overlapping triplets, 2,244 QA pairs on 314 images. Train split: ~1,793 QA pairs; test split: 451 QA pairs."
+      },
+      {
+        "card": "vqa-rad",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vqa-rad.json",
+        "category": "fabricated-fact",
+        "field": "data.size_breakdown.Images",
+        "finding_index": "1",
+        "issue": "Card states 313 images in the size breakdown. Ground truth is 314 images (after dropping 4 triplets from the training set, per the HF repo README) or 315 images total. 313 does not match any documented figure.",
+        "row_id": "51",
+        "screen_claimed_ground_truth": "315 images total; 314 images referenced by at least one QA pair after deduplication (per flaviagiammarino/vqa-rad HF repo)."
+      },
+      {
+        "card": "androidworld",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/androidworld.json",
+        "category": "fabricated-fact",
+        "field": "data.collection_date",
+        "finding_index": "0",
+        "issue": "The card states 'October 15 2023' as the collection date. The paper was submitted May 23, 2024, and no source corroborates this specific date. It appears to be a hallucinated/fabricated value.",
+        "row_id": "52",
+        "screen_claimed_ground_truth": "No specific collection date is stated in the paper. The paper was submitted to arxiv on May 23, 2024 and published at ICLR 2025. 'October 15 2023' is unverifiable and likely fabricated."
+      },
+      {
+        "card": "bigcodebench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/bigcodebench.json",
+        "category": "fabricated-fact",
+        "field": "data.size_breakdown[\"# 3rd Party Function Call\"]",
+        "finding_index": "0",
+        "issue": "Card states '# 3rd Party Function Call': 116, but the paper (arxiv:2406.15877, Table 1) clearly states 442 function calls from 62 external libraries. The number 116 is not traceable to any published figure.",
+        "row_id": "53",
+        "screen_claimed_ground_truth": "442 function calls from 62 external (3rd-party) libraries, per the paper: '281 function calls from 77 standard libraries and 442 from 62 external libraries' (total 723)."
+      },
+      {
+        "card": "boolq",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/boolq.json",
+        "category": "fabricated-fact",
+        "field": "data.source",
+        "finding_index": "0",
+        "issue": "Card claims 'An additional 3,000 questions with yes/no answers from the Natural Questions training set were added to reach a total of 16,000 questions.' The paper uses the NQ data-collection *pipeline* (methodology), not NQ questions themselves. No such 3,000-question addition from NQ is described in the paper. The total is 15,942, not 16,000.",
+        "row_id": "54",
+        "screen_claimed_ground_truth": "BoolQ contains 15,942 examples gathered via the NQ pipeline from anonymized, aggregated Google search queries filtered for yes/no questions, paired with Wikipedia paragraphs. No separate batch of 3,000 NQ questions was added."
+      },
+      {
+        "card": "boolq",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/boolq.json",
+        "category": "wrong-section-splice",
+        "field": "data.size",
+        "finding_index": "1",
+        "issue": "Card states '16,000 questions' in data.size, contradicting the correct figure of 15,942 stated in the overview.",
+        "row_id": "55",
+        "screen_claimed_ground_truth": "BoolQ contains exactly 15,942 examples (train: 9,427; dev: 3,270; test: 3,245)."
+      },
+      {
+        "card": "boolq",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/boolq.json",
+        "category": "wrong-section-splice",
+        "field": "data.size_breakdown",
+        "finding_index": "2",
+        "issue": "Card reports dev:3200, test:3200, train:9400. All three splits are incorrect (rounded/wrong).",
+        "row_id": "56",
+        "screen_claimed_ground_truth": "train: 9,427; dev: 3,270; test: 3,245 (per GitHub repo google-research-datasets/boolean-questions and HELM documentation)."
+      },
+      {
+        "card": "browsecomp",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/browsecomp.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Author listed as 'Jeffrey S. Han' — the actual author has no middle initial; the 'S.' is fabricated. Additionally, 'J. Wei' should be 'Jason Wei' and 'McKinney, Scott' has reversed name order.",
+        "row_id": "57",
+        "screen_claimed_ground_truth": "Actual authors per arxiv 2504.12516: Jason Wei, Zhiqing Sun, Spencer Papay, Scott McKinney, Jeffrey Han, Isa Fulford, Hyung Won Chung, Alex Tachard Passos, William Fedus, Amelia Glaese"
+      },
+      {
+        "card": "browsecomp",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/browsecomp.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.baseline_results",
+        "finding_index": "1",
+        "issue": "The baseline_results field contains a GitHub repository maintenance notice ('We will not be actively maintaining this repository and monitoring PRs and Issues.') instead of actual baseline performance results.",
+        "row_id": "58",
+        "screen_claimed_ground_truth": "This field should describe baseline model performance results. The maintenance notice belongs to the GitHub repo README, not to a baseline results description."
+      },
+      {
+        "card": "core-bench-hard",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/core-bench-hard.json",
+        "category": "fabricated-fact",
+        "field": "methodology.calculation",
+        "finding_index": "0",
+        "issue": "Card states 'the pass@3 accuracy was 31.1%' for CORE-Agent with GPT-4o on CORE-Bench-Hard. This number does not appear anywhere in the paper. The paper reports pass∧3 (all k trials successful) = 8.89%, and pass@3 (at least one success) is not stated as 31.1% in any table or figure.",
+        "row_id": "59",
+        "screen_claimed_ground_truth": "Per arxiv:2409.11363, pass∧1 = 22.22% and pass∧3 = 8.89% for CORE-Agent with GPT-4o on CORE-Bench-Hard. No 31.1% figure appears in the paper."
+      },
+      {
+        "card": "corpusqa-1m",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/corpusqa-1m.json",
+        "category": "fabricated-fact",
+        "field": "data.size_breakdown",
+        "finding_index": "0",
+        "issue": "The card claims 12 instances per context length (128k, 1M, 4M, 10M) as the benchmark size breakdown. In reality, the full benchmark contains 1,316 test instances total. The '12 per scale' figure refers exclusively to the human study subset (Table 5 of the paper), not the full benchmark size.",
+        "row_id": "60",
+        "screen_claimed_ground_truth": "CorpusQA contains 1,316 test instances total across four context lengths (128K, 1M, 4M, 10M). The 12 QA pairs per scale is only the human evaluation subset."
+      },
+      {
+        "card": "corpusqa-1m",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/corpusqa-1m.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.domains",
+        "finding_index": "1",
+        "issue": "Card lists only 'finance' and 'academia' as domains. The actual benchmark covers finance (financial_en, financial_zh), education (education_en), and real estate (real_estate_en). 'Academia' is not a domain name used in the paper.",
+        "row_id": "61",
+        "screen_claimed_ground_truth": "Domains are finance, education, and real estate (per GitHub repo and paper: financial_en, financial_zh, education_en, real_estate_en)."
+      },
+      {
+        "card": "extremelandmarkpairs",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/extremelandmarkpairs.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview / methodology.metrics",
+        "finding_index": "0",
+        "issue": "The card describes ExtremeLandmarkPairs as 'Median Geodesic Error (MGE) on the StreetLearn dataset, consisting of images cropped from panoramas' and calls it a 'more constrained, synthetic-style dataset commonly used in prior work.' This conflates ELP with the StreetLearn evaluation (Table 3 in the paper), which is a secondary comparison baseline. The actual ELP dataset is constructed from real Internet photo collections (MegaDepth, Cambridge Landmarks, MegaScenes), not StreetLearn panoramas.",
+        "row_id": "62",
+        "screen_claimed_ground_truth": "ExtremeLandmarkPairs is built from MegaDepth, Cambridge Landmarks, and MegaScenes Internet image collections. The StreetLearn evaluation is a separate, secondary evaluation in the paper used to compare against prior work that used panoramic crops."
+      },
+      {
+        "card": "extremelandmarkpairs",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/extremelandmarkpairs.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results / methodology.interpretation",
+        "finding_index": "1",
+        "issue": "The card reports 8PointViT scoring 101.51 on 'Rotation Estimation on StreetLearn Panoramas (None Overlap)'. The paper explicitly states that 8PointViT is only evaluated on overlapping settings (not None overlap), as it requires feature correspondence. Furthermore, the EEE data itself lists max_score as 100.0, yet reports 101.51 — a score that exceeds the stated maximum, indicating a data error. Reporting 8PointViT on None overlap is contradicted by the paper.",
+        "row_id": "63",
+        "screen_claimed_ground_truth": "Per arXiv:2411.07096 HTML version: '8PointViT...we only report results over overlapping settings for this baseline.' 8PointViT is not evaluated on None overlap in the paper. A score of 101.51 exceeding the 100-degree maximum is also anomalous."
+      },
+      {
+        "card": "fleurs",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/fleurs.json",
+        "category": "fabricated-fact",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states '100K to 1M examples', but the official HuggingFace dataset card for google/fleurs lists the size category as '10K<n<100K'. The dataset has ~2009 sentences × ~102 languages × ~2.3 recordings = ~470K audio files total across all language subsets, but per-language subsets are 10K–100K range and the HF metadata explicitly says 10K<n<100K.",
+        "row_id": "64",
+        "screen_claimed_ground_truth": "HuggingFace dataset card for google/fleurs lists size_categories as '10K<n<100K' (confirmed at https://huggingface.co/datasets/google/fleurs and https://huggingface.co/datasets/google/fleurs/blob/main/README.md)"
+      },
+      {
+        "card": "fleurs",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/fleurs.json",
+        "category": "fabricated-fact",
+        "field": "methodology.judge_uses_llm",
+        "finding_index": "1",
+        "issue": "Card sets judge_uses_llm=true. FLEURS is a speech benchmark evaluated with objective metrics (CER, WER, P@1 for retrieval). There is no LLM judge involved in FLEURS evaluation. This field is incorrectly set.",
+        "row_id": "65",
+        "screen_claimed_ground_truth": "FLEURS uses CER/WER for ASR, accuracy for LangID, and P@1 for retrieval tasks. No LLM judge is used. The paper (arxiv:2205.12446) describes mSLAM-based baselines evaluated with these objective metrics."
+      },
+      {
+        "card": "livebench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/livebench.json",
+        "category": "fabricated-fact",
+        "field": "methodology.calculation",
+        "finding_index": "0",
+        "issue": "Card states 'The final score is the average of two components, scaled to lie between 0 and 1.' The paper describes a three-level averaging: per question (0–1) → per task → per category (six categories) → final LiveBench score. There are no 'two components'; this description is invented.",
+        "row_id": "66",
+        "screen_claimed_ground_truth": "Per the paper (arxiv 2406.19314): each question scored 0–1, averaged per task, averaged per category (six categories: math, coding, reasoning, language, instruction following, data analysis), then averaged across all categories for the final LiveBench score."
+      },
+      {
+        "card": "livebench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/livebench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.authors",
+        "finding_index": "1",
+        "issue": "The card lists 'Abacus.AI', 'Nyu', and 'Nvidia' as authors. These are institutional affiliations, not individual authors. The actual author list (per arxiv) is: Colin White, Samuel Dooley, Manley Roberts, Arka Pal, Ben Feuer, Siddhartha Jain, Ravid Shwartz-Ziv, Neel Jain, Khalid Saifullah, Siddartha Naidu, Chinmay Hegde, Yann LeCun, Tom Goldstein, Willie Neiswanger, Micah Goldblum (plus additional authors in later versions).",
+        "row_id": "67",
+        "screen_claimed_ground_truth": "Affiliations (Abacus.AI, NYU, Nvidia) were spliced into the author list. They are not authors."
+      },
+      {
+        "card": "swe-bench-multimodal",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/swe-bench-multimodal.json",
+        "category": "fabricated-fact",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Author listed as 'Carlos Jimenez-Gomez' — the surname 'Gomez' is fabricated. The actual author is 'Carlos E. Jimenez' ([redacted email], Princeton NLP).",
+        "row_id": "68",
+        "screen_claimed_ground_truth": "Carlos E. Jimenez (as listed on arxiv 2410.03859 and swebench.com citation)"
+      },
+      {
+        "card": "swe-bench-multimodal",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/swe-bench-multimodal.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.data_type",
+        "finding_index": "1",
+        "issue": "data_type is set to 'text', but SWE-bench Multimodal is explicitly a multimodal benchmark requiring visual inputs (screenshots, UI mockups, diagrams). This is the defining characteristic of the benchmark.",
+        "row_id": "69",
+        "screen_claimed_ground_truth": "Multimodal (text + images); the benchmark filters exclusively for task instances containing at least one image in the problem statement or unit tests"
+      },
+      {
+        "card": "tlp",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/tlp.json",
+        "category": "fabricated-fact",
+        "field": "methodology.baseline_results / methodology.interpretation",
+        "finding_index": "0",
+        "issue": "Card states 'MDNet is the only algorithm achieving more than 25% on the AUC measure of success plots.' This is wrong: SiamFC achieves 27.6% on the success rate (IoU>0.5) metric, also exceeding 25%. Additionally, the numbers cited (CREST=24.9, Staple=13.1, GOTURN=22.0, DSST=8.8) are success rate (IoU>0.5) values from the paper, not AUC values — the card conflates the two distinct metrics.",
+        "row_id": "70",
+        "screen_claimed_ground_truth": "From the paper's success rate (IoU>0.5) table on TLP: MDNet=42.1, SiamFC=27.6, CREST=24.9, ADNet=22.1, GOTURN=22.0, ECO=21.8, Staple=13.1, DSST=8.8. MDNet's AUC on TLP is 36.9%. SiamFC (27.6%) also exceeds 25% in success rate, so MDNet is NOT the only tracker above 25%."
+      },
+      {
+        "card": "tlp",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/tlp.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.interpretation",
+        "finding_index": "1",
+        "issue": "Card says 'MDNet achieved the highest success AUC (over 25%)' — while technically true, it is misleadingly understated. MDNet's actual AUC on TLP is 36.9%, not merely 'over 25%'. The card appears to confuse the AUC metric with the success rate (IoU>0.5) threshold metric.",
+        "row_id": "71",
+        "screen_claimed_ground_truth": "MDNet AUC on TLP = 36.9% (per arxiv PDF of 1712.01358). The 'over 25%' framing is a significant understatement and conflation with the success rate metric."
+      },
+      {
+        "card": "arena-hard",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/arena-hard.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.judge_models",
+        "finding_index": "0",
+        "issue": "Card lists judge_models as ['GPT-4-Turbo', 'Gemini-1.5-Pro'] (the v0.1 judges from the original paper), while the card's own overview and the current benchmark (v2.0) use GPT-4.1 and Gemini-2.5. The judge_score_consolidation text also references the v0.1 judges. This creates an internal inconsistency: the overview reflects v2.0 but the methodology section reflects v0.1.",
+        "row_id": "72",
+        "screen_claimed_ground_truth": "Arena-Hard-v0.1 (original paper) used GPT-4-Turbo and Gemini-1.5-Pro as ensemble judges. Arena-Hard-v2.0 (current, released April 2025) uses GPT-4.1 and Gemini-2.5 as judges. The card mixes both versions."
+      },
+      {
+        "card": "churro-ds",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/churro-ds.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "0",
+        "issue": "Card lists ['Accuracy'] as the metric. The actual metric is normalized Levenshtein similarity (character-level edit distance normalized by the longer string, converted to a 0–100 similarity score). The card's own overview and calculation sections correctly describe Levenshtein similarity, and the card's flagged_fields already notes low factual alignment for this field, but the metrics array itself is wrong.",
+        "row_id": "73",
+        "screen_claimed_ground_truth": "Metric is 'Average Normalized Levenshtein Similarity', not 'Accuracy'. See arxiv.org/html/2509.19768v1 and the EEE metric description."
+      },
+      {
+        "card": "churro-ds",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/churro-ds.json",
+        "category": "other",
+        "field": "hf_repo / existing_hf_repo",
+        "finding_index": "1",
+        "issue": "The EEE data records existing_hf_repo = null, but a HuggingFace dataset repository (stanford-oval/churro-dataset) exists and is publicly accessible.",
+        "row_id": "74",
+        "screen_claimed_ground_truth": "HF dataset repo: https://huggingface.co/datasets/stanford-oval/churro-dataset"
+      },
+      {
+        "card": "healthbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/healthbench.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "0",
+        "issue": "The card lists 'F1' and 'recall' as the primary benchmark metrics. In reality, the primary HealthBench score is a weighted sum of rubric criteria met divided by the maximum possible score (a normalized percentage). Macro F1 (MF1) and recall are used only in the meta-evaluation to assess the quality of the model-based grader (GPT-4.1) against physician grading — they are not the benchmark's primary scoring metric for model evaluation.",
+        "row_id": "75",
+        "screen_claimed_ground_truth": "Per arxiv:2505.08775 and openai.com/index/healthbench: 'responses receive an overall score based on the total score of criteria met compared to the maximum possible score.' MF1 is only used in the grader meta-evaluation section."
+      },
+      {
+        "card": "healthbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/healthbench.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.calculation",
+        "finding_index": "1",
+        "issue": "The card describes 'Macro F1 (MF1)' as the main score calculation method, treating grading as binary classification (met/not-met) for the benchmark score. This conflates the meta-evaluation metric (MF1 for grader quality) with the actual benchmark scoring (weighted rubric sum / max possible score).",
+        "row_id": "76",
+        "screen_claimed_ground_truth": "The benchmark score is: sum of point values for criteria met (including negative penalties) divided by maximum possible score per example, then averaged across examples. MF1 is only used to evaluate the grader's agreement with physicians."
+      },
+      {
+        "card": "humaneval-nfr",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/humaneval-nfr.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.baseline_results / methodology.interpretation",
+        "finding_index": "0",
+        "issue": "The baseline_results and interpretation fields present CodeContests Pass@1 metrics (mean=14.26, ARCHCODE=16.52, ALGO=12.0) from Table 3 of the ArchCode paper, but the card's own overview states it covers HumanEval-NFR results from Table 2. The EEE primary metric is 'codecontests_code_generation_accuracy_pass_1', not a HumanEval-NFR metric. The baseline data belongs to a different benchmark (CodeContests) than the one the card describes.",
+        "row_id": "77",
+        "screen_claimed_ground_truth": "HumanEval-NFR results are in Table 2 of arxiv 2408.00994. CodeContests results (Table 3) are for a different benchmark. The baseline_results section should reflect HumanEval-NFR scores, not CodeContests scores."
+      },
+      {
+        "card": "journeybench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/journeybench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The overview describes 'Recall@1 score for the Image-to-Text retrieval task' — this is the description of the secondary EEE metric (journeybench_text_retrieval_image_to_text_with_distractors). The primary metric tracked by EEE is Text-to-Image retrieval (journeybench_image_retrieval_text_to_image_with_distractors). The overview text was copied from the secondary metric description instead of the primary.",
+        "row_id": "78",
+        "screen_claimed_ground_truth": "The primary EEE metric for this card is 'JourneyBench: Image Retrieval (Text-to-Image) with Distractors' — Recall@1 for the Text-to-Image retrieval task. The Image-to-Text description belongs to the secondary metric."
+      },
+      {
+        "card": "lmarena-text-leaderboard",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/lmarena-text-leaderboard.json",
+        "category": "thin",
+        "field": "benchmark_details.authors / paper",
+        "finding_index": "0",
+        "issue": "Card lists authors as 'Not specified' and provides no paper reference. The canonical paper arXiv:2403.04132 ('Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference', Chiang, Zheng et al., 2024) clearly exists and should be cited.",
+        "row_id": "79",
+        "screen_claimed_ground_truth": "arXiv:2403.04132 by Wei-Lin Chiang, Lianmin Zheng, Ying Sheng, Anastasios N. Angelopoulos, Tianle Li, Dacheng Li, Hao Zhang, Banghua Zhu, Michael Jordan, Joseph E. Gonzalez, Ion Stoica (2024)"
+      },
+      {
+        "card": "mask",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mask.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "0",
+        "issue": "The card lists the primary metric as 'Accuracy'. The MASK benchmark's primary metric is the honesty score (proportion of honest responses), which the paper explicitly distinguishes from accuracy. The paper's central contribution is disentangling honesty FROM accuracy — listing 'Accuracy' as the metric fundamentally misrepresents the benchmark.",
+        "row_id": "80",
+        "screen_claimed_ground_truth": "The primary metric is the honesty score (rate at which a model does not lie when pressured). The paper is titled 'Disentangling Honesty From Accuracy' and explicitly separates these two concepts."
+      },
+      {
+        "card": "mask",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mask.json",
+        "category": "thin",
+        "field": "benchmark_details.authors / paper reference",
+        "finding_index": "1",
+        "issue": "The card lists authors as 'Not specified' and provides no paper citation or arxiv ID, despite a clear published paper with 16 named authors existing at arxiv:2503.03750 (published March 5, 2025).",
+        "row_id": "81",
+        "screen_claimed_ground_truth": "Authors: Richard Ren, Arunim Agarwal, Mantas Mazeika, Cristina Menghini, Robert Vacareanu, Brad Kenstler, Mick Yang, Isabelle Barrass, Alice Gatti, Xuwang Yin, Eduardo Trevino, Matias Geralnik, Adam Khoja, Dean Lee, Summer Yue, Dan Hendrycks. Paper: arxiv:2503.03750."
+      },
+      {
+        "card": "ocrbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ocrbench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.languages",
+        "finding_index": "0",
+        "issue": "Card lists only 'English' as the language, but OCRBench v1 includes Chinese and multilingual text datasets. The paper explicitly discusses model weaknesses on 'multilingual text' and a third-party benchmark paper (CC-OCR, arxiv 2412.02210) confirms 'Both OCRBench and Fox include datasets for English and Chinese.' The card's own flagged_fields correctly flags this as a probable hallucination, but the wrong value remains.",
+        "row_id": "82",
+        "screen_claimed_ground_truth": "OCRBench includes English and Chinese (and other multilingual) text datasets, not English only."
+      },
+      {
+        "card": "ocrbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/ocrbench.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "1",
+        "issue": "The metrics field lists 'Exact Match' as the metric, but the card's own methodology section correctly states that the evaluation criterion is whether the ground truth is *present in* the output (substring/presence matching), and explicitly notes that exact matching is NOT used. This is an internal contradiction and the metric label is wrong.",
+        "row_id": "83",
+        "screen_claimed_ground_truth": "The evaluation metric is substring/presence matching (GT present in LMM output), not exact match. The paper explicitly rejects exact matching and ANLS as unsuitable for zero-shot LMM evaluation."
+      },
+      {
+        "card": "pinchbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/pinchbench.json",
+        "category": "thin",
+        "field": "benchmark_details.authors / org_url",
+        "finding_index": "0",
+        "issue": "Card lists authors and org_url as 'Not specified'. PinchBench is clearly made by Kilo AI (kilo.ai).",
+        "row_id": "84",
+        "screen_claimed_ground_truth": "Created by Kilo AI (https://kilo.ai). GitHub org: https://github.com/pinchbench. Official site: https://pinchbench.com."
+      },
+      {
+        "card": "pinchbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/pinchbench.json",
+        "category": "thin",
+        "field": "methodology.metrics",
+        "finding_index": "1",
+        "issue": "Card lists metrics as 'Not specified' and presents only a single aggregated 'PinchBench score' proportion from llm-stats.com. The canonical benchmark uses three separate metrics: success rate (%), speed (execution time), and cost (USD).",
+        "row_id": "85",
+        "screen_claimed_ground_truth": "PinchBench measures: (1) Success Rate — percentage of tasks completed successfully; (2) Speed — execution time per task; (3) Cost — USD spent on inference. Scores graded via automated checks and LLM judge."
+      },
+      {
+        "card": "swe-polybench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/swe-polybench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview / methodology.metrics",
+        "finding_index": "0",
+        "issue": "The card states the primary metric is 'the fraction of JavaScript GitHub issues resolved (0.0–1.0)'. SWE-PolyBench covers all four languages (Java, JavaScript, TypeScript, Python); the metric is the fraction of ALL issues resolved across all languages, not just JavaScript. This description is inherited from the EEE source but is factually wrong as a description of the benchmark's primary metric.",
+        "row_id": "86",
+        "screen_claimed_ground_truth": "The pass rate is defined as the fraction of instances (across all four languages: Java, JavaScript, TypeScript, Python) for which the agent's patch passes all associated tests. Per arxiv 2504.08703 and the official GitHub/HuggingFace pages."
+      },
+      {
+        "card": "swe-polybench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/swe-polybench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.languages",
+        "finding_index": "1",
+        "issue": "The languages field is set to ['not-applicable'], which is clearly incorrect. SWE-PolyBench is explicitly a multi-language benchmark covering Python, Java, JavaScript, and TypeScript.",
+        "row_id": "87",
+        "screen_claimed_ground_truth": "Languages: Python, Java, JavaScript, TypeScript (per arxiv 2504.08703 and all official sources)."
+      },
+      {
+        "card": "video-mme",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/video-mme.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.domains",
+        "finding_index": "0",
+        "issue": "The card lists the 6th primary visual domain as 'others', but the actual 6th domain is 'Artistic Performance'. The paper (arxiv:2405.21075) and official website explicitly list: Knowledge, Film & Television, Sports Competition, Artistic Performance, Life Record, and Multilingual.",
+        "row_id": "88",
+        "screen_claimed_ground_truth": "The 6 domains are: Knowledge, Film & Television, Sports Competition, Artistic Performance, Life Record, and Multilingual. 'Artistic Performance' is a named domain, not 'others'."
+      },
+      {
+        "card": "vinabench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vinabench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The overview field contains the description of the alignment sub-metric ('average of five fine-grained alignment metrics: Non-Character Entity, Character Number, Character Attributes, Time of Day, Location'), not the overall benchmark. VinaBench covers both alignment AND consistency metrics. This text was copied from the EEE metric description for 'vinabench_alignment_faithfulness_score_on_vwp_dataset'.",
+        "row_id": "89",
+        "screen_claimed_ground_truth": "VinaBench is a benchmark that augments visual-textual narrative pairs with commonsense and discourse constraints, and proposes VQA-based metrics for both alignment (5 sub-metrics: Ent., Num., Attr., Time, Loc.) and consistency (3 sub-metrics: Sty., Char., Loc.) of generated visual narratives."
+      },
+      {
+        "card": "vinabench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vinabench.json",
+        "category": "wrong-section-splice",
+        "field": "data.source",
+        "finding_index": "1",
+        "issue": "Card states 'VinaBench is built from sampled visual-textual narrative pairs from the Visual Writing Prompts (VWP) dataset' — omitting that it also covers Storyboard20K (~10K samples) and StorySalon (~2K samples). The benchmark spans three datasets, not just VWP.",
+        "row_id": "90",
+        "screen_claimed_ground_truth": "VinaBench samples from three datasets: Visual Writing Prompts (VWP, ~12K narratives), Storyboard20K (~10K filtered narratives), and StorySalon (~2K narratives). The evaluation reported in the card is on VWP, but the benchmark data covers all three."
+      },
+      {
+        "card": "wordle-arena",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/wordle-arena.json",
+        "category": "wrong-section-splice",
+        "field": "purpose_and_intended_users.tasks",
+        "finding_index": "0",
+        "issue": "The tasks listed describe adversarial/deceptive Fibble Arena behavior ('Every piece of feedback is deceptive', 'Models must find truth in a sea of misinformation', 'Models must identify which color feedback is deceptive') — this is content from the Fibble variant arenas, not the standard Wordle Arena, which the card's own overview correctly describes as 'Zero deception - a clean baseline'.",
+        "row_id": "91",
+        "screen_claimed_ground_truth": "Wordle Arena (the sub-benchmark this card covers) uses standard Wordle rules with honest green/yellow/gray feedback and no deception. Deceptive feedback is a feature of the Fibble Arena variants in the same suite."
+      },
+      {
+        "card": "wordle-arena",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/wordle-arena.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.calculation",
+        "finding_index": "1",
+        "issue": "The calculation text ('An information-theoretic analysis showed that higher-deception arenas had insufficient margins... To ensure at least a +5 margin for all Fibble arenas...') is about the Fibble Arena variants, not the standard Wordle Arena. This content is spliced from a different part of the benchmark suite.",
+        "row_id": "92",
+        "screen_claimed_ground_truth": "This text describes rule changes to the Fibble arenas (deceptive variants), not the standard Wordle Arena being described in this card."
+      },
+      {
+        "card": "wordle-arena",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/wordle-arena.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.interpretation / methodology.baseline_results",
+        "finding_index": "2",
+        "issue": "The interpretation and baseline_results fields reference 'the old 8-guess limit' and Fibble leaderboard history — again content from the Fibble Arena, not the standard Wordle Arena (which uses 6 guesses).",
+        "row_id": "93",
+        "screen_claimed_ground_truth": "Standard Wordle Arena uses 6 guesses maximum. The 8-guess limit discussion pertains to Fibble Arena variants."
+      },
+      {
+        "card": "wordle-arena",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/wordle-arena.json",
+        "category": "other",
+        "field": "benchmark_details.authors",
+        "finding_index": "3",
+        "issue": "Authors listed as 'Not specified', but the benchmark is clearly authored by Chang Liu (Ohio University), as evidenced by the drchangliu.github.io hosting and the ACL 2026 EvalEval paper 'From Wordle to Fibble5: Evaluating LLM Reasoning Under Escalating Deception' by Chang Liu.",
+        "row_id": "94",
+        "screen_claimed_ground_truth": "Author: Chang Liu (Ohio University). Associated paper: 'From Wordle to Fibble5: Evaluating LLM Reasoning Under Escalating Deception', ACL 2026 EvalEval Workshop."
+      },
+      {
+        "card": "writingbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/writingbench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Card lists 'Yuanyi Ren' as an author, but the actual paper (all versions on arxiv) lists 'Yuran Ren'.",
+        "row_id": "95",
+        "screen_claimed_ground_truth": "The correct author name is Yuran Ren, as listed on arxiv.org/abs/2503.05244 and huggingface.co/papers/2503.05244."
+      },
+      {
+        "card": "writingbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/writingbench.json",
+        "category": "wrong-section-splice",
+        "field": "data.size / benchmark_details.overview",
+        "finding_index": "1",
+        "issue": "The card's overview and data.size field both state '1,239 queries', which reflects the v1 release. The current benchmark (v4, the canonical version) contains 1,000 queries. The card's own data.source text correctly says '1,000 queries', creating an internal contradiction.",
+        "row_id": "96",
+        "screen_claimed_ground_truth": "The current WritingBench (v4, last revised 27 Nov 2025) comprises 1,000 queries across 6 primary domains and 100 subdomains. The 1,239 figure was from the initial v1 release and has since been superseded."
+      },
+      {
+        "card": "acemath-rewardbench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/acemath-rewardbench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The overview states 'Measures the average greedy decoding (pass@1) accuracy across seven diverse math reasoning benchmarks: GSM8K, MATH, Minerva Math, GaoKao 2023 En, Olympiad Bench, College Math, and MMLU STEM.' This description belongs to the AceMath instruction model evaluation (pass@1), NOT to AceMath-RewardBench. AceMath-RewardBench is a benchmark for evaluating reward models using the rm@8 metric (best-of-8 selection from 64 candidates). The overview fundamentally misrepresents what the benchmark measures.",
+        "row_id": "97",
+        "screen_claimed_ground_truth": "AceMath-RewardBench evaluates math reward models using the rm@8 metric: a reward model selects the best response from 8 randomly sampled candidates (out of 64 total per problem, generated by 8 LLMs). Accuracy is averaged over 100 random seeds across 7 math datasets."
+      },
+      {
+        "card": "api-bank",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/api-bank.json",
+        "category": "wrong-section-splice",
+        "field": "data.size_breakdown",
+        "finding_index": "0",
+        "issue": "The breakdown (Call: 934, Retrieve+Call: 769, Plan+Retrieve+Call: 499, total=2202) is for the FULL benchmark (training + evaluation combined), but the card places it under 'size: 314 tool-use dialogues', implying it is a breakdown of the 314-dialogue evaluation set. This is factually misleading.",
+        "row_id": "98",
+        "screen_claimed_ground_truth": "Per Table 2 of the paper (ar5iv.labs.arxiv.org/html/2304.08244): the full benchmark has 2,202 dialogues total (934 Call + 769 Retrieve+Call + 499 Plan+Retrieve+Call). The evaluation set has only 314 dialogues with 753 API calls."
+      },
+      {
+        "card": "api-bank",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/api-bank.json",
+        "category": "wrong-section-splice",
+        "field": "purpose_and_intended_users.out_of_scope_uses",
+        "finding_index": "1",
+        "issue": "The field contains the paper's introductory sentence ('To tackle these inquiries, we present API-Bank, a groundbreaking benchmark specifically designed for tool-augmented LLMs.') rather than any description of out-of-scope uses.",
+        "row_id": "99",
+        "screen_claimed_ground_truth": "This is a verbatim quote from the paper abstract/introduction, not a description of out-of-scope uses. The field should describe what the benchmark is NOT intended for."
+      },
+      {
+        "card": "babyvision",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/babyvision.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.domains / purpose_and_intended_users.tasks / benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The card names the four benchmark domains as 'visual discrimination, spatial reasoning, visual pattern recognition, and visual tracking'. Two of the four names are wrong: the paper calls them 'Fine-grained Discrimination' (not 'visual discrimination') and 'Spatial Perception' (not 'spatial reasoning'). These informal paraphrases misrepresent the official taxonomy used throughout the paper.",
+        "row_id": "100",
+        "screen_claimed_ground_truth": "The four official domain names per the paper (arxiv 2601.06521) are: Fine-grained Discrimination, Visual Tracking, Spatial Perception, and Visual Pattern Recognition."
+      },
+      {
+        "card": "beyond-aime",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/beyond-aime.json",
+        "category": "wrong-section-splice",
+        "field": "data.source / benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "Card states problems are 'sourced from high-school and university mathematics competitions,' implying direct sourcing. In reality, the problems are original creations developed by mathematics specialists who adapted competition formats through structural modifications and scenario reconfigurations — they are not directly sourced from competitions.",
+        "row_id": "101",
+        "screen_claimed_ground_truth": "Per arXiv:2504.13914 and the HF repo: 'Each problem is an original creation at a competition-level difficulty.' The team 'collaborate[s] with mathematics specialists to develop original problems informed by established competition formats,' systematically adapting existing questions to ensure no direct duplication."
+      },
+      {
+        "card": "beyond-aime",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/beyond-aime.json",
+        "category": "thin",
+        "field": "benchmark_details / paper reference",
+        "finding_index": "1",
+        "issue": "No paper is cited anywhere in the card. The benchmark was introduced in a clearly identifiable arXiv paper (2504.13914). The paper_resolver also returned null, indicating the pipeline failed to find it, but the paper exists and is the canonical source.",
+        "row_id": "102",
+        "screen_claimed_ground_truth": "arXiv:2504.13914 — 'Seed1.5-Thinking: Advancing Superb Reasoning Models with Reinforcement Learning' by ByteDance Seed, April 2025. BeyondAIME is explicitly introduced and described in this paper."
+      },
+      {
+        "card": "chartqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/chartqa.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.org_url + hf_repo",
+        "finding_index": "0",
+        "issue": "The HF repo listed is lmms-lab/ChartQA, which is a reformatted version created for the lmms-eval pipeline, not the canonical original dataset. The original canonical HF dataset is from vis-nlp (the paper authors). The org_url also incorrectly points to huggingface.co/lmms-lab instead of the benchmark's actual organization (vis-nlp / York University).",
+        "row_id": "103",
+        "screen_claimed_ground_truth": "The canonical HF dataset is from vis-nlp (the paper authors). lmms-lab/ChartQA explicitly states it is 'a formatted version of ChartQA' for lmms-eval. The original GitHub is https://github.com/vis-nlp/ChartQA."
+      },
+      {
+        "card": "civilcomments",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/civilcomments.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.name",
+        "finding_index": "0",
+        "issue": "The card uses the paper title ('Nuanced Metrics for Measuring Unintended Bias with Real Data for Text Classification') as the benchmark name. The benchmark is called 'CivilComments'.",
+        "row_id": "104",
+        "screen_claimed_ground_truth": "The benchmark name is 'CivilComments'. The paper title is 'Nuanced Metrics for Measuring Unintended Bias with Real Data for Text Classification' (Borkan et al., 2019, arxiv:1903.04561)."
+      },
+      {
+        "card": "civilcomments",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/civilcomments.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "1",
+        "issue": "Card states the metric is 'AUC' and describes a suite of AUC-based bias metrics (Subgroup AUC, BPSN AUC, BNSP AUC, etc.) from the original paper. However, HELM Classic evaluates CivilComments using exact match (EM) and quasi-exact match accuracy, not AUC. The card conflates the original paper's bias measurement methodology with HELM's evaluation metric.",
+        "row_id": "105",
+        "screen_claimed_ground_truth": "HELM Classic uses exact match (EM) and quasi-exact match accuracy for CivilComments. The AUC-based metrics are from the original Borkan et al. paper's bias measurement framework, not HELM's evaluation."
+      },
+      {
+        "card": "civilcomments",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/civilcomments.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.interpretation",
+        "finding_index": "2",
+        "issue": "The interpretation section says 'Higher scores on EM indicate stronger performance' but then describes AUC-based metrics (Subgroup AUC, BPSN AUC, BNSP AUC, Negative AEG, Positive AEG) from the original paper. This is internally inconsistent and mixes two different evaluation frameworks.",
+        "row_id": "106",
+        "screen_claimed_ground_truth": "HELM uses EM/quasi-EM for CivilComments. The AUC-based metrics described are from the original paper's bias evaluation methodology, not HELM's leaderboard metric."
+      },
+      {
+        "card": "cnn-dailymail",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/cnn-dailymail.json",
+        "category": "wrong-section-splice",
+        "field": "data.size_breakdown.Article",
+        "finding_index": "0",
+        "issue": "Card lists Article average length as 781 words in size_breakdown, but the canonical figure from Nallapati et al. 2016 (confirmed by multiple independent sources) is 766 words. The card's own overview correctly states 766, creating an internal contradiction.",
+        "row_id": "107",
+        "screen_claimed_ground_truth": "Average article length is 766 words (Nallapati et al. 2016; confirmed by autogoal/zenodo and arxiv papers citing the dataset)."
+      },
+      {
+        "card": "cnn-dailymail",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/cnn-dailymail.json",
+        "category": "wrong-section-splice",
+        "field": "data.size_breakdown.Highlights",
+        "finding_index": "1",
+        "issue": "Card lists Highlights average length as 56 words in size_breakdown, but the canonical figure is 53 words. The card's own overview correctly states 53, creating an internal contradiction.",
+        "row_id": "108",
+        "screen_claimed_ground_truth": "Average summary (highlights) length is 53 words (Nallapati et al. 2016; confirmed by multiple sources)."
+      },
+      {
+        "card": "cnn-dailymail",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/cnn-dailymail.json",
+        "category": "wrong-section-splice",
+        "field": "purpose_and_intended_users.goal",
+        "finding_index": "2",
+        "issue": "Card states the goal is 'to summarize long paragraphs of text into one or two sentences,' but CNN/DailyMail is specifically designed for multi-sentence summarization. The card's own overview correctly says 'multi-sentence summaries,' making this an internal contradiction and factual error.",
+        "row_id": "109",
+        "screen_claimed_ground_truth": "CNN/DailyMail targets multi-sentence abstractive summarization (highlights consist of 3.72 sentences on average)."
+      },
+      {
+        "card": "covost2",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/covost2.json",
+        "category": "wrong-section-splice",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states '1M to 10M examples'. CoVoST 2 has approximately 430K utterances total across all language pairs — well below 1M. This is a significant overstatement of dataset size.",
+        "row_id": "110",
+        "screen_claimed_ground_truth": "CoVoST 2 covers ~430K utterances (the paper reports 2,880 hours of speech from 78K speakers; the HF dataset page and paper do not indicate anywhere near 1M–10M examples)."
+      },
+      {
+        "card": "covost2",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/covost2.json",
+        "category": "wrong-section-splice",
+        "field": "data.size_breakdown",
+        "finding_index": "1",
+        "issue": "The size_breakdown values (train=2283, validation=1758, test=1695) sum to 5,736, which is inconsistent with the total of 2,880 hours. These appear to be sentence counts for a single language pair (e.g., en→de), not total dataset sizes, and the field is unlabeled as to units or language pair.",
+        "row_id": "111",
+        "screen_claimed_ground_truth": "Total dataset is 2,880 hours. Split sizes vary by language pair; the paper's Table 1 shows per-language-pair counts. The card's numbers appear to be a single-pair subset, not the full dataset."
+      },
+      {
+        "card": "csimpleqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/csimpleqa.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.judge_uses_llm",
+        "finding_index": "0",
+        "issue": "Card sets judge_uses_llm to false, but the paper explicitly states grading is done 'based on OpenAI API' (an LLM judge). The card's own validity_justification field even quotes this fact, creating an internal contradiction.",
+        "row_id": "112",
+        "screen_claimed_ground_truth": "Grading uses the OpenAI API as an LLM judge; judge_uses_llm should be true."
+      },
+      {
+        "card": "csimpleqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/csimpleqa.json",
+        "category": "other",
+        "field": "resources / ethical_and_legal_considerations.data_licensing",
+        "finding_index": "1",
+        "issue": "The HuggingFace dataset OpenStellarTeam/Chinese-SimpleQA exists and is licensed cc-by-nc-sa-4.0, but the card omits the HF repo from resources and leaves data_licensing as 'Not specified'.",
+        "row_id": "113",
+        "screen_claimed_ground_truth": "HF repo: https://huggingface.co/datasets/OpenStellarTeam/Chinese-SimpleQA; License: cc-by-nc-sa-4.0"
+      },
+      {
+        "card": "design2code",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/design2code.json",
+        "category": "wrong-section-splice",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states '564 examples' and includes Design2Code-HARD (80 examples) in the size_breakdown as if it is part of the same dataset. Design2Code-HARD is a separate HF repo (SALT-NLP/Design2Code-HARD) sourced from GitHub Pages, not the C4 validation set. The canonical SALT-NLP/Design2Code dataset has 484 examples.",
+        "row_id": "114",
+        "screen_claimed_ground_truth": "SALT-NLP/Design2Code has 484 examples from C4 validation set. SALT-NLP/Design2Code-HARD is a separate dataset of 80 extra-difficult webpages from GitHub Pages."
+      },
+      {
+        "card": "design2code",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/design2code.json",
+        "category": "thin",
+        "field": "methodology.metrics",
+        "finding_index": "1",
+        "issue": "Card lists metrics as 'Not specified', but the paper clearly defines multiple automatic evaluation metrics: Block-Match (matched area ratio), Text similarity (character overlap via Sørensen-Dice), Position similarity (block center alignment accuracy), Color similarity (CIEDE2000), and CLIP score.",
+        "row_id": "115",
+        "screen_claimed_ground_truth": "The paper defines Block-Match, Text similarity, Position similarity, Color similarity, and CLIP score as automatic evaluation metrics, as documented in the paper and GitHub repo."
+      },
+      {
+        "card": "design2code",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/design2code.json",
+        "category": "thin",
+        "field": "benchmark_details.authors",
+        "finding_index": "2",
+        "issue": "Card says 'Not specified' for authors. The authors are clearly identified in the paper and all public sources.",
+        "row_id": "116",
+        "screen_claimed_ground_truth": "Authors: Chenglei Si, Yanzhe Zhang, Ryan Li, Zhengyuan Yang, Ruibo Liu, Diyi Yang (Stanford SALT Lab). Published at NAACL 2025."
+      },
+      {
+        "card": "drop",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/drop.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.methods / methodology.metrics / methodology.calculation",
+        "finding_index": "0",
+        "issue": "The card lists 'Exact-Match accuracy' as the sole method and states the metric uses 'the same implementation of Exact-Match accuracy as used by SQuAD.' DROP's primary reported metric is F1 (generalized accuracy), not just EM. The paper's headline results are all in F1 (e.g., 32.7% F1, 47% F1, 96.4% human F1). EM is also reported but is secondary.",
+        "row_id": "117",
+        "screen_claimed_ground_truth": "DROP uses a generalized F1 metric as its primary metric (alongside EM). The paper reports 'best systems only achieve 32.7% F1 on our generalized accuracy metric.' Both F1 and EM are standard metrics for DROP."
+      },
+      {
+        "card": "dynamath",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/dynamath.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Card lists 'Ruizhen Yang' as an author, but the correct name per arxiv, GitHub, and Semantic Scholar is 'Rui Yang'.",
+        "row_id": "118",
+        "screen_claimed_ground_truth": "Authors are: Chengke Zou, Xingang Guo, Rui Yang, Junyu Zhang, Bin Hu, Huan Zhang (per arxiv 2411.00836 and GitHub DynaMath/DynaMath)"
+      },
+      {
+        "card": "dynamath",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/dynamath.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.domains",
+        "finding_index": "1",
+        "issue": "Card lists only 'Puzzle Test (PT)' as the domain, severely understating the benchmark's coverage. DynaMath covers 9 mathematical topics.",
+        "row_id": "119",
+        "screen_claimed_ground_truth": "DynaMath encompasses nine mathematical topics: Solid Geometry (SG, 3.0%), Puzzle Tests (PT, 3.4%), Arithmetic (AR, 5.2%), Scientific Figures (SF, 9.0%), Graph Theory (GT, 9.6%), Algebra (AL, 10.2%), Plane Geometry (PG, 15.4%), Analytic Geometry (AG, 19.4%), and Statistics (ST, 25.0%)."
+      },
+      {
+        "card": "egoschema",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/egoschema.json",
+        "category": "wrong-section-splice",
+        "field": "ethical_and_legal_considerations.data_licensing",
+        "finding_index": "0",
+        "issue": "Card states 'MIT License'. The paper and official project page explicitly state EgoSchema is 'open-sourced under the Ego4D license', which is a custom Meta/Facebook data usage agreement — not MIT. The MIT license applies to the Ego4D *code* repository (facebookresearch/Ego4d), not to the EgoSchema dataset itself.",
+        "row_id": "120",
+        "screen_claimed_ground_truth": "EgoSchema is released under the Ego4D license (a custom Meta/Facebook data usage agreement), as stated in the NeurIPS 2023 paper and official project page at egoschema.github.io."
+      },
+      {
+        "card": "flenqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/flenqa.json",
+        "category": "wrong-section-splice",
+        "field": "ethical_and_legal_considerations.consent_procedures",
+        "finding_index": "0",
+        "issue": "The field contains a figure caption from the paper: 'Figure 12: Summary of statistics of the People In Rooms (PIR) task data.' This is not consent procedure information — it is a figure label that was incorrectly spliced into this field.",
+        "row_id": "121",
+        "screen_claimed_ground_truth": "No formal consent procedures are applicable; the dataset is fully synthetic (programmatically generated using the Faker library). The field should reflect that or be marked as not applicable."
+      },
+      {
+        "card": "iquad-v1",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/iquad-v1.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.interpretation",
+        "finding_index": "0",
+        "issue": "The card states 'Lower scores indicate stronger performance' globally, which is incorrect for accuracy metrics (Existence, Counting, Spatial Relationships accuracy). Higher accuracy is better. Only episode length and invalid-action-percentage metrics are lower-is-better.",
+        "row_id": "122",
+        "screen_claimed_ground_truth": "Accuracy metrics (Top-1 accuracy) are higher-is-better. Episode length and invalid action percentage metrics are lower-is-better. The paper's Table 2 reports both accuracy and episode lengths, and the directionality differs by metric type."
+      },
+      {
+        "card": "jrdb",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/jrdb.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.baseline_results / methodology.interpretation",
+        "finding_index": "0",
+        "issue": "The card presents Tracktor (a 2D tracker) as the baseline for the primary metric, which is 3D Multi-Object Tracking Accuracy (MOTA) on JRDB. The scores listed for Tracktor (19.9, 14.2, 18.1, 29.2, 7564, 88480, 687842, 0.971, 0.985, 0.978, 0.759, 0.219) appear to be drawn from the 2D tracking results table in the JRDB paper, not from the 3D tracking benchmark. The actual 3D tracking baseline from the EEE/alphaxiv data is AB3DMOT with MOTA 19.3.",
+        "row_id": "123",
+        "screen_claimed_ground_truth": "The primary metric is 3D MOTA on JRDB. The EEE benchmark data (from alphaxiv 2002.08397) shows AB3DMOT as the top performer with 3D MOTA of 19.3. Tracktor is a 2D tracker and its scores belong to the 2D tracking evaluation, not the 3D tracking benchmark."
+      },
+      {
+        "card": "livecodebench-pro",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/livecodebench-pro.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "Overview states the benchmark uses 'LeetCode, AtCoder, CodeForces' as problem sources. LiveCodeBench Pro explicitly omits LeetCode (and AtCoder) and sources problems exclusively from Codeforces, ICPC, and IOI. This text was spliced from the original LiveCodeBench (2403.07974), which does use LeetCode/AtCoder/CodeForces. The card's own data.source field correctly says 'Codeforces, ICPC series, and IOI series,' creating an internal contradiction.",
+        "row_id": "124",
+        "screen_claimed_ground_truth": "LiveCodeBench Pro sources problems from Codeforces, ICPC series, and IOI series only. The paper states: 'we omit LeetCode problems, which are easier and especially prone to training-data contamination.' No AtCoder problems are included."
+      },
+      {
+        "card": "livecodebench-pro",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/livecodebench-pro.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.authors",
+        "finding_index": "1",
+        "issue": "Three author names are wrong: 'Shang-Ming Zhou' (real: 'Shang Zhou'), 'Housheng Hansen He' (real: 'Hansen He'), 'D. F. Li' (real: 'Dongruixuan Li'). Additionally, 'Shen, Zeyu', 'Hao, Hangyi', and 'Yao, Jianzhu' use reversed name order (minor formatting issue).",
+        "row_id": "125",
+        "screen_claimed_ground_truth": "Per arxiv 2506.11928 and HF papers page: Zihan Zheng, Zerui Cheng, Zeyu Shen, Shang Zhou, Kaiyuan Liu, Hansen He, Dongruixuan Li, Stanley Wei, Hangyi Hao, Jianzhu Yao, Peiyao Sheng, Zixuan Wang, Wenhao Chai, Aleksandra Korolova, Peter Henderson, Sanjeev Arora, Pramod Viswanath, Jingbo Shang, Saining Xie"
+      },
+      {
+        "card": "longfact-objects",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/longfact-objects.json",
+        "category": "wrong-section-splice",
+        "field": "data.size",
+        "finding_index": "0",
+        "issue": "Card states '2,280 fact-seeking prompts' for LongFact-Objects specifically. However, 2,280 is the total size of the full LongFact benchmark (both subtasks combined). LongFact-Objects alone contains 1,140 prompts (30 per topic × 38 topics). The card conflates the full benchmark size with the Objects subtask size.",
+        "row_id": "126",
+        "screen_claimed_ground_truth": "LongFact-Objects has 1,140 prompts; LongFact-Concepts has 1,140 prompts; total LongFact = 2,280 prompts. Source: emergentmind.com/topics/longfact and arxiv PDF 2403.18802."
+      },
+      {
+        "card": "longfact-objects",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/longfact-objects.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.metrics",
+        "finding_index": "1",
+        "issue": "Card lists 'Accuracy' as the metric. The actual primary metric is F1@K (extended F1 score), which balances precision (% supported facts) and recall@K (% facts relative to preferred length K). The card's own 'calculation' field correctly describes F1@K, making the 'metrics' field internally inconsistent and factually wrong.",
+        "row_id": "127",
+        "screen_claimed_ground_truth": "The paper proposes F1@K as the aggregated metric for long-form factuality. 'Accuracy' is not the metric name used in the paper. Source: arxiv.org/abs/2403.18802, openreview.net/forum?id=4M9f8VMt2C."
+      },
+      {
+        "card": "mc-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mc-bench.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.overview",
+        "finding_index": "0",
+        "issue": "The overview field contains the description of the AP50 metric ('The primary instance-level metric for MC-Bench. It evaluates how precisely models can locate target instances within images...'), not a description of the benchmark itself. This text was copied verbatim from the EEE metric description.",
+        "row_id": "128",
+        "screen_claimed_ground_truth": "MC-Bench is a benchmark for multi-context visual grounding that evaluates MLLMs' ability to localize instances of interest across multiple images based on open-ended text prompts. It features 2K high-quality manually annotated samples with instance-level labeled image pairs."
+      },
+      {
+        "card": "mc-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mc-bench.json",
+        "category": "wrong-section-splice",
+        "field": "data.size_breakdown.train",
+        "finding_index": "1",
+        "issue": "The 2000 samples are labeled as 'train' in the size_breakdown, but MC-Bench is a benchmark/evaluation dataset with no training split. The GitHub repo shows the file as 'mc-bench_v0.2_val.json', confirming it is a validation/benchmark set.",
+        "row_id": "129",
+        "screen_claimed_ground_truth": "MC-Bench has 2000 evaluation/benchmark samples (val split), not a training split. The official file is mc-bench_v0.2_val.json."
+      },
+      {
+        "card": "mc-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mc-bench.json",
+        "category": "wrong-section-splice",
+        "field": "hf_repo_assessment",
+        "finding_index": "2",
+        "issue": "The HF repo Moenupa/MC-Bench is explicitly described as an 'unofficial' repo in its README. The official dataset is distributed via Google Drive and Baidu Pan in COCO JSON format, not via HuggingFace. Including an unofficial third-party repo as the canonical HF resource is misleading.",
+        "row_id": "130",
+        "screen_claimed_ground_truth": "The official MC-Bench dataset is hosted on Google Drive and Baidu Pan (COCO JSON format). There is no official HuggingFace repo. Moenupa/MC-Bench is an unofficial community upload."
+      },
+      {
+        "card": "mega-mlqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mega-mlqa.json",
+        "category": "wrong-section-splice",
+        "field": "data.source",
+        "finding_index": "0",
+        "issue": "The data source is described as 'IndicQA, a manually curated cloze-style reading comprehension dataset' with 'about 2000 sentences'. This is content from the IndicQA benchmark card, not MLQA. MLQA is an extractive QA dataset built from Wikipedia articles in SQuAD format, with 12K+ instances in English and 5K in each of 6 other languages.",
+        "row_id": "131",
+        "screen_claimed_ground_truth": "MLQA (facebook/mlqa on HuggingFace) consists of over 5K extractive QA instances (12K in English) in SQuAD format across 7 languages, built using an alignment context strategy on Wikipedia articles. It is not IndicQA."
+      },
+      {
+        "card": "mega-mlqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mega-mlqa.json",
+        "category": "wrong-section-splice",
+        "field": "data.size",
+        "finding_index": "1",
+        "issue": "Card states 'about 2000 sentences' which matches IndicQA's test set size, not MLQA. MLQA has 12K+ QA instances in English and 5K in each other language.",
+        "row_id": "132",
+        "screen_claimed_ground_truth": "MLQA has over 12K QA instances in English and 5K in each of the other 6 languages (Arabic, German, Spanish, Hindi, Vietnamese, Simplified Chinese)."
+      },
+      {
+        "card": "mega-mlqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mega-mlqa.json",
+        "category": "wrong-section-splice",
+        "field": "data.format",
+        "finding_index": "2",
+        "issue": "Card describes the format as 'cloze-style reading comprehension dataset', which is IndicQA's format. MLQA is an extractive QA dataset in SQuAD format.",
+        "row_id": "133",
+        "screen_claimed_ground_truth": "MLQA is an extractive QA benchmark in SQuAD format, not cloze-style."
+      },
+      {
+        "card": "mega-mlqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mega-mlqa.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.interpretation",
+        "finding_index": "3",
+        "issue": "The interpretation field references 'MuRIL (47.7 on IndicQA), text-davinci-003 (8.45), gpt-3.5-turbo (38.6), and gpt-4-32k (55.0)' and 'Performance on XNLI is also reported using accuracy'. These are baselines for IndicQA and XNLI, not MLQA.",
+        "row_id": "134",
+        "screen_claimed_ground_truth": "These baseline scores belong to IndicQA and XNLI sections of the MEGA paper, not to MLQA."
+      },
+      {
+        "card": "mega-mlqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mega-mlqa.json",
+        "category": "wrong-section-splice",
+        "field": "methodology.validation",
+        "finding_index": "4",
+        "issue": "Validation field states 'IndicQA is a manually curated cloze-style reading comprehension dataset, indicating human validation in the dataset construction.' This is IndicQA content, not MLQA.",
+        "row_id": "135",
+        "screen_claimed_ground_truth": "MLQA was constructed using a novel alignment context strategy on Wikipedia articles, not described as cloze-style."
+      },
+      {
+        "card": "mmvet",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/mmvet.json",
+        "category": "wrong-section-splice",
+        "field": "data.source / data.size",
+        "finding_index": "0",
+        "issue": "The card states '187 images' and '205 questions' as the dataset totals. These are intermediate construction counts (images from online sources only, questions from those images only). The paper's final MM-Vet dataset is 200 images and 218 questions total, after adding 10 images from VCR and 3 from ChestX-ray14 with their associated questions.",
+        "row_id": "136",
+        "screen_claimed_ground_truth": "MM-Vet contains 200 images and 218 questions in total (arxiv.org/html/2308.02490: 'In total, our MM-Vet contains 200 images, and 218 questions'). The 187 images and 205 questions are a partial subset described mid-construction."
+      },
+      {
+        "card": "objectron",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/objectron.json",
+        "category": "wrong-section-splice",
+        "field": "benchmark_details.languages",
+        "finding_index": "0",
+        "issue": "Card states languages = ['English'] only. The paper explicitly states that because the dataset is geo-diverse (10 countries, 5 continents), multiple different languages are present in the videos. Restricting to 'English' is factually wrong.",
+        "row_id": "137",
+        "screen_claimed_ground_truth": "Multiple languages are present in the videos (the paper states: 'multiple different languages are present in the videos as well' due to geo-diverse collection across 10 countries)."
+      },
+      {
+        "card": "realworldqa",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/realworldqa.json",
+        "category": "wrong-section-splice",
+        "field": "ethical_and_legal_considerations.data_licensing",
+        "finding_index": "0",
+        "issue": "Card states license is 'Creative Commons Attribution 4.0' (CC BY 4.0). The actual license on the official xai-org/RealworldQA HuggingFace repo is CC BY-ND 4.0 (Creative Commons Attribution No-Derivatives 4.0). The 'ND' (No Derivatives) clause is a significant legal restriction that is missing from the card.",
+        "row_id": "138",
+        "screen_claimed_ground_truth": "CC BY-ND 4.0 — confirmed at https://huggingface.co/datasets/xai-org/RealworldQA and its README.md"
+      },
+      {
+        "card": "swe-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/swe-bench.json",
+        "category": "thin",
+        "field": "benchmark_details.authors / resources",
+        "finding_index": "0",
+        "issue": "Authors listed as 'Not specified'. The paper (arxiv:2310.06770) and its authors (Carlos E. Jimenez, John Yang, Alexander Wettig, Shunyu Yao, Kexin Pei, Ofir Press, Karthik Narasimhan) are well-known and should be included.",
+        "row_id": "139",
+        "screen_claimed_ground_truth": "Authors: Carlos E. Jimenez, John Yang, Alexander Wettig, Shunyu Yao, Kexin Pei, Ofir Press, Karthik Narasimhan. Paper: 'SWE-bench: Can Language Models Resolve Real-World GitHub Issues?', arxiv:2310.06770, ICLR 2024."
+      },
+      {
+        "card": "swe-bench",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/swe-bench.json",
+        "category": "thin",
+        "field": "benchmark_details.resources (paper link missing)",
+        "finding_index": "1",
+        "issue": "No arxiv or paper link is provided. The canonical paper at arxiv:2310.06770 should be listed as a resource.",
+        "row_id": "140",
+        "screen_claimed_ground_truth": "Paper URL: https://arxiv.org/abs/2310.06770"
+      },
+      {
+        "card": "vision2web",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/vision2web.json",
+        "category": "wrong-section-splice",
+        "field": "ethical_and_legal_considerations.data_licensing",
+        "finding_index": "0",
+        "issue": "Card states 'Apache License 2.0' but the actual dataset license is CC-BY-NC-SA-4.0 (non-commercial). The HF dataset repo tag shows 'apache-2.0' which appears to have misled the card generator, but the dataset README, GitHub repo, and benchmark website all clearly state CC-BY-NC-SA-4.0 (with the benchmark website citing CC BY-SA 4.0). The non-commercial restriction is a material difference from Apache 2.0.",
+        "row_id": "141",
+        "screen_claimed_ground_truth": "CC-BY-NC-SA-4.0 per GitHub (https://github.com/zai-org/Vision2Web) and HF dataset README (https://huggingface.co/datasets/zai-org/Vision2Web). The benchmark website (https://vision2web-bench.github.io/) states CC BY-SA 4.0."
+      },
+      {
+        "card": "functionalmath",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/functionalmath.json",
+        "category": "thin",
+        "field": "benchmark_details.authors / resources / paper",
+        "finding_index": "0",
+        "issue": "Card lists authors as 'Not specified' and provides no paper reference, despite a clear introducing paper existing: arXiv:2402.19450 by Saurabh Srivastava, Annarose M B, Anto P V, Shashank Menon, Ajay Sukumar, Adwaith Samod T, Alan Philipose, Stevin Prince, Sooraj Thomas (Consequent AI).",
+        "row_id": "142",
+        "screen_claimed_ground_truth": "arXiv:2402.19450, 'Functional Benchmarks for Robust Evaluation of Reasoning Performance, and the Reasoning Gap', Saurabh Srivastava et al., Consequent AI, Feb 2024"
+      },
+      {
+        "card": "musiccaps",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/musiccaps.json",
+        "category": "thin",
+        "field": "benchmark_details.authors",
+        "finding_index": "0",
+        "issue": "Authors listed as 'Not specified'. MusicCaps was introduced by Andrea Agostinelli, Timo I. Denk, Zalán Borsos, Jesse Engel, and others at Google (Agostinelli et al., 2023).",
+        "row_id": "143",
+        "screen_claimed_ground_truth": "Agostinelli et al. (Google, 2023) — full author list in arXiv:2301.11325"
+      },
+      {
+        "card": "musiccaps",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/musiccaps.json",
+        "category": "thin",
+        "field": "benchmark_details.resources / paper",
+        "finding_index": "1",
+        "issue": "No paper is cited. The introducing paper arXiv:2301.11325 ('MusicLM: Generating Music From Text') clearly exists and should be referenced.",
+        "row_id": "144",
+        "screen_claimed_ground_truth": "arXiv:2301.11325 — MusicLM: Generating Music From Text, Agostinelli et al., 2023"
+      },
+      {
+        "card": "musiccaps",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/musiccaps.json",
+        "category": "thin",
+        "field": "hf_repo",
+        "finding_index": "2",
+        "issue": "No HuggingFace repo is listed. The canonical repo google/MusicCaps exists and was not identified. The HF verifier correctly rejected the wrong repo (AndreasXi/LP_MusicCaps_MTT), but the real repo is absent from the card.",
+        "row_id": "145",
+        "screen_claimed_ground_truth": "https://huggingface.co/datasets/google/MusicCaps"
+      },
+      {
+        "card": "musiccaps",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/musiccaps.json",
+        "category": "thin",
+        "field": "ethical_and_legal_considerations.data_licensing",
+        "finding_index": "3",
+        "issue": "License listed as 'Not specified'. The dataset is published under CC-BY-SA-4.0.",
+        "row_id": "146",
+        "screen_claimed_ground_truth": "CC-BY-SA-4.0 (as shown on the HuggingFace repo)"
+      },
+      {
+        "card": "musiccaps",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/musiccaps.json",
+        "category": "thin",
+        "field": "data.source",
+        "finding_index": "4",
+        "issue": "Data source listed as 'Not specified'. Clips are sourced from AudioSet (YouTube-based audio dataset by Google).",
+        "row_id": "147",
+        "screen_claimed_ground_truth": "AudioSet (Gemmeke et al., 2017) — YouTube audio clips"
+      },
+      {
+        "card": "anthropic-red-team",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/anthropic-red-team.json",
+        "category": "thin",
+        "field": "benchmark_details.resources / paper",
+        "finding_index": "0",
+        "issue": "No paper reference is provided. The canonical paper is Ganguli et al. (2022), 'Red Teaming Language Models to Reduce Harms: Methods, Scaling Behaviors, and Lessons Learned', arXiv:2209.07858. The paper resolver failed to find it, but it clearly exists and is widely cited.",
+        "row_id": "148",
+        "screen_claimed_ground_truth": "arXiv:2209.07858 by Deep Ganguli et al. (Anthropic, 2022)"
+      },
+      {
+        "card": "anthropic-red-team",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/anthropic-red-team.json",
+        "category": "thin",
+        "field": "data / HuggingFace repo",
+        "finding_index": "1",
+        "issue": "The card (and EEE source) records existing_hf_repo as null, but the dataset is publicly available at Anthropic/hh-rlhf on HuggingFace, specifically the red-team-attempts subdirectory.",
+        "row_id": "149",
+        "screen_claimed_ground_truth": "https://huggingface.co/datasets/Anthropic/hh-rlhf (red-team-attempts subset)"
+      },
+      {
+        "card": "anthropic-red-team",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/anthropic-red-team.json",
+        "category": "thin",
+        "field": "data.size",
+        "finding_index": "2",
+        "issue": "Data size is listed as 'Not specified'. The dataset contains 38,961 red-teaming transcripts.",
+        "row_id": "150",
+        "screen_claimed_ground_truth": "38,961 human-LM red-teaming transcripts"
+      },
+      {
+        "card": "anthropic-red-team",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/anthropic-red-team.json",
+        "category": "thin",
+        "field": "benchmark_details.authors",
+        "finding_index": "3",
+        "issue": "Authors listed as 'Not specified'. The benchmark dataset was created by Deep Ganguli et al. (35+ Anthropic authors).",
+        "row_id": "151",
+        "screen_claimed_ground_truth": "Deep Ganguli et al. (Anthropic, 2022) — 36 authors"
+      },
+      {
+        "card": "anthropic-red-team",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/anthropic-red-team.json",
+        "category": "thin",
+        "field": "benchmark_details.languages",
+        "finding_index": "4",
+        "issue": "Languages listed as 'Not specified'. The dataset is exclusively in English.",
+        "row_id": "152",
+        "screen_claimed_ground_truth": "English only"
+      },
+      {
+        "card": "anthropic-red-team",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/anthropic-red-team.json",
+        "category": "thin",
+        "field": "benchmark_details.domains",
+        "finding_index": "5",
+        "issue": "Domains listed as 'Not specified'. The benchmark covers AI safety / red-teaming / harmful content elicitation.",
+        "row_id": "153",
+        "screen_claimed_ground_truth": "AI safety, red-teaming, harmful content elicitation (violence, fraud, harassment, etc.)"
+      },
+      {
+        "card": "cyse2-vulnerability-exploit",
+        "card_reference": "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/blob/0a86cea5b55d6070bd7f1f020f01281e1631adba/cards/cyse2-vulnerability-exploit.json",
+        "category": "thin",
+        "field": "paper (missing)",
+        "finding_index": "2",
+        "issue": "No paper reference is provided anywhere in the card. A clear, well-known paper exists: arXiv:2404.13161.",
+        "row_id": "154",
+        "screen_claimed_ground_truth": "CyberSecEval 2: A Wide-Ranging Cybersecurity Evaluation Suite for Large Language Models, arXiv:2404.13161, Bhatt et al. 2024."
+      }
+    ],
+    "sha256": "84eb332d68cd6f974a7990e77758f8e69d0013c1ba80f05389ac6af1b75afb70"
+  },
+  "sample_design": {
+    "cards": [
+      {
+        "card": "360vot",
+        "stratum": "flagged"
+      },
+      {
+        "card": "ace",
+        "stratum": "flagged"
+      },
+      {
+        "card": "actionbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "activitynet",
+        "stratum": "flagged"
+      },
+      {
+        "card": "aider",
+        "stratum": "flagged"
+      },
+      {
+        "card": "apex-agents",
+        "stratum": "flagged"
+      },
+      {
+        "card": "arena-hard",
+        "stratum": "flagged"
+      },
+      {
+        "card": "artifactsbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "assistantbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "assistgui",
+        "stratum": "flagged"
+      },
+      {
+        "card": "belief",
+        "stratum": "flagged"
+      },
+      {
+        "card": "cbnsl",
+        "stratum": "flagged"
+      },
+      {
+        "card": "cfeval",
+        "stratum": "flagged"
+      },
+      {
+        "card": "churro-ds",
+        "stratum": "flagged"
+      },
+      {
+        "card": "creative-writing-v3",
+        "stratum": "flagged"
+      },
+      {
+        "card": "cryptobench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "cyse2-interpreter-abuse",
+        "stratum": "flagged"
+      },
+      {
+        "card": "dexter",
+        "stratum": "flagged"
+      },
+      {
+        "card": "do-not-answer",
+        "stratum": "flagged"
+      },
+      {
+        "card": "ds-arena-code",
+        "stratum": "flagged"
+      },
+      {
+        "card": "ds-fim-eval",
+        "stratum": "flagged"
+      },
+      {
+        "card": "finance-agent",
+        "stratum": "flagged"
+      },
+      {
+        "card": "finqa",
+        "stratum": "flagged"
+      },
+      {
+        "card": "functionalmath",
+        "stratum": "flagged"
+      },
+      {
+        "card": "gdm-intercode-ctf",
+        "stratum": "flagged"
+      },
+      {
+        "card": "healthbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "helm-mmlu",
+        "stratum": "flagged"
+      },
+      {
+        "card": "humaneval-nfr",
+        "stratum": "flagged"
+      },
+      {
+        "card": "hypersim",
+        "stratum": "flagged"
+      },
+      {
+        "card": "ifbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "journeybench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "judgebench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "lingoqa",
+        "stratum": "flagged"
+      },
+      {
+        "card": "lmarena-text-leaderboard",
+        "stratum": "flagged"
+      },
+      {
+        "card": "lvos",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mask",
+        "stratum": "flagged"
+      },
+      {
+        "card": "math",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mathconstruct",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mathverse-mini",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mathvision",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mega-xcopa",
+        "stratum": "flagged"
+      },
+      {
+        "card": "metaclue",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mlvu",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mme",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mme-realworld",
+        "stratum": "flagged"
+      },
+      {
+        "card": "mmlu-french",
+        "stratum": "flagged"
+      },
+      {
+        "card": "multipl-e",
+        "stratum": "flagged"
+      },
+      {
+        "card": "music-avqa",
+        "stratum": "flagged"
+      },
+      {
+        "card": "musiccaps",
+        "stratum": "flagged"
+      },
+      {
+        "card": "nih-multi-needle",
+        "stratum": "flagged"
+      },
+      {
+        "card": "ocrbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "omni-math",
+        "stratum": "flagged"
+      },
+      {
+        "card": "pathmcqa",
+        "stratum": "flagged"
+      },
+      {
+        "card": "perceptiontest",
+        "stratum": "flagged"
+      },
+      {
+        "card": "pinchbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "probe",
+        "stratum": "flagged"
+      },
+      {
+        "card": "qwenwebbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "repobench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "scoring-verifiers",
+        "stratum": "flagged"
+      },
+      {
+        "card": "seal-0",
+        "stratum": "flagged"
+      },
+      {
+        "card": "seccodebench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "sifo",
+        "stratum": "flagged"
+      },
+      {
+        "card": "sunrgbd",
+        "stratum": "flagged"
+      },
+      {
+        "card": "swe-polybench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "tldr9-test",
+        "stratum": "flagged"
+      },
+      {
+        "card": "tro",
+        "stratum": "flagged"
+      },
+      {
+        "card": "uniform-bar-exam",
+        "stratum": "flagged"
+      },
+      {
+        "card": "union14m",
+        "stratum": "flagged"
+      },
+      {
+        "card": "video-mme",
+        "stratum": "flagged"
+      },
+      {
+        "card": "vinabench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "vl-checklist",
+        "stratum": "flagged"
+      },
+      {
+        "card": "vqa-rad",
+        "stratum": "flagged"
+      },
+      {
+        "card": "wmt24",
+        "stratum": "flagged"
+      },
+      {
+        "card": "wordle-arena",
+        "stratum": "flagged"
+      },
+      {
+        "card": "writingbench",
+        "stratum": "flagged"
+      },
+      {
+        "card": "acemath-rewardbench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "aime",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "androidworld",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "androidworld-sr",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "anthropic-red-team",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "api-bank",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "babyvision",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "beyond-aime",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "bigcodebench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "boolq",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "browsecomp",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "chartqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "civilcomments",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "cnn-dailymail",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "codegolf-v2.2",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "core-bench-hard",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "corpusqa-1m",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "cotd",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "covost2",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "csimpleqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "cyse2-vulnerability-exploit",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "design2code",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "disinformation",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "drop",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "dtto",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "dynamath",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "easy-problems",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "egoschema",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "erqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "extremelandmarkpairs",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "flenqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "fleurs",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "gdpval-aa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "giantsteps-tempo",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "global-piqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "gsm-mc",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "helm-lite",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "herb",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "humanevalfim-average",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "informative-tracking-benchmark",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "ioi",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "iquad-v1",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "jrdb",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "livebench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "livecodebench-pro",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "longfact-objects",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mc-bench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mcp-mark",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mega-mlqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mm-mind2web",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mmau",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mmmu",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mmsearch-plus",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mmvet",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "mtvqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "multi-if",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "nmos",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "nt-vot211",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "objectron",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "omnigaia",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "piqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "qmsum",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "realworldqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "researchpulse-bench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "sage-overall",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "salad-bench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "simplesafetytests",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "swe-bench",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "swe-bench-multimodal",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "tlp",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "tydiqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "vision2web",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "visual-commonsense-reasoning",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "worldvqa",
+        "stratum": "unflagged"
+      },
+      {
+        "card": "xsum",
+        "stratum": "unflagged"
+      }
+    ],
+    "n_cards": 150,
+    "population_cards": 530,
+    "strata": {
+      "flagged": {
+        "analysis_weight": 2.026666666666667,
+        "population_cards": 152,
+        "sample_cards": 75
+      },
+      "unflagged": {
+        "analysis_weight": 5.04,
+        "population_cards": 378,
+        "sample_cards": 75
+      }
+    }
+  },
+  "source_artifacts": {
+    "sample_sha256": "d9f1071c233e4c0dfabeea51597f9e8f1003ae1687de70d99ed2e371c963713a",
+    "screen_results_sha256": "494a46ec7d72cb31983197f04ca9837127bcf1da6f1546ddb02fb02b99a6c45a"
+  },
+  "version": "screen-verification-scoring-lock-v2-2026-07-18",
+  "public_projection": {
+    "email_redaction": "One public academic email address in a protected finding was replaced with [redacted email]. Internal protected-row hashes were recomputed over this public projection.",
+    "raw_returns_included": false
+  }
+}

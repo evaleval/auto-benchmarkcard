@@ -1,0 +1,125 @@
+{
+ "floor": 0.1,
+ "cases": [
+  {
+   "slug": "covost2",
+   "full_name": null,
+   "domain": null,
+   "overview": "CoVoST 2 is a large-scale multilingual speech translation corpus derived from Common Voice, covering translations from 21 languages into English and from English into 15 languages. The dataset contains 2,880 hours of speech with 78K speakers for speech translation research.",
+   "candidate_title": "German ASR Transformer model trained on CoVoST2 using espnet2",
+   "candidate_id": "10.5281/zenodo.18223189",
+   "abstract": "German ASR transformer model trained on CoVoST2 using espnet2 Results are as below: ### WER |dataset|Snt|Wrd|Corr|Sub|Del|Ins|Err|S.Err||---|---|---|---|---|---|---|---|---| |dev.de-en|13505|120056|85.1|13.2|1.8|2.0|16.9|65.7||test.de-en|13502|118600|83.0|14.9|2.1|2.0|19.1|68.4| ### CER |dataset|Snt|Wrd|Corr|Sub|Del|Ins|Err|S.Err||---|---|---|---|---|---|---|---|---| |dev.de-en|13505|819319|96.2|2.1|1.7|1.1|5.0|65.7||test.de-en|13502|801401|95.3|2.6|2.1|1.4|6.1|68.4| ### TER |dataset|Snt|Wrd|Corr|Sub|Del|Ins|Err|S.Err||---|---|---|---|---|---|---|---|---| |dev.de-en|13505|289208|88.2|8.0|3.8|1.1|12.9|65.7||test.de-en|13502|282287|86.6|9.3|4.1|1.4|14.9|68.4|",
+   "title_similarity": 100.0,
+   "path": "title_sim",
+   "expect": "vetoed"
+  },
+  {
+   "slug": "screenspot",
+   "full_name": "ScreenSpot",
+   "domain": "GUI grounding and screen element localization",
+   "overview": "ScreenSpot-Pro is a new benchmark designed to rigorously evaluate the grounding capabilities of MLLMs in high-resolution professional settings. The benchmark comprises authentic high-resolution images from a variety of professional domains with expert annotations. It spans 23 applications across five industries and three operating systems.",
+   "candidate_title": "ScreenSpot-Pro: GUI Grounding for Professional High-Resolution Computer Use",
+   "candidate_id": "10.1145/3746027.3755688",
+   "abstract": "Recent advancements in Multi-modal Large Language Models (MLLMs) have led to significant progress in developing GUI agents for general tasks such as web browsing and mobile phone use. However, their application in professional domains remains under-explored. These specialized workflows introduce unique challenges for GUI perception models, including high-resolution displays and complex environments which lead to smaller target sizes. In this paper, we introduce ScreenSpot-Pro, a new benchmark designed to rigorously evaluate the grounding capabilities of MLLMs in high-resolution professional settings. The benchmark comprises authentic high-resolution images from a variety of professional domains with expert annotations. It spans 23 applications across five industries and three operating systems. Existing GUI grounding models perform poorly on this dataset, with the best model achieving only 18.9%. Our experiments reveal that strategically reducing the search area enhances accuracy. Based on this insight, we propose ScreenSeekeR, a visual search method that utilizes the GUI knowledge of a strong planner to guide a cascaded search, achieving state-of-the-art performance with 48.1% without any additional training. We hope that our benchmark and findings will advance the development of GUI agents for professional settings.",
+   "title_similarity": 100.0,
+   "path": "title_sim",
+   "expect": "kept"
+  },
+  {
+   "slug": "studiogan",
+   "full_name": "StudioGAN Benchmark for Generative Models on ImageNet 256x256",
+   "domain": "image generation",
+   "overview": "Comparison of various generative models (GANs, Auto-Regressive, Diffusion) on the ImageNet 256x256 dataset, evaluated using Fr\u00e9chet Inception Distance (FID) with the standard InceptionV3 backbone. This metric measures the distance between feature distributions of real and generated images.",
+   "candidate_title": "StudioGAN: A Taxonomy and Benchmark of GANs for Image Synthesis",
+   "candidate_id": "10.1109/tpami.2023.3306436",
+   "abstract": "Generative Adversarial Network (GAN) is one of the state-of-the-art generative models for realistic image synthesis. While training and evaluating GAN becomes increasingly important, the current GAN research ecosystem does not provide reliable benchmarks for which the evaluation is conducted consistently and fairly. Furthermore, because there are few validated GAN implementations, researchers devote considerable time to reproducing baselines. We study the taxonomy of GAN approaches and present a new open-source library named StudioGAN. StudioGAN supports 7 GAN architectures, 9 conditioning methods, 4 adversarial losses, 12 regularization modules, 3 differentiable augmentations, 7 evaluation metrics, and 5 evaluation backbones. With our training and evaluation protocol, we present a large-scale benchmark using various datasets (CIFAR10, ImageNet, AFHQv2, FFHQ, and Baby/Papa/Granpa-ImageNet) and 3 different evaluation backbones (InceptionV3, SwAV, and Swin Transformer). Unlike other benchmarks used in the GAN community, we train representative GANs, including BigGAN and StyleGAN series in a unified training pipeline and quantify generation performance with 7 evaluation metrics. The benchmark evaluates other cutting-edge generative models (e.g., StyleGAN-XL, ADM, MaskGIT, and RQ-Transformer). StudioGAN provides GAN implementations, training, and evaluation scripts with the pre-trained weights. StudioGAN is available at https://github.com/POSTECH-CVLab/PyTorch-StudioGAN.",
+   "title_similarity": 100.0,
+   "path": "title_sim",
+   "expect": "kept"
+  },
+  {
+   "slug": "vip-bench",
+   "full_name": "ViP-Bench",
+   "domain": "visual grounding, spatial perception, region-specific understanding",
+   "overview": "VIP-Bench is a benchmark suite designed with varying operational complexity and computational depth to evaluate competing privacy frameworks fairly and directly. It defines a forward-looking privacy-enhanced computation model and develops an array of privacy-focused benchmarks under that model. The benchmark set flexibly covers the whole range of expected computational power and capability, enabling evaluation of privacy-enhanced computation capabilities for both current and future systems.",
+   "candidate_title": "VIP-Bench: A Benchmark Suite for Evaluating Privacy-Enhanced Computation Frameworks",
+   "candidate_id": "10.1109/seed51797.2021.00026",
+   "abstract": "Privacy-enhanced computation enables the processing of encrypted data without exposing underlying sensitive information. Such technologies are extremely promising for the advancement of data privacy, as they remove plaintexts from the attackers\u2019 reach. However, each privacy technology provides varying degrees of computational capabilities and performance overheads, creating challenges for adoption. For example, some publicly available homomorphic encryption schemes are limited in expressiveness or cannot support deep computation without incurring significant overheads. This diversity warrants a benchmark suite that can adequately assess capability and performance while supporting a variety of privacy-enhanced software architectures. We propose VIP-Bench, a benchmark suite designed with varying operational complexity and computational depth to evaluate competing privacy frameworks fairly and directly. VIP-Bench defines a forward-looking privacy-enhanced computation model and then develops under that model an array of privacy-focused benchmarks. The benchmark set is designed to flexibly cover the whole range of expected computational power and capability, enabling VIP-Bench to evaluate the privacy-enhanced computation capabilities of both today and tomorrow.",
+   "title_similarity": 100.0,
+   "path": "title_sim",
+   "expect": "kept"
+  },
+  {
+   "slug": "hard-problems",
+   "full_name": "Hard Problems",
+   "domain": "code generation",
+   "overview": null,
+   "candidate_title": "Approximation Algorithms for NP-Hard Problems",
+   "candidate_id": "10.1145/261342.571216",
+   "abstract": "Approximation algorithms have developed in response to the impossibility of solving a great variety of important optimization problems. Too frequently, when attempting to get a solution for a problem, one is confronted with the fact that the problem is NP-hard. This, in the words of Garey and Johnson, means \"I can't find an efficient algorithm, but neither can all of these famous people.\" While this is a significant theoretical step, it hardly qualifies as a cheering piece of news.If the optimal solution is unattainable then it is reasonable to sacrifice optimality and settle for a \"good\" feasible solution that can be computed efficiently. Of course, we would like to sacrifice as little optimality as possible, while gaining as much as possible in efficiency. Trading-off optimality in favor of tractability is the paradigm of approximation algorithms.The main themes of this book revolve around the design of such algorithms and the \"closeness\" to optimum that is achievable in polynomial time. To evaluate the limits of approximability, it is important to derive lower bounds or inapproximability results. In some cases, approximation algorithms must satisfy additional structural requirements such as being on-line, or working within limited space. This book reviews the design techniques for such algorithms and the developments in this area since its inception about three decades ago.",
+   "title_similarity": 100.0,
+   "path": "title_sim",
+   "expect": "abstained"
+  },
+  {
+   "slug": "disinformation",
+   "full_name": "Disinformation evaluation",
+   "domain": "disinformation detection",
+   "overview": null,
+   "candidate_title": "Regimenting discourse, controlling bodies: Disinformation, evaluation and moral categorization in a state bureaucratic agency",
+   "candidate_id": "10.1177/0957926511411696",
+   "abstract": "This article examines, from a critical and ethnographic sociolinguistic perspective, the socio-discursive practices unfolding at the information desk of a Spanish immigration office in Barcelona. Drawing on a corpus of ethnographic materials and interactional data, the article discusses why frontline communication became constituted as it did, what practical routines and ideological considerations grounded it, and how multiple social and institutional orders intersected in the shaping of practical and symbolic gatekeeping. I claim that, through various micro-strategies of control, evaluation and moral hierarchization, the government employees at this bureaucratic agency enacted the disciplinary and exclusionary regime of the nation-state, and socialized their clients into becoming \u2018good\u2019 migrants.",
+   "title_similarity": 96.0,
+   "path": "title_sim",
+   "expect": "abstained"
+  },
+  {
+   "slug": "echo",
+   "full_name": "ECHO Benchmark",
+   "domain": "image-to-image and text-to-image evaluation",
+   "overview": "Win rate on the image-to-image split of the ECHO benchmark. The win rate is calculated across all pairwise model comparisons, where each model earns 1 for a win, 0 for a loss, and 0.5 for a tie. The final win rate is the average win rate against all other models, determined by an ensemble of three VLMs-as-a-judge (GPT-4o, Gemini 2.0, Qwen2.5-VL-32B-Instruct).",
+   "candidate_title": "Can You Hear Me Now? A Benchmark for Long-Range Graph Propagation",
+   "candidate_id": "2512.17762",
+   "abstract": "Effectively capturing long-range interactions remains a fundamental yet unresolved challenge in graph neural network (GNN) research, critical for applications across diverse fields of science. To systematically address this, we introduce ECHO (Evaluating Communication over long HOps), a novel benchmark specifically designed to rigorously assess the capabilities of GNNs in handling very long-range graph propagation. ECHO includes three synthetic graph tasks, namely single-source shortest paths, node eccentricity, and graph diameter, each constructed over diverse and structurally challenging topologies intentionally designed to introduce significant information bottlenecks. ECHO also includes two real-world datasets, ECHO-Charge and ECHO-Energy, which define chemically grounded benchmarks for predicting atomic partial charges and molecular total energies, respectively, with reference computations obtained at the density functional theory (DFT) level. Both tasks inherently depend on capturing complex long-range molecular interactions. Our extensive benchmarking of popular GNN architectures reveals clear performance gaps, emphasizing the difficulty of true long-range propagation and highlighting design choices capable of overcoming inherent limitations. ECHO thereby sets a new standard for evaluating long-range information propagation, also providing a compelling example for its need in AI for science.",
+   "title_similarity": 100.0,
+   "path": "batch",
+   "expect": "vetoed"
+  },
+  {
+   "slug": "charxiv",
+   "full_name": null,
+   "domain": null,
+   "overview": "CharXiv is a comprehensive evaluation suite involving 2,323 natural, challenging, and diverse charts from arXiv papers. Each chart is paired with 4 descriptive questions (3 answerable and 1 unanswerable) and 1 reasoning question, all of which require open-vocabulary short answers that are easily verifiable. Evaluation is conducted in a zero-shot setting on the validation set, measuring overall accuracy on descriptive questions.",
+   "candidate_title": "CharXiv: Charting Gaps in Realistic Chart Understanding in Multimodal LLMs",
+   "candidate_id": "2406.18521",
+   "abstract": "Chart understanding plays a pivotal role when applying Multimodal Large Language Models (MLLMs) to real-world tasks such as analyzing scientific papers or financial reports. However, existing datasets often focus on oversimplified and homogeneous charts with template-based questions, leading to an over-optimistic measure of progress. We demonstrate that although open-source models can appear to outperform strong proprietary models on these benchmarks, a simple stress test with slightly different charts or questions can deteriorate performance by up to 34.5%. In this work, we propose CharXiv, a comprehensive evaluation suite involving 2,323 natural, challenging, and diverse charts from arXiv papers. CharXiv includes two types of questions: 1) descriptive questions about examining basic chart elements and 2) reasoning questions that require synthesizing information across complex visual elements in the chart. To ensure quality, all charts and questions are handpicked, curated, and verified by human experts. Our results reveal a substantial, previously underestimated gap between the reasoning skills of the strongest proprietary model (i.e., GPT-4o), which achieves 47.1% accuracy, and the strongest open-source model (i.e., InternVL Chat V1.5), which achieves 29.2%. All models lag far behind human performance of 80.5%, underscoring weaknesses in the chart understanding capabilities of existing MLLMs. We hope CharXiv facilitates future research on MLLM chart understanding by providing a more realistic and faithful measure of progress. Project page and leaderboard: https://charxiv.github.io/",
+   "title_similarity": 100.0,
+   "path": "batch",
+   "expect": "kept"
+  },
+  {
+   "slug": "mgsm",
+   "full_name": "Multilingual Grade School Math",
+   "domain": "math reasoning",
+   "overview": "MGSM (Multilingual Grade School Math) is a benchmark of grade-school math problems. Contains 250 grade-school math problems manually translated from the GSM8K dataset into ten typologically diverse languages: Spanish, French, German, Russian, Chinese, Japanese, Thai, Swahili, Bengali, and Telugu. Evaluates multilingual mathematical reasoning capabilities.",
+   "candidate_title": "Language Models are Multilingual Chain-of-Thought Reasoners",
+   "candidate_id": "2210.03057",
+   "abstract": "We evaluate the reasoning abilities of large language models in multilingual settings. We introduce the Multilingual Grade School Math (MGSM) benchmark, by manually translating 250 grade-school math problems from the GSM8K dataset (Cobbe et al., 2021) into ten typologically diverse languages. We find that the ability to solve MGSM problems via chain-of-thought prompting emerges with increasing model scale, and that models have strikingly strong multilingual reasoning abilities, even in underrepresented languages such as Bengali and Swahili. Finally, we show that the multilingual reasoning abilities of language models extend to other tasks such as commonsense reasoning and word-in-context semantic judgment. The MGSM benchmark is publicly available at https://github.com/google-research/url-nlp.",
+   "title_similarity": 100.0,
+   "path": "batch",
+   "expect": "kept"
+  },
+  {
+   "slug": "gsm8k",
+   "full_name": null,
+   "domain": null,
+   "overview": "GSM8K is a dataset of 8.5K high quality linguistically diverse grade school math word problems. The dataset was created to support the task of question answering on basic mathematical problems that require multi-step reasoning.",
+   "candidate_title": "Training Verifiers to Solve Math Word Problems",
+   "candidate_id": "2110.14168",
+   "abstract": "State-of-the-art language models can match human performance on many tasks, but they still struggle to robustly perform multi-step mathematical reasoning. To diagnose the failures of current models and support research, we introduce GSM8K, a dataset of 8.5K high quality linguistically diverse grade school math word problems. We find that even the largest transformer models fail to achieve high test performance, despite the conceptual simplicity of this problem distribution. To increase performance, we propose training verifiers to judge the correctness of model completions. At test time, we generate many candidate solutions and select the one ranked highest by the verifier. We demonstrate that verification significantly improves performance on GSM8K, and we provide strong empirical evidence that verification scales more effectively with increased data than a finetuning baseline.",
+   "title_similarity": 100.0,
+   "path": "batch",
+   "expect": "kept"
+  }
+ ]
+}

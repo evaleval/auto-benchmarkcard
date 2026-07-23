@@ -1,167 +1,124 @@
 # Auto-BenchmarkCard
 
-Automated generation of validated benchmark documentation for AI/NLP benchmarks.
+Auto-BenchmarkCard generates structured documentation for AI benchmarks from
+evaluation records, papers, dataset repositories, and linked web sources. It
+records source provenance, composes a BenchmarkCard, and checks card claims
+against the collected evidence.
 
-Benchmark documentation is often incomplete, inconsistent, or scattered across different sources. Auto-BenchmarkCard pulls together metadata from Hugging Face, Unitxt, and academic papers, synthesizes it into a structured BenchmarkCard using LLMs, and then fact-checks the result against the original sources using [FactReasoner](https://github.com/arishofmann/FactReasoner).
+![Auto-BenchmarkCard pipeline](docs/figures/pipeline.png)
 
-<img width="1050" height="335" alt="Auto-BenchmarkCard architecture diagram" src="https://github.com/user-attachments/assets/c4c1992e-b0c9-4a3c-bc5a-89716b9ff215" />
+The editable figure is available as
+[`docs/figures/pipeline.drawio`](docs/figures/pipeline.drawio).
 
-## How it works
+## Repository contents
 
-The workflow has three phases:
+- `src/auto_benchmarkcard/`: package and command-line application
+- `scripts/`: batch generation, corpus assembly, and evaluation programs
+- `tests/`: offline and artifact-backed regression tests
+- `eval/`: frozen v3 evaluation sample, results, public human-label
+  projections, manifests, and checksums
+- `docs/`: architecture notes and figure sources
+- `spaces/benchmarkcard-webhook/`: optional Hugging Face Space integration
 
-**Extraction** gathers raw data from multiple sources. The Unitxt tool fetches benchmark definitions from the Unitxt catalog. The HuggingFace tool loads dataset READMEs and metadata. The Docling tool converts referenced academic papers into structured text.
+The public evaluation snapshot is based on 531 attempted entries and 530
+published cards. The exact card corpus is pinned to Hugging Face revision
+[`0a86cea5b55d6070bd7f1f020f01281e1631adba`](https://huggingface.co/datasets/evaleval/auto-benchmarkcards/tree/0a86cea5b55d6070bd7f1f020f01281e1631adba).
+See [`eval/README.md`](eval/README.md) for the result scopes, artifact map,
+sanitization policy, and reproduction commands.
 
-**Composition** takes all extracted data and feeds it to an LLM that produces a structured BenchmarkCard. After that, [AI Atlas Nexus](https://github.com/IBM/risk-atlas-nexus) maps the benchmark to relevant AI risk categories.
+## Install
 
-**Validation** breaks the generated card into atomic claims, retrieves evidence for each claim using BM25 + vector search + LLM reranking, and sends claim-evidence pairs to FactReasoner. Each claim is classified as supported, contradicted, or neutral with a confidence score. Fields with low factuality or missing evidence get flagged for human review.
-
-The whole pipeline is orchestrated as a LangGraph state machine where each tool runs as a worker node.
-
-## Quick start
+Auto-BenchmarkCard requires Python 3.11 or newer.
 
 ```bash
 git clone https://github.com/evaleval/auto-benchmarkcard.git
 cd auto-benchmarkcard
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
 ```
 
-Create a `.env` file:
+Copy `.env.example` to `.env` and add only the credentials needed by your
+chosen backends. `.env` is ignored by Git.
 
-```bash
-LLM_ENGINE_TYPE=hf
-HF_TOKEN=<your-hf-token>
-HF_COMPOSER_MODEL=deepseek-ai/DeepSeek-V3.1
-FACTREASONER_MODEL=meta-llama/Llama-3.3-70B-Instruct
-```
-
-### Setting up Merlin (for FactReasoner)
-
-FactReasoner uses [Merlin](https://github.com/arishofmann/merlin) for probabilistic inference. This step is required for the validation phase.
+For the validation phase, build
+[Merlin](https://github.com/arishofmann/merlin) at `external/merlin`:
 
 ```bash
 git clone https://github.com/arishofmann/merlin.git external/merlin
-cd external/merlin
-brew install boost          # macOS; on Linux: sudo apt-get install libboost-all-dev
-make clean && make
-cd ../..
+make -C external/merlin
 ```
 
-Verify with `./external/merlin/bin/merlin --help`.
+## Run
 
+Generate from an Every Eval Ever export:
 
-Generate a benchmark card:
+```bash
+benchmarkcard generate ./external/eee_samples \
+  -b "MMLU,TruthfulQA" \
+  -o ./output
+```
+
+Generate from Unitxt:
 
 ```bash
 benchmarkcard generate-unitxt glue -o ./output
 ```
 
-The default LLM backend is HuggingFace Inference Providers. Other supported backends are Ollama (local), vLLM, WML, and RITS. Set `LLM_ENGINE_TYPE` in your `.env` accordingly.
-
-## Usage
-
-### CLI
+Inspect the available commands:
 
 ```bash
-# From evaluation data (supports multiple benchmarks)
-benchmarkcard generate ./external/eee_samples -b "MMLU,TruthfulQA" -o ./output
-
-# From the Unitxt catalog
-benchmarkcard generate-unitxt glue -o ./output
-
-# List previous sessions
-benchmarkcard list -o ./output
-
-# Check your environment
+benchmarkcard --help
 benchmarkcard validate
 ```
 
-Add `--debug` to any command for detailed logging.
+Each run writes a timestamped directory containing the final card, source
+artifacts, provenance, and factuality results. Generated outputs are ignored
+by Git.
 
-### Python API
+## Evaluation snapshot
 
-```python
-from auto_benchmarkcard.workflow import build_workflow
-from auto_benchmarkcard.output import OutputManager
+The primary public result record is
+[`eval/results_summary.json`](eval/results_summary.json). The machine-readable
+source artifacts remain available beside it. Important scope constraints:
 
-output_manager = OutputManager("glue")
-workflow = build_workflow()
-state = workflow.invoke({
-    "query": "glue",
-    "output_manager": output_manager,
-    "catalog_path": None,
-    "unitxt_json": None,
-    "extracted_ids": None,
-    "hf_repo": None,
-    "hf_json": None,
-    "docling_output": None,
-    "composed_card": None,
-    "risk_enhanced_card": None,
-    "completed": [],
-    "errors": [],
-    "hf_extraction_attempted": False,
-    "rag_results": None,
-    "factuality_results": None,
-})
+- The source-bounded judge covers 23 content fields per sampled card.
+- Human judge agreement is estimated from the probability arm. The filled
+  result contains 17 rows, so its uncertainty is low precision.
+- The public-source screen reports the weighted share of cards with at least
+  one screen-detected, verifier-confirmed material finding. It is not an
+  estimate of true defect prevalence because screen recall is unknown.
+- Validation-flag precision and recall use only the overlapping filled-field
+  judge universe.
+
+Raw participant returns and copied third-party source text are not included.
+Anonymized labels and evidence URLs are retained. Optional participant notes
+are omitted uniformly and are not used by the scorers.
+
+## Development
+
+Run the maintained test suite:
+
+```bash
+python -m pytest
 ```
 
-## Output
-
-Each run creates a timestamped directory:
-
-```
-output/glue_2025-01-08_14-30/
-├── tool_output/
-│   ├── unitxt/           # Unitxt benchmark definitions
-│   ├── hf/               # Hugging Face metadata
-│   ├── docling/           # Processed papers
-│   ├── extractor/         # Extracted IDs and URLs
-│   ├── rag/               # Evidence retrieval results
-│   ├── factreasoner/      # Factuality scores
-│   └── ai_atlas_nexus/    # Risk assessment
-└── benchmarkcard/
-    └── benchmark_card_glue.json
-```
-
-The final `benchmark_card_*.json` contains the structured card, risk annotations, factuality scores, and a list of flagged fields that need human review.
-
-## Project structure
-
-```
-auto_benchmarkcard/
-├── src/auto_benchmarkcard/
-│   ├── workflow.py        # LangGraph orchestration
-│   ├── workers.py         # Worker nodes for each pipeline step
-│   ├── state.py           # Graph state definition
-│   ├── output.py          # Output directory management
-│   ├── card_utils.py      # Card normalization and HF tag overrides
-│   ├── config.py          # Environment and model configuration
-│   ├── cli.py             # Typer CLI
-│   ├── llm_handler.py     # LLM engine abstraction
-│   └── tools/
-│       ├── unitxt/        # Unitxt catalog lookup
-│       ├── extractor/     # ID and URL extraction
-│       ├── hf/            # Hugging Face metadata
-│       ├── docling/       # Paper conversion
-│       ├── composer/      # LLM-based card generation
-│       ├── ai_atlas_nexus/ # Risk identification
-│       ├── rag/           # Evidence retrieval
-│       ├── factreasoner/  # Fact verification
-│       └── eee/           # Evaluation data adapter
-├── scripts/
-│   ├── batch_generate.py
-│   └── generate_manual.py
-├── external/
-│   └── merlin/
-├── pyproject.toml
-└── .env
-```
+Additional setup, package checks, and frozen-artifact rules are documented in
+[`DEVELOPMENT.md`](DEVELOPMENT.md). Tool-specific repository guidance is in
+[`CLAUDE.md`](CLAUDE.md).
 
 ## References
 
-A. Sokol et al., "BenchmarkCards: Standardized Documentation for Large Language Model Benchmarks," 2025, arXiv:2410.12974.
+- A. Sokol et al. "BenchmarkCards: Standardized Documentation for Large
+  Language Model Benchmarks." arXiv:2410.12974, 2025.
+- R. Marinescu et al. "FactReasoner: A Probabilistic Approach to Long-Form
+  Factuality Assessment for Large Language Models." arXiv:2502.18573, 2025.
+- F. Bagehorn et al. "AI Risk Atlas: Taxonomy and Tooling for Navigating AI
+  Risks and Resources." arXiv:2503.05780, 2025.
 
-R. Marinescu et al., "FactReasoner: A Probabilistic Approach to Long-Form Factuality Assessment for Large Language Models," 2025, arXiv:2502.18573.
+## License
 
-F. Bagehorn et al., "AI Risk Atlas: Taxonomy and Tooling for Navigating AI Risks and Resources," 2025, arXiv:2503.05780.
+The repository code is available under the MIT License. Third-party content
+and dependencies retain their original licenses. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

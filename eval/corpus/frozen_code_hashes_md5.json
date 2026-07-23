@@ -1,0 +1,12 @@
+{
+  "frozen": {
+    "scripts/judge_gold_set.py": "dfcecad981fecdd7a96cd0383a060754",
+    "src/auto_benchmarkcard/card_utils.py": "9b72bb5c9996619a292bce82d5ac8b2b",
+    "src/auto_benchmarkcard/tools/rag/atomizer.py": "293b9e9f7c1b7ba4712935999b3c55cd",
+    "src/auto_benchmarkcard/validation_policy.py": "0c086ce6edd487cebbdba7a647315b31"
+  },
+  "watch": {
+    "s_screen_review.js": "5205a31d119de19ee30f7133b782d908",
+    "scripts/eval_gold_set.py": "546854498f53c795a01390cb328129d2"
+  }
+}

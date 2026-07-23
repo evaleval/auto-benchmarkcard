@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "auto_benchmarkcard"
 version = "0.1.0"
-description = "Comprehensive benchmark metadata extraction and validation with LLM-powered analysis"
+description = "Generate and validate structured documentation for AI benchmarks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "Aris Hofmann", email = "aris.hofmann@gmail.com"}
+    {name = "Aris Hofmann"}
 ]
 keywords = ["benchmark", "metadata", "llm", "validation", "ai-risk"]
 classifiers = [
@@ -85,7 +85,7 @@ benchmarkcard = "auto_benchmarkcard.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-auto_benchmarkcard = ["py.typed"]
+auto_benchmarkcard = ["tools/composer/gold_example.json"]
 
 [tool.black]
 line-length = 100
@@ -100,3 +100,7 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -18,6 +18,20 @@ except ImportError:
     logger.warning("LLM handler not available for atomization")
     LLMHandler = None
 
+from auto_benchmarkcard.card_utils import _DISPLAY_ONLY_FIELDS
+
+# Structured / scalar v2 fields stripped before atomization. A dict/bool/int value
+# serialized into the atomizer prompt has no verbatim source form, so the field-path
+# mapper would mis-attribute it onto a real prose path (trap S3). Display-only fields
+# are stripped separately via _DISPLAY_ONLY_FIELDS. judge_score_consolidation is NOT
+# here -- it is short prose ("majority vote" / "mean") and stays whitelisted.
+_ATOMIZER_STRIP_FIELDS = frozenset({
+    "data.size_breakdown",
+    "methodology.judge_uses_llm",
+    "methodology.judge_num",
+    "methodology.judge_models",
+})
+
 BENCHMARK_CARD_ATOMIZATION_PROMPT = """
 Extract verifiable facts from this benchmark card. Each statement must be independently verifiable.
 
@@ -32,7 +46,8 @@ Required Field Paths (use these EXACT paths):
 - benchmark_details.similar_benchmarks
 - benchmark_details.resources
 - purpose_and_intended_users.goal
-- purpose_and_intended_users.audience
+- purpose_and_intended_users.audience_evaluators
+- purpose_and_intended_users.audience_consumers
 - purpose_and_intended_users.tasks
 - purpose_and_intended_users.limitations
 - purpose_and_intended_users.out_of_scope_uses
@@ -40,12 +55,17 @@ Required Field Paths (use these EXACT paths):
 - data.size
 - data.format
 - data.annotation
+- data.collection_date
+- data.contamination_controls
 - methodology.methods
 - methodology.metrics
 - methodology.calculation
 - methodology.interpretation
 - methodology.baseline_results
 - methodology.validation
+- methodology.human_baseline
+- methodology.validity_justification
+- methodology.judge_score_consolidation
 - ethical_and_legal_considerations.privacy_and_anonymity
 - ethical_and_legal_considerations.data_licensing
 - ethical_and_legal_considerations.consent_procedures
@@ -106,7 +126,6 @@ def text_to_statements(text: str, separator: str = "- ") -> List[dict]:
         "benchmark_details.similar_benchmarks",
         "benchmark_details.resources",
         "purpose_and_intended_users.goal",
-        "purpose_and_intended_users.audience",
         "purpose_and_intended_users.tasks",
         "purpose_and_intended_users.limitations",
         "purpose_and_intended_users.out_of_scope_uses",
@@ -124,6 +143,17 @@ def text_to_statements(text: str, separator: str = "- ") -> List[dict]:
         "ethical_and_legal_considerations.data_licensing",
         "ethical_and_legal_considerations.consent_procedures",
         "ethical_and_legal_considerations.compliance_with_regulations",
+        # v2 prose/content fields: kept in the whitelist so they atomize on their own
+        # path instead of mis-routing via keyword fallback (trap S3). The structured
+        # fields (size_breakdown, flat judge_*) are NOT here -- they are stripped before
+        # atomization in exclude_risk_sections (a dict/bool/int would be mis-attributed).
+        "data.collection_date",
+        "data.contamination_controls",
+        "methodology.human_baseline",
+        "methodology.judge_score_consolidation",
+        "methodology.validity_justification",
+        "purpose_and_intended_users.audience_evaluators",
+        "purpose_and_intended_users.audience_consumers",
     }
 
     statements = []
@@ -177,6 +207,12 @@ def _map_to_valid_field(field: str, statement: str) -> str:
 
     # Methodology-related mappings
     if "methodology" in field.lower():
+        # The v2 validity_justification (construct-validity / metric-choice rationale)
+        # must not collapse onto methodology.validation (QA procedures): the words
+        # overlap but the fields are distinct. "validity" is not a substring of
+        # "validation", so this never catches a genuine validation path.
+        if "justif" in field.lower() or "validity" in field.lower() or "construct validity" in statement_lower:
+            return "methodology.validity_justification"
         if any(
             word in statement_lower
             for word in ["f1-score", "accuracy", "performance", "achieved", "result"]
@@ -212,6 +248,15 @@ def _map_to_valid_field(field: str, statement: str) -> str:
             return "benchmark_details.overview"
 
     elif "purpose" in field.lower():
+        # The v2 audience split: an audience-attributed atom routes to consumers (who
+        # interpret/use the results) or evaluators (who run the benchmark), never back
+        # to the single goal field. Default to evaluators when no consumer signal.
+        if "audience" in field.lower():
+            consumer_terms = ["policymaker", "educator", "interpret", "decision",
+                              "downstream", "consume", "end user", "end-user"]
+            if any(w in statement_lower for w in consumer_terms):
+                return "purpose_and_intended_users.audience_consumers"
+            return "purpose_and_intended_users.audience_evaluators"
         return "purpose_and_intended_users.goal"
 
     elif "ethical" in field.lower() or "legal" in field.lower():
@@ -318,6 +363,24 @@ def exclude_risk_sections(benchmark_card: Dict[str, Any]) -> Dict[str, Any]:
     if "targeted_risks" in filtered_card:
         logger.debug("Excluding risk sections from fact verification")
         del filtered_card["targeted_risks"]
+
+    # Strip display-only fields before atomization. They are not source-grounded
+    # claims; left in, the field-path mapper would mis-route them onto a real path
+    # (e.g. benchmark_details.overview) and contaminate verification. Set-driven.
+    for dotted in _DISPLAY_ONLY_FIELDS:
+        sec, _, fld = dotted.partition(".")
+        section = filtered_card.get(sec)
+        if isinstance(section, dict):
+            section.pop(fld, None)
+
+    # Strip structured/scalar v2 fields (dict/bool/int) before atomization: serialized
+    # into the prompt they have no verbatim source form and would be mis-attributed
+    # onto a real prose path. Set-driven, same as the display strip above.
+    for dotted in _ATOMIZER_STRIP_FIELDS:
+        sec, _, fld = dotted.partition(".")
+        section = filtered_card.get(sec)
+        if isinstance(section, dict):
+            section.pop(fld, None)
 
     # Remove "Not specified" fields — they produce useless atoms like
     # "It has limitations not specified" that can't be verified

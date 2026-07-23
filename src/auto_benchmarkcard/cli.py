@@ -6,7 +6,6 @@ import logging
 import os
 import sys
 import time
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -445,6 +444,12 @@ def generate_unitxt(
         safe_name = sanitize_benchmark_name(benchmark)
         output_manager = OutputManager(safe_name, str(output_path) if output_dir else None)
 
+        from auto_benchmarkcard.llm_handler import set_usage_log_path
+        set_usage_log_path(os.path.join(
+            output_manager.get_tool_output_path("llm_usage"),
+            f"llm_usage_{safe_name}.jsonl",
+        ))
+
         console.print(f"\n[bold cyan]Generating BenchmarkCard from UnitXT[/bold cyan]")
         console.print(f"[dim]Benchmark: {benchmark}[/dim]")
 
@@ -457,6 +462,7 @@ def generate_unitxt(
             "hf_repo": None,
             "hf_json": None,
             "docling_output": None,
+            "docling_telemetry": None,
             "composed_card": None,
             "risk_enhanced_card": None,
             "completed": [],
@@ -956,6 +962,9 @@ def show_session(
                         details = card.get("benchmark_details", {})
                         console.print(f"\n[dim]Preview of {card_file.name}:[/dim]")
                         console.print(f"  Name: [cyan]{details.get('name', 'N/A')}[/cyan]")
+                        authors = details.get("authors")
+                        if authors:
+                            console.print(f"  Authors: {', '.join(authors)}")
                         console.print(f"  Domains: {', '.join(details.get('domains', []))}")
                         console.print(f"  Languages: {', '.join(details.get('languages', []))}")
 

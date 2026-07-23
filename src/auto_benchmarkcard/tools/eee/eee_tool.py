@@ -20,6 +20,7 @@ import itertools
 import json
 import logging
 import os
+import re
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
@@ -37,8 +38,49 @@ def _normalize_benchmark_name(name: str) -> str:
     return name.strip().lower().replace("_", "-").replace(" ", "-")
 
 
+def _name_tokens(text: str) -> List[str]:
+    """Split a dataset/benchmark name into lowercased tokens on non-alphanumeric delimiters.
+
+    Delimiter-only (no camelCase split): names like 'BioLP' are single tokens, not 'Bio'+'LP'.
+    """
+    return [t for t in re.split(r"[^A-Za-z0-9]+", text.lower()) if t]
+
+
+def _is_contiguous_token_run(needle: List[str], haystack: List[str]) -> bool:
+    """True if needle appears as a contiguous run of whole tokens inside haystack."""
+    n, h = len(needle), len(haystack)
+    if n == 0 or n > h:
+        return False
+    return any(haystack[i:i + n] == needle for i in range(h - n + 1))
+
+
 # Minimum downloads threshold to accept a HF search result as valid
 MIN_HF_DOWNLOADS = 500
+
+# A search match must align to dataset-name token boundaries (never a mid-word substring like
+# "arc" inside "banned-historical-archives"). Names shorter than this, once normalized, are too
+# ambiguous to match on token overlap alone and require an exact normalized match.
+MIN_TOKEN_MATCH_LEN = 5
+
+
+# Aggregate evaluation sources that masquerade as a single benchmark's data source. An aggregate
+# harness binds the wrong languages/size/licensing/metrics onto each member card, and the name-token
+# corroboration guard is blind to it for short member names. Keyed on source identity (HF repo id and
+# metric namespace), never on benchmark name, so any benchmark wrongly bound to one is cleaned
+# uniformly.
+AGGREGATE_SOURCE_REPOS = {"human-centered-eval/openeval"}   # normalized lower-case repo ids
+AGGREGATE_SOURCE_NAMESPACES = {"openeval"}                  # leading dotted segment of a metric_id
+
+
+def _is_aggregate_source_repo(repo_id: Optional[str]) -> bool:
+    """True if repo_id is a denylisted aggregate source that must not be bound as a data source."""
+    return isinstance(repo_id, str) and repo_id.strip().lower() in AGGREGATE_SOURCE_REPOS
+
+
+def _is_aggregate_metric(metric_id: Optional[str]) -> bool:
+    """True if metric_id is namespaced to a denylisted aggregate source (e.g. 'openeval.bold.logprob')."""
+    return (isinstance(metric_id, str)
+            and metric_id.split(".")[0].strip().lower() in AGGREGATE_SOURCE_NAMESPACES)
 
 
 class EEEBenchmarkInfo(BaseModel):
@@ -577,6 +619,10 @@ def _process_eval_file(data: Dict[str, Any], folder: str, result: EEEScanResult)
         # Collect metric config
         metric_config = eval_result.get("metric_config", {})
         metric_id = metric_config.get("metric_id") or eval_result.get("evaluation_name", "")
+        # An aggregate-source metric (e.g. 'openeval.bold.logprob') means this benchmark was scored
+        # through a denylisted aggregate harness; its name and scores don't belong on the card.
+        if _is_aggregate_metric(metric_id):
+            continue
         if metric_id and metric_id not in bench.metrics:
             bench.metrics[metric_id] = metric_config
 
@@ -602,8 +648,8 @@ def _process_eval_file(data: Dict[str, Any], folder: str, result: EEEScanResult)
 def resolve_hf_repo(benchmark_name: str, existing_hf_repo: Optional[str] = None) -> Optional[str]:
     """Resolve a benchmark name to a HuggingFace dataset repository.
 
-    First checks if there's already an hf_repo from the EEE data,
-    then falls back to HF API search.
+    First checks if there's already an hf_repo from the EEE data.
+    Otherwise falls back to HF API search.
 
     Args:
         benchmark_name: The dataset/benchmark name from EEE.
@@ -612,9 +658,18 @@ def resolve_hf_repo(benchmark_name: str, existing_hf_repo: Optional[str] = None)
     Returns:
         HuggingFace repository ID or None if not resolvable.
     """
-    # If EEE already has a valid hf_repo, use it
+    # If EEE already has a valid hf_repo, use it -- unless it's a denylisted aggregate source
+    # masquerading as this benchmark's dataset (e.g. human-centered-eval/OpenEval), or a
+    # placeholder pseudo-id (e.g. "example://..."), which is not a repo at all: fall through
+    # to search instead of handing the HF API a value that can only raise.
     if existing_hf_repo:
-        return existing_hf_repo
+        if _is_aggregate_source_repo(existing_hf_repo):
+            logger.info("Blocking aggregate source repo '%s' for '%s'", existing_hf_repo, benchmark_name)
+            return None
+        if re.match(r"^[A-Za-z0-9][A-Za-z0-9_.-]*(/[A-Za-z0-9_.-]+)?$", existing_hf_repo):
+            return existing_hf_repo
+        logger.info("Ignoring malformed EEE hf_repo %r for '%s'; falling through to search",
+                    existing_hf_repo, benchmark_name)
 
     # Search HuggingFace
     try:
@@ -625,28 +680,46 @@ def resolve_hf_repo(benchmark_name: str, existing_hf_repo: Optional[str] = None)
             logger.warning("No HF datasets found for '%s'", benchmark_name)
             return None
 
-        # Filter: must have enough downloads and name should be related
+        # Match on token boundaries, not raw substrings: "arc" must equal a whole token of the
+        # dataset name (or the whole normalized name), never a mid-word slice of "...ARChives".
+        search_norm = re.sub(r"[^a-z0-9]", "", benchmark_name.lower())
+        search_tokens = _name_tokens(benchmark_name)
         for ds in results:
-            name_lower = ds.id.lower().split("/")[-1]
-            search_lower = benchmark_name.lower().replace(" ", "").replace("-", "").replace("_", "")
-            name_normalized = name_lower.replace(" ", "").replace("-", "").replace("_", "")
+            # Never bind a denylisted aggregate source even if HF search surfaces it.
+            if _is_aggregate_source_repo(ds.id):
+                continue
+            name_seg = ds.id.split("/")[-1]
+            name_norm = re.sub(r"[^a-z0-9]", "", name_seg.lower())
 
-            # Check name similarity
-            if search_lower in name_normalized or name_normalized in search_lower:
-                if ds.downloads >= MIN_HF_DOWNLOADS:
-                    logger.info("Resolved '%s' -> '%s' (%d downloads)", benchmark_name, ds.id, ds.downloads)
-                    return ds.id
+            # Exact normalized-name match is the dataset itself: accept regardless of downloads.
+            if search_norm == name_norm:
+                logger.info("Resolved '%s' -> '%s' (exact name match, %d downloads)",
+                            benchmark_name, ds.id, ds.downloads)
+                return ds.id
 
-        # Fallback: top result if it has high downloads
-        top = results[0]
-        if top.downloads >= MIN_HF_DOWNLOADS * 10:
+            # Token-boundary match: the benchmark name appears as a contiguous run of whole tokens
+            # in the dataset name and is distinctive enough. Keeps the MIN_HF_DOWNLOADS gate.
+            if (len(search_norm) >= MIN_TOKEN_MATCH_LEN
+                    and _is_contiguous_token_run(search_tokens, _name_tokens(name_seg))
+                    and ds.downloads >= MIN_HF_DOWNLOADS):
+                logger.info("Resolved '%s' -> '%s' (token match, %d downloads)",
+                            benchmark_name, ds.id, ds.downloads)
+                return ds.id
+
+        # No exact or token-boundary match. The old high-download "name mismatch" fallback is gone:
+        # accepting a popular but name-mismatched dataset fabricates a wrong dataset identity.
+        if len(search_norm) < MIN_TOKEN_MATCH_LEN:
+            # Measure how often the short-name guard drops a card. EEE-provided existing_hf_repo
+            # already short-circuits this search, so the affected set is short name + no EEE repo
+            # + no override.
             logger.info(
-                "Fallback: '%s' -> '%s' (%d downloads, name mismatch)",
-                benchmark_name, top.id, top.downloads,
+                "Short name '%s' (<%d chars) had %d candidate(s) but no exact match; returning "
+                "None to avoid mid-word fabrication",
+                benchmark_name, MIN_TOKEN_MATCH_LEN, len(results),
             )
-            return top.id
-
-        logger.warning("No confident HF match for '%s' (top: %s, %d downloads)", benchmark_name, top.id, top.downloads)
+        else:
+            logger.warning("No confident HF match for '%s' (top: %s, %d downloads)",
+                           benchmark_name, results[0].id, results[0].downloads)
         return None
 
     except Exception as e:
@@ -861,6 +934,10 @@ def eee_to_pipeline_inputs(
         "num_models_evaluated": bench.num_models_evaluated,
         "benchmark_type": benchmark_type,
         "appears_in": appears_in or [],
+        # The raw EEE-provided repo (pre-resolution), so the resolve-time HF verifier in run_hf
+        # can tell an EEE-provided binding (returned with no name check) from a search-path one.
+        # resolve_hf_repo still receives this separately; this is telemetry-only context.
+        "existing_hf_repo": bench.hf_repo,
     }
 
     return {

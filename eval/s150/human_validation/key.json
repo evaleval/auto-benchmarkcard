@@ -1,0 +1,3643 @@
+{
+  "design_version": "human-validation-v7-two-arm-16-cluster",
+  "judge_artifact": {
+    "file": "eval/s150/judge/analysis_frame.json",
+    "bytes": 1721221,
+    "sha256": "2dbd1a213d3d97904f13990906e98cfd0d799ed1b6797368dc305f81cd8fcd28"
+  },
+  "sample_artifact": {
+    "file": "eval/s150/sample.json",
+    "bytes": 75996,
+    "sha256": "d9f1071c233e4c0dfabeea51597f9e8f1003ae1687de70d99ed2e371c963713a"
+  },
+  "eligible_frame": {
+    "allowlisted_paths": [
+      "benchmark_details.domains",
+      "benchmark_details.name",
+      "benchmark_details.overview",
+      "benchmark_details.similar_benchmarks",
+      "data.annotation",
+      "data.contamination_controls",
+      "data.source",
+      "ethical_and_legal_considerations.compliance_with_regulations",
+      "ethical_and_legal_considerations.consent_procedures",
+      "ethical_and_legal_considerations.privacy_and_anonymity",
+      "methodology.baseline_results",
+      "methodology.calculation",
+      "methodology.human_baseline",
+      "methodology.interpretation",
+      "methodology.judge_score_consolidation",
+      "methodology.methods",
+      "methodology.validation",
+      "methodology.validity_justification",
+      "purpose_and_intended_users.audience",
+      "purpose_and_intended_users.goal",
+      "purpose_and_intended_users.limitations",
+      "purpose_and_intended_users.out_of_scope_uses",
+      "purpose_and_intended_users.tasks"
+    ],
+    "structural_field_exclusions": [
+      {
+        "field_path": "benchmark_details.benchmark_type",
+        "reason": "deterministic_registry_enum_outside_content_faithfulness_construct"
+      },
+      {
+        "field_path": "benchmark_details.contains",
+        "reason": "structured_composite_membership_outside_content_faithfulness_construct"
+      }
+    ],
+    "declared_mechanical_exclusions": [],
+    "n_cards": 150,
+    "n_rows": 3450,
+    "pool_sizes_by_judge_status": {
+      "not_specified": 1415,
+      "partial": 259,
+      "supported": 1575,
+      "supported_by_eee_only": 171,
+      "unsupported": 30
+    },
+    "frame_hash": {
+      "sha256": "63a9d8fbd59f940c11c010ebf96ff535a541f6a7e4bb6fdb989d37627c7fa4ce",
+      "n_rows": 3450,
+      "canonicalization": "UTF-8 compact JSON with sorted keys; rows sorted by card and field_path"
+    }
+  },
+  "sampling": {
+    "master_seed": 7,
+    "seed_derivation": {
+      "version": 1,
+      "namespaces": {
+        "error": "human-validation-v3",
+        "probability_cards": "human-validation-v4",
+        "probability_fields": "human-validation-v4"
+      },
+      "algorithm": "uint64_be(first_8_bytes(SHA256(namespace + NUL + 'master=<seed>' + NUL + stream_label)))",
+      "subseeds": {
+        "error_unsupported": 14023610987678575025,
+        "error_partial": 11195151507745344204,
+        "probability_cards": {
+          "flagged": 1322918315401641256,
+          "unflagged": 12542704937546063820
+        },
+        "probability_fields": {
+          "actionbench": 2428078700813139061,
+          "aider": 117794054918181445,
+          "mathconstruct": 12073543866767222329,
+          "metaclue": 15715338358628338097,
+          "music-avqa": 3117822353154541631,
+          "pathmcqa": 4419275290519366061,
+          "tldr9-test": 5634988652525127004,
+          "tro": 11000965618588029726,
+          "anthropic-red-team": 1217820819112450803,
+          "chartqa": 1092450983752157940,
+          "civilcomments": 11851802373183638000,
+          "dynamath": 3887310767222290032,
+          "giantsteps-tempo": 13729212969608222507,
+          "mmsearch-plus": 8714228820032196191,
+          "objectron": 13746845641281572802,
+          "realworldqa": 10480490754051755278
+        }
+      }
+    },
+    "error_arm": {
+      "unsupported": {
+        "sampling": "simple_random_sample_without_replacement",
+        "pool_size": 30,
+        "n_selected": 30,
+        "inclusion_fraction": {
+          "numerator": 30,
+          "denominator": 30,
+          "value": 1.0
+        },
+        "subseed": 14023610987678575025
+      },
+      "partial": {
+        "sampling": "simple_random_sample_without_replacement",
+        "pool_size": 259,
+        "n_selected": 13,
+        "inclusion_fraction": {
+          "numerator": 13,
+          "denominator": 259,
+          "value": 0.05019305019305019
+        },
+        "subseed": 11195151507745344204
+      }
+    },
+    "probability_arm": {
+      "sampling": "stratified eight-card SRS extension preserving the v4 five-card set, then unrestricted two-field SRS within each card",
+      "independent_of_error_arm": true,
+      "field_kind_allocation": "unrestricted; filled/not_specified mix is accepted as realized",
+      "overlap_policy": "no redraw; dual-arm fields are emitted once with both memberships",
+      "cards_by_outer_stratum": {
+        "flagged": {
+          "sampling": "v4 SRS-5 followed by SRS-3 from remaining cards; equivalent SRS-8",
+          "pool_size": 75,
+          "n_selected": 8,
+          "selected_cards": [
+            "actionbench",
+            "aider",
+            "mathconstruct",
+            "metaclue",
+            "music-avqa",
+            "pathmcqa",
+            "tldr9-test",
+            "tro"
+          ],
+          "selected_cards_draw_order": [
+            "metaclue",
+            "music-avqa",
+            "aider",
+            "tldr9-test",
+            "tro",
+            "mathconstruct",
+            "pathmcqa",
+            "actionbench"
+          ],
+          "preserved_v4_cards_draw_order": [
+            "metaclue",
+            "music-avqa",
+            "aider",
+            "tldr9-test",
+            "tro"
+          ],
+          "preserved_v4_cards": [
+            "aider",
+            "metaclue",
+            "music-avqa",
+            "tldr9-test",
+            "tro"
+          ],
+          "v5_extension_cards_draw_order": [
+            "mathconstruct",
+            "pathmcqa",
+            "actionbench"
+          ],
+          "v5_extension_cards": [
+            "actionbench",
+            "mathconstruct",
+            "pathmcqa"
+          ],
+          "inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "subseed": 1322918315401641256
+        },
+        "unflagged": {
+          "sampling": "v4 SRS-5 followed by SRS-3 from remaining cards; equivalent SRS-8",
+          "pool_size": 75,
+          "n_selected": 8,
+          "selected_cards": [
+            "anthropic-red-team",
+            "chartqa",
+            "civilcomments",
+            "dynamath",
+            "giantsteps-tempo",
+            "mmsearch-plus",
+            "objectron",
+            "realworldqa"
+          ],
+          "selected_cards_draw_order": [
+            "objectron",
+            "mmsearch-plus",
+            "realworldqa",
+            "anthropic-red-team",
+            "civilcomments",
+            "dynamath",
+            "chartqa",
+            "giantsteps-tempo"
+          ],
+          "preserved_v4_cards_draw_order": [
+            "objectron",
+            "mmsearch-plus",
+            "realworldqa",
+            "anthropic-red-team",
+            "civilcomments"
+          ],
+          "preserved_v4_cards": [
+            "anthropic-red-team",
+            "civilcomments",
+            "mmsearch-plus",
+            "objectron",
+            "realworldqa"
+          ],
+          "v5_extension_cards_draw_order": [
+            "dynamath",
+            "chartqa",
+            "giantsteps-tempo"
+          ],
+          "v5_extension_cards": [
+            "chartqa",
+            "dynamath",
+            "giantsteps-tempo"
+          ],
+          "inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "subseed": 12542704937546063820
+        }
+      },
+      "fields_by_card": {
+        "actionbench": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "benchmark_details.domains",
+            "ethical_and_legal_considerations.privacy_and_anonymity"
+          ],
+          "selected_field_paths_draw_order": [
+            "benchmark_details.domains",
+            "ethical_and_legal_considerations.privacy_and_anonymity"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "benchmark_details.domains",
+            "ethical_and_legal_considerations.privacy_and_anonymity",
+            "methodology.validation"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "benchmark_details.domains",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "ethical_and_legal_considerations.privacy_and_anonymity",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 2428078700813139061
+        },
+        "aider": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "methodology.validation",
+            "purpose_and_intended_users.limitations"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.validation",
+            "purpose_and_intended_users.limitations"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.validation",
+            "purpose_and_intended_users.limitations",
+            "data.source"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "methodology.validation",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "purpose_and_intended_users.limitations",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 117794054918181445
+        },
+        "mathconstruct": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "data.contamination_controls",
+            "methodology.judge_score_consolidation"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.judge_score_consolidation",
+            "data.contamination_controls"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.judge_score_consolidation",
+            "data.contamination_controls",
+            "ethical_and_legal_considerations.consent_procedures"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "data.contamination_controls",
+              "kind": "filled"
+            },
+            {
+              "field_path": "methodology.judge_score_consolidation",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 12073543866767222329
+        },
+        "metaclue": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "methodology.judge_score_consolidation",
+            "methodology.validation"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.validation",
+            "methodology.judge_score_consolidation"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.validation",
+            "methodology.judge_score_consolidation",
+            "benchmark_details.overview"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "methodology.judge_score_consolidation",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "methodology.validation",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 15715338358628338097
+        },
+        "music-avqa": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "benchmark_details.overview",
+            "methodology.baseline_results"
+          ],
+          "selected_field_paths_draw_order": [
+            "benchmark_details.overview",
+            "methodology.baseline_results"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "benchmark_details.overview",
+            "methodology.baseline_results",
+            "benchmark_details.similar_benchmarks"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "benchmark_details.overview",
+              "kind": "filled"
+            },
+            {
+              "field_path": "methodology.baseline_results",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 3117822353154541631
+        },
+        "pathmcqa": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "benchmark_details.overview",
+            "methodology.methods"
+          ],
+          "selected_field_paths_draw_order": [
+            "benchmark_details.overview",
+            "methodology.methods"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "benchmark_details.overview",
+            "methodology.methods",
+            "ethical_and_legal_considerations.consent_procedures"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "benchmark_details.overview",
+              "kind": "filled"
+            },
+            {
+              "field_path": "methodology.methods",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 4419275290519366061
+        },
+        "tldr9-test": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "methodology.human_baseline",
+            "methodology.interpretation"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.human_baseline",
+            "methodology.interpretation"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.human_baseline",
+            "methodology.interpretation",
+            "benchmark_details.similar_benchmarks"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "methodology.human_baseline",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "methodology.interpretation",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 5634988652525127004
+        },
+        "tro": {
+          "outer_stratum": "flagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "benchmark_details.name",
+            "purpose_and_intended_users.limitations"
+          ],
+          "selected_field_paths_draw_order": [
+            "benchmark_details.name",
+            "purpose_and_intended_users.limitations"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "benchmark_details.name",
+            "purpose_and_intended_users.limitations",
+            "methodology.validation"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "benchmark_details.name",
+              "kind": "filled"
+            },
+            {
+              "field_path": "purpose_and_intended_users.limitations",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 11000965618588029726
+        },
+        "anthropic-red-team": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "ethical_and_legal_considerations.consent_procedures",
+            "methodology.human_baseline"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.human_baseline",
+            "ethical_and_legal_considerations.consent_procedures"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.human_baseline",
+            "ethical_and_legal_considerations.consent_procedures",
+            "benchmark_details.domains"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "ethical_and_legal_considerations.consent_procedures",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "methodology.human_baseline",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 1217820819112450803
+        },
+        "chartqa": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "ethical_and_legal_considerations.compliance_with_regulations",
+            "methodology.baseline_results"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.baseline_results",
+            "ethical_and_legal_considerations.compliance_with_regulations"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.baseline_results",
+            "ethical_and_legal_considerations.compliance_with_regulations",
+            "data.source"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "ethical_and_legal_considerations.compliance_with_regulations",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "methodology.baseline_results",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 1092450983752157940
+        },
+        "civilcomments": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "methodology.validity_justification",
+            "purpose_and_intended_users.out_of_scope_uses"
+          ],
+          "selected_field_paths_draw_order": [
+            "purpose_and_intended_users.out_of_scope_uses",
+            "methodology.validity_justification"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "purpose_and_intended_users.out_of_scope_uses",
+            "methodology.validity_justification",
+            "methodology.interpretation"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "methodology.validity_justification",
+              "kind": "filled"
+            },
+            {
+              "field_path": "purpose_and_intended_users.out_of_scope_uses",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 11851802373183638000
+        },
+        "dynamath": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "data.source",
+            "purpose_and_intended_users.goal"
+          ],
+          "selected_field_paths_draw_order": [
+            "purpose_and_intended_users.goal",
+            "data.source"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "purpose_and_intended_users.goal",
+            "data.source",
+            "methodology.calculation"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "data.source",
+              "kind": "filled"
+            },
+            {
+              "field_path": "purpose_and_intended_users.goal",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 3887310767222290032
+        },
+        "giantsteps-tempo": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "benchmark_details.name",
+            "methodology.interpretation"
+          ],
+          "selected_field_paths_draw_order": [
+            "methodology.interpretation",
+            "benchmark_details.name"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "methodology.interpretation",
+            "benchmark_details.name",
+            "methodology.calculation"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "benchmark_details.name",
+              "kind": "filled"
+            },
+            {
+              "field_path": "methodology.interpretation",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 13729212969608222507
+        },
+        "mmsearch-plus": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "benchmark_details.overview",
+            "ethical_and_legal_considerations.privacy_and_anonymity"
+          ],
+          "selected_field_paths_draw_order": [
+            "ethical_and_legal_considerations.privacy_and_anonymity",
+            "benchmark_details.overview"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "ethical_and_legal_considerations.privacy_and_anonymity",
+            "benchmark_details.overview",
+            "methodology.methods"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "benchmark_details.overview",
+              "kind": "filled"
+            },
+            {
+              "field_path": "ethical_and_legal_considerations.privacy_and_anonymity",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 8714228820032196191
+        },
+        "objectron": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "ethical_and_legal_considerations.consent_procedures",
+            "purpose_and_intended_users.out_of_scope_uses"
+          ],
+          "selected_field_paths_draw_order": [
+            "purpose_and_intended_users.out_of_scope_uses",
+            "ethical_and_legal_considerations.consent_procedures"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "purpose_and_intended_users.out_of_scope_uses",
+            "ethical_and_legal_considerations.consent_procedures",
+            "benchmark_details.overview"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "ethical_and_legal_considerations.consent_procedures",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "purpose_and_intended_users.out_of_scope_uses",
+              "kind": "filled"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 13746845641281572802
+        },
+        "realworldqa": {
+          "outer_stratum": "unflagged",
+          "pool_size": 23,
+          "n_selected": 2,
+          "selected_field_paths": [
+            "data.contamination_controls",
+            "methodology.validation"
+          ],
+          "selected_field_paths_draw_order": [
+            "data.contamination_controls",
+            "methodology.validation"
+          ],
+          "preserved_v4_three_field_draw_order": [
+            "data.contamination_controls",
+            "methodology.validation",
+            "data.annotation"
+          ],
+          "selected_rows": [
+            {
+              "field_path": "data.contamination_controls",
+              "kind": "not_specified"
+            },
+            {
+              "field_path": "methodology.validation",
+              "kind": "not_specified"
+            }
+          ],
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          },
+          "subseed": 10480490754051755278
+        }
+      }
+    },
+    "n_unique_rows": 75,
+    "n_dual_membership_rows": 0,
+    "membership_counts": {
+      "error_partial": 13,
+      "error_unsupported": 30,
+      "probability": 32
+    },
+    "probability_kind_counts": {
+      "filled": 17,
+      "not_specified": 15
+    }
+  },
+  "n_raters": 3,
+  "n_unique_items": 75,
+  "rubric": "filled: supported / supported_by_eee_only / partial / unsupported; not_specified: info_in_source yes_primary / yes_eee_only / no",
+  "key": [
+    {
+      "item_id": "c000",
+      "card": "actionbench",
+      "field_path": "benchmark_details.domains",
+      "kind": "not_specified",
+      "judge_label": "yes_primary",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "8858bd7d8135d3c2ce5640ea6bb5e167d9cafc25a60745c2f0df44ce7e702902",
+      "source_bytes": 7035,
+      "field_value_sha256": "7a54eb1a998a5844d06d2801c06e075c11873d6c8d8f9f0bf470282f3ddb21bb",
+      "field_value_chars": 17,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c001",
+      "card": "actionbench",
+      "field_path": "ethical_and_legal_considerations.privacy_and_anonymity",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "8858bd7d8135d3c2ce5640ea6bb5e167d9cafc25a60745c2f0df44ce7e702902",
+      "source_bytes": 7035,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c002",
+      "card": "aider",
+      "field_path": "methodology.validation",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "369d57d7f255ced87212488043760bfc98ad3affff2fefc360e81e88ed3428e4",
+      "source_bytes": 3143,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c003",
+      "card": "aider",
+      "field_path": "purpose_and_intended_users.limitations",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "369d57d7f255ced87212488043760bfc98ad3affff2fefc360e81e88ed3428e4",
+      "source_bytes": 3143,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c004",
+      "card": "anthropic-red-team",
+      "field_path": "ethical_and_legal_considerations.consent_procedures",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "719ce9f7b42e3ed3a8c830c0dc53a9307294a3d114c5a275c26f99f0ffc677de",
+      "source_bytes": 1814,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c005",
+      "card": "anthropic-red-team",
+      "field_path": "methodology.human_baseline",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "719ce9f7b42e3ed3a8c830c0dc53a9307294a3d114c5a275c26f99f0ffc677de",
+      "source_bytes": 1814,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c006",
+      "card": "apex-agents",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "83bfd1ac6f2cf1e9918f5caf276cb17774ce57d8f38574e8acaed20c0e811105",
+      "source_bytes": 128904,
+      "field_value_sha256": "f0d210faad9c30a61bc68a8332f3b09e0c3f13de3f57868fd4db1cb5f6b5f6e6",
+      "field_value_chars": 59,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c007",
+      "card": "api-bank",
+      "field_path": "purpose_and_intended_users.out_of_scope_uses",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "aa0b4e0f283f909da885d6aa4b12201ce384b7d59938292c6785874b83746461",
+      "source_bytes": 100804,
+      "field_value_sha256": "ac9d23d7ad1298f04fd226f79a6a8fe5cf2ad1e1bb45aa3d46e01d58ec96b437",
+      "field_value_chars": 121,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c008",
+      "card": "boolq",
+      "field_path": "methodology.calculation",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "83a0ff860e10577d1cc2c2b1461dc1250de12a8e355222b5e92fee29800e2ebe",
+      "source_bytes": 57112,
+      "field_value_sha256": "f1b421a2061c5b796a1d38b43eb542ffdd07a4c9437d16e0f2954b1b4af8f530",
+      "field_value_chars": 158,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c009",
+      "card": "browsecomp",
+      "field_path": "methodology.baseline_results",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "7d387bd52918ec66e38bb38d98b450cf24a5a51cdfb14c512e259b54c4886d97",
+      "source_bytes": 89884,
+      "field_value_sha256": "a1607d01b3f29569c6ec5f5ffe9a12c093c5a20f0f2dbd8a95a92e34eeb73709",
+      "field_value_chars": 82,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c010",
+      "card": "chartqa",
+      "field_path": "ethical_and_legal_considerations.compliance_with_regulations",
+      "kind": "not_specified",
+      "judge_label": "yes_primary",
+      "specificity": "na",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "e1c388424af053a6c37b3c53623da3926e2ad72678c3325da50ae28f57d8bc89",
+      "source_bytes": 121198,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c011",
+      "card": "chartqa",
+      "field_path": "methodology.baseline_results",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "e1c388424af053a6c37b3c53623da3926e2ad72678c3325da50ae28f57d8bc89",
+      "source_bytes": 121198,
+      "field_value_sha256": "8f86e9e22a3534130e095f853129ddefef1ff818089b03067d4ee826229d50ff",
+      "field_value_chars": 85,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c012",
+      "card": "churro-ds",
+      "field_path": "methodology.human_baseline",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "02773699471dc62eeb9960c8772a5f8786e224330eb16ad2ef71d5fc9d104d74",
+      "source_bytes": 280572,
+      "field_value_sha256": "4cd6d72b8dd8bf9f191c91f1891f6232d6125b5cc123c31910134cd7cd76e1ff",
+      "field_value_chars": 196,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c013",
+      "card": "civilcomments",
+      "field_path": "methodology.validity_justification",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "c8dcdb6f391704ad8f049ec3c20897e718f7e963e47c1fe87ec5ebf0ad67da06",
+      "source_bytes": 109408,
+      "field_value_sha256": "85813471c70f9a642a9bafa1a94004cf5c11b3c7137ca2514413c4fcd7dd58bf",
+      "field_value_chars": 59,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c014",
+      "card": "civilcomments",
+      "field_path": "purpose_and_intended_users.out_of_scope_uses",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "c8dcdb6f391704ad8f049ec3c20897e718f7e963e47c1fe87ec5ebf0ad67da06",
+      "source_bytes": 109408,
+      "field_value_sha256": "42b6039e1f57f0d14ee31b1ac8f37eee39adbcb9cca7947ad0c8a7e92c4efc43",
+      "field_value_chars": 137,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c015",
+      "card": "codegolf-v2.2",
+      "field_path": "benchmark_details.domains",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "9a0d76fd2e8136d239d94df5688a590a97fc2efee168981ee9fd5912ac50e52a",
+      "source_bytes": 87080,
+      "field_value_sha256": "8a7b4cfe6636e0c52f8e0b00f2b5aff32e2e371bf51afadcbdb6dbec9397e35b",
+      "field_value_chars": 248,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c016",
+      "card": "codegolf-v2.2",
+      "field_path": "purpose_and_intended_users.out_of_scope_uses",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "9a0d76fd2e8136d239d94df5688a590a97fc2efee168981ee9fd5912ac50e52a",
+      "source_bytes": 87080,
+      "field_value_sha256": "86b6b71e56b562cee6c1209046eb8e1b9dd8bd9c77195307212b1eab951a6971",
+      "field_value_chars": 253,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c017",
+      "card": "cotd",
+      "field_path": "ethical_and_legal_considerations.consent_procedures",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "c017c17298c71cd989837a00f380b25aa7ca1f7548e088d3c9902ef149ca17d6",
+      "source_bytes": 117812,
+      "field_value_sha256": "dbab8e96478800b87d254efccaf8881eef8178fde25bf91b78f8e7930783b8f3",
+      "field_value_chars": 285,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c018",
+      "card": "dexter",
+      "field_path": "methodology.human_baseline",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "4ade21d3a0ce95c270083492c38c5273304a3fe8b1a27d4b662610c719f7446f",
+      "source_bytes": 190255,
+      "field_value_sha256": "b803057f4884c1784af8f0c75891da95287cc31981417f9c461e23cbd1cbc285",
+      "field_value_chars": 105,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c019",
+      "card": "dynamath",
+      "field_path": "benchmark_details.domains",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "7d3d071f08e329ab20bd80683dd745c7603197ba61e44e6ed0fb4a970e845f9a",
+      "source_bytes": 223134,
+      "field_value_sha256": "9e0806c41e34ee82ee93cf41e2bae7f305b9bc16ad038003e10d3a1f745e2b05",
+      "field_value_chars": 20,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c020",
+      "card": "dynamath",
+      "field_path": "data.source",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "7d3d071f08e329ab20bd80683dd745c7603197ba61e44e6ed0fb4a970e845f9a",
+      "source_bytes": 223134,
+      "field_value_sha256": "9508e28db462a23694be964f75ff7e257be20bdbacbf9a03a8df5f82456d3855",
+      "field_value_chars": 183,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c021",
+      "card": "dynamath",
+      "field_path": "purpose_and_intended_users.goal",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "7d3d071f08e329ab20bd80683dd745c7603197ba61e44e6ed0fb4a970e845f9a",
+      "source_bytes": 223134,
+      "field_value_sha256": "f1ccf70f9312b917fd66f55a2ae70fe4e84d58ee34595050cc3319c644a5b78d",
+      "field_value_chars": 240,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c022",
+      "card": "flenqa",
+      "field_path": "ethical_and_legal_considerations.consent_procedures",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "7909e7eb7491111fd76ac1f16e2de336b7bc34904fd97c61e68f4a8d53173629",
+      "source_bytes": 111046,
+      "field_value_sha256": "a58970d5e61d55e4cca3f68072bf6a1759f7df69352a586d6005b14f87badff4",
+      "field_value_chars": 72,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c023",
+      "card": "gdm-intercode-ctf",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "4a4ecfed1f9439d482bcd29e62c8e5107245b272148770dcbe2f66050b7a29dc",
+      "source_bytes": 152736,
+      "field_value_sha256": "f0d210faad9c30a61bc68a8332f3b09e0c3f13de3f57868fd4db1cb5f6b5f6e6",
+      "field_value_chars": 59,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c024",
+      "card": "gdpval-aa",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "3963ba48b9b2b484e394aec81b32b59b7dc0f565acea81ba6012189d90ad4ff9",
+      "source_bytes": 163048,
+      "field_value_sha256": "f0d210faad9c30a61bc68a8332f3b09e0c3f13de3f57868fd4db1cb5f6b5f6e6",
+      "field_value_chars": 59,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c025",
+      "card": "giantsteps-tempo",
+      "field_path": "benchmark_details.name",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "c7f539ab3817cb335d264d903eb36fcccb6ed9f250e4a6c3c47df519ec0a3cbc",
+      "source_bytes": 2839,
+      "field_value_sha256": "614646ce9814800c3770df079fca3fcee6d0c6fc613df04374dbfa4af27dd89b",
+      "field_value_chars": 16,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c026",
+      "card": "giantsteps-tempo",
+      "field_path": "methodology.interpretation",
+      "kind": "filled",
+      "judge_label": "supported_by_eee_only",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "c7f539ab3817cb335d264d903eb36fcccb6ed9f250e4a6c3c47df519ec0a3cbc",
+      "source_bytes": 2839,
+      "field_value_sha256": "16a1904272849d6b7b4750a061ddef2787cfe0fe7b10d1dd0a3dd2ec82bf4bb0",
+      "field_value_chars": 225,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c027",
+      "card": "gsm-mc",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "6d07c31a14d86b85aeddf46136b04e94fc9c7efbc10ec063712d079fabfec443",
+      "source_bytes": 29022,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c028",
+      "card": "healthbench",
+      "field_path": "methodology.validity_justification",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "14b4903c174d5751bcda6a547bc368e2849541fa629fa5ec252d3cd42389dd9a",
+      "source_bytes": 223524,
+      "field_value_sha256": "f4f8aee3f010eef55c83b95c5158950a4930e1de15daedcf400d9843975d0b51",
+      "field_value_chars": 53,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c029",
+      "card": "hypersim",
+      "field_path": "methodology.human_baseline",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "355a68a72055a2ecbd8d7166a16be10652bfe7cba4dae069cc6a35e26ba90d76",
+      "source_bytes": 5035,
+      "field_value_sha256": "ca7270d24edf117dd89de0b491936e8355e93dc932f0f9d16983037b95559a0f",
+      "field_value_chars": 84,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c030",
+      "card": "hypersim",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "355a68a72055a2ecbd8d7166a16be10652bfe7cba4dae069cc6a35e26ba90d76",
+      "source_bytes": 5035,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c031",
+      "card": "ioi",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "48979128c1c87a987644134bbafc7ed9631aba903619b0ef5dc86de749556035",
+      "source_bytes": 47073,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c032",
+      "card": "jrdb",
+      "field_path": "methodology.human_baseline",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "f9eab307905cab5b9c046deb915b1caf4590245b12aff454177b62dd3b07f3dd",
+      "source_bytes": 206632,
+      "field_value_sha256": "4467214768b17c77f57ee72521a931a9a93eb0eb1395ba3da6fb57ff94ecedd4",
+      "field_value_chars": 34,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c033",
+      "card": "judgebench",
+      "field_path": "benchmark_details.overview",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "3de21c9214b39134f6e8d5a08870fd921afa3f11716208e97af9612b77578dff",
+      "source_bytes": 169623,
+      "field_value_sha256": "915257bbede88cef4d1028f722d18546b3764635a891d474c00b9eb572be785a",
+      "field_value_chars": 323,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c034",
+      "card": "judgebench",
+      "field_path": "ethical_and_legal_considerations.privacy_and_anonymity",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "3de21c9214b39134f6e8d5a08870fd921afa3f11716208e97af9612b77578dff",
+      "source_bytes": 169623,
+      "field_value_sha256": "3e5536c58f8f1041c4bcf957a655a53ad282448f4c38c8ba04acf98cf4e5b893",
+      "field_value_chars": 147,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c035",
+      "card": "judgebench",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "3de21c9214b39134f6e8d5a08870fd921afa3f11716208e97af9612b77578dff",
+      "source_bytes": 169623,
+      "field_value_sha256": "f0d210faad9c30a61bc68a8332f3b09e0c3f13de3f57868fd4db1cb5f6b5f6e6",
+      "field_value_chars": 59,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c036",
+      "card": "mask",
+      "field_path": "methodology.validation",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "be15f1ea3cb59d185ef8b1b3e27330a87ad8e32ab7c4b0c6876563d5973c4e7f",
+      "source_bytes": 37327,
+      "field_value_sha256": "955b16bb05433352a0d1e3715e2f2f0733c4a3fb33e6c39aea2a3bf839989fec",
+      "field_value_chars": 130,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c037",
+      "card": "mathconstruct",
+      "field_path": "data.contamination_controls",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "82493e94c3b4fd23207459ee960b920221b642cff1d6bf9abeb5acf537dc301a",
+      "source_bytes": 135923,
+      "field_value_sha256": "8aa7da99b7c9c0fb3b79ac0e8e301320122870fdcb944bb404a208e85e7366aa",
+      "field_value_chars": 176,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c038",
+      "card": "mathconstruct",
+      "field_path": "methodology.judge_score_consolidation",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "82493e94c3b4fd23207459ee960b920221b642cff1d6bf9abeb5acf537dc301a",
+      "source_bytes": 135923,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c039",
+      "card": "mega-mlqa",
+      "field_path": "data.annotation",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "585d2510312db4fc07d14809b8ca5bc873d0010ccb6763b36a5e70dccab0ede5",
+      "source_bytes": 197590,
+      "field_value_sha256": "5305fa4d5367f6fb8b6a7855d780b57b163ae0c382be2e5942548daf1958bfa0",
+      "field_value_chars": 126,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c040",
+      "card": "mega-mlqa",
+      "field_path": "data.source",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "585d2510312db4fc07d14809b8ca5bc873d0010ccb6763b36a5e70dccab0ede5",
+      "source_bytes": 197590,
+      "field_value_sha256": "5faa5f87fe3819e2d253656e359fe4e0c7ff62965ca2523b186a81cdff7f5384",
+      "field_value_chars": 173,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c041",
+      "card": "mega-mlqa",
+      "field_path": "methodology.interpretation",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "585d2510312db4fc07d14809b8ca5bc873d0010ccb6763b36a5e70dccab0ede5",
+      "source_bytes": 197590,
+      "field_value_sha256": "11a0e978abfe7b9f70c9188bdc7cae99cd0fcc0ace0c6c05d9baf725bc9ee3db",
+      "field_value_chars": 260,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c042",
+      "card": "mega-mlqa",
+      "field_path": "methodology.validation",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "585d2510312db4fc07d14809b8ca5bc873d0010ccb6763b36a5e70dccab0ede5",
+      "source_bytes": 197590,
+      "field_value_sha256": "5a42557bc894a85cb1372c2eba7ca1fa852f7a3e97ee80ab54022d1d4d9008f9",
+      "field_value_chars": 129,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c043",
+      "card": "mega-xcopa",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "973e9465081d32cf78a768ab8f414d0583e67f15e93b8c5211b2cac6ade60332",
+      "source_bytes": 3381,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c044",
+      "card": "metaclue",
+      "field_path": "methodology.judge_score_consolidation",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "ff375609c0a1796cdfede2ef9dee9a0ed3a79356cd3928e96fa851083ecb9184",
+      "source_bytes": 6778,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c045",
+      "card": "metaclue",
+      "field_path": "methodology.validation",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "ff375609c0a1796cdfede2ef9dee9a0ed3a79356cd3928e96fa851083ecb9184",
+      "source_bytes": 6778,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c046",
+      "card": "mmlu-french",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "7585de72da7e524e499e5e994a67ecb173813313e10bcda874a212f86ac5c3d8",
+      "source_bytes": 6739,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c047",
+      "card": "mmsearch-plus",
+      "field_path": "benchmark_details.overview",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "811e45cfd1e58385f11bb7b4b768ce96d301eca81d5570b44dde0ff769d00104",
+      "source_bytes": 180908,
+      "field_value_sha256": "6348b61686ac941762848a68502c10c44530445a9012b5a642a67f626aabac8c",
+      "field_value_chars": 374,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c048",
+      "card": "mmsearch-plus",
+      "field_path": "ethical_and_legal_considerations.privacy_and_anonymity",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "811e45cfd1e58385f11bb7b4b768ce96d301eca81d5570b44dde0ff769d00104",
+      "source_bytes": 180908,
+      "field_value_sha256": "8a5fb7f5fa0aa2c148f23dcc807de380511c81013ab03594ae375920ffeb6195",
+      "field_value_chars": 89,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c049",
+      "card": "multi-if",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "0f5b0ddde65d5d36227853216d9087ffd4e17b5fa9355d280d3102cb53dbf0fe",
+      "source_bytes": 40594,
+      "field_value_sha256": "f0d210faad9c30a61bc68a8332f3b09e0c3f13de3f57868fd4db1cb5f6b5f6e6",
+      "field_value_chars": 59,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c050",
+      "card": "multipl-e",
+      "field_path": "methodology.validation",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "9582808f273260422039366f67f6df51ef89cdaa2678238d8e64797e17b696f2",
+      "source_bytes": 79110,
+      "field_value_sha256": "4563d354574a1c5c14c8cb33e842d756a0320172c50875e50b8637f17f9ddabb",
+      "field_value_chars": 160,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c051",
+      "card": "music-avqa",
+      "field_path": "benchmark_details.overview",
+      "kind": "filled",
+      "judge_label": "supported_by_eee_only",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "1a9430d2f6ace5423c4869030d1a43bbb5bf907293ffd3ef42ea2d3cc6f06edf",
+      "source_bytes": 7343,
+      "field_value_sha256": "7700ca7002d7a04ec7528587d1b09dc5ed9b268379537eb06da9e4d97cd37627",
+      "field_value_chars": 283,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c052",
+      "card": "music-avqa",
+      "field_path": "methodology.baseline_results",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "1a9430d2f6ace5423c4869030d1a43bbb5bf907293ffd3ef42ea2d3cc6f06edf",
+      "source_bytes": 7343,
+      "field_value_sha256": "a1a578fddc3dd553640d9ed5c6d66800203c9051fc4ab1185b018f193073b334",
+      "field_value_chars": 261,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c053",
+      "card": "objectron",
+      "field_path": "ethical_and_legal_considerations.consent_procedures",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "8c5a93f34a734e682a76de55bdca1022fd3f9f31221e670a099ebc5c0d673f6b",
+      "source_bytes": 101570,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c054",
+      "card": "objectron",
+      "field_path": "purpose_and_intended_users.out_of_scope_uses",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "8c5a93f34a734e682a76de55bdca1022fd3f9f31221e670a099ebc5c0d673f6b",
+      "source_bytes": 101570,
+      "field_value_sha256": "8d9b2a63b6236d10a208b0074c473eb48f2749b1a70a1a838ca086914b47780a",
+      "field_value_chars": 102,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c055",
+      "card": "omnigaia",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "5bef45824a73c3a00f596484ed966e679799a5c3f585eaeba1ed55490f5f548d",
+      "source_bytes": 184728,
+      "field_value_sha256": "f0d210faad9c30a61bc68a8332f3b09e0c3f13de3f57868fd4db1cb5f6b5f6e6",
+      "field_value_chars": 59,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c056",
+      "card": "pathmcqa",
+      "field_path": "benchmark_details.overview",
+      "kind": "filled",
+      "judge_label": "supported_by_eee_only",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "1ecb2ae2dd37ef4b982ded854cf1b132afc42943934967b6dcfabe866200199a",
+      "source_bytes": 2505,
+      "field_value_sha256": "5fbd46465ec876dd4809b45b78a747ad1c0e40502ea61f0868d2255e7470c1c5",
+      "field_value_chars": 401,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c057",
+      "card": "pathmcqa",
+      "field_path": "methodology.methods",
+      "kind": "not_specified",
+      "judge_label": "yes_eee_only",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "1ecb2ae2dd37ef4b982ded854cf1b132afc42943934967b6dcfabe866200199a",
+      "source_bytes": 2505,
+      "field_value_sha256": "7a54eb1a998a5844d06d2801c06e075c11873d6c8d8f9f0bf470282f3ddb21bb",
+      "field_value_chars": 17,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c058",
+      "card": "realworldqa",
+      "field_path": "data.contamination_controls",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "354cf6ab066736ed2c48b65d786adfa0e86bec2cf7202bd5cd08b2d7962a792c",
+      "source_bytes": 9745,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c059",
+      "card": "realworldqa",
+      "field_path": "methodology.validation",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "unflagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "354cf6ab066736ed2c48b65d786adfa0e86bec2cf7202bd5cd08b2d7962a792c",
+      "source_bytes": 9745,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "unflagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c060",
+      "card": "repobench",
+      "field_path": "methodology.human_baseline",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "6657ce37dbcbfe238df67ba863bd94069a8966519b6c4542ca2f919c796a9856",
+      "source_bytes": 134457,
+      "field_value_sha256": "f4c8f445ceb826a080732d525ee6a6c5b6a69254111b6d20053a926bee6337ca",
+      "field_value_chars": 108,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c061",
+      "card": "salad-bench",
+      "field_path": "ethical_and_legal_considerations.consent_procedures",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "0bf8068e5e9d96b7f0a3c279c1f692e464d2d86f55c2420052cc4bea364f73ce",
+      "source_bytes": 218459,
+      "field_value_sha256": "6f6a535722c4582ca028697d39a6dfe521a0dc4f8d670de87970966bf884106e",
+      "field_value_chars": 292,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c062",
+      "card": "simplesafetytests",
+      "field_path": "methodology.interpretation",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "specific",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "aa1f45bb4fb9ba5524758032c9525e33a3d3aad85a595bc2c44646046d93e030",
+      "source_bytes": 168412,
+      "field_value_sha256": "73f0e41ce9f4a59226524c86c8ea85992792202eb70675e772fc6b34713c5516",
+      "field_value_chars": 16,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c063",
+      "card": "swe-polybench",
+      "field_path": "benchmark_details.overview",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "871ce74981418576ba6bec1b6bd93e3ea15b9e6f7858d774877918601508c2be",
+      "source_bytes": 142459,
+      "field_value_sha256": "83bc05ccbe1be0c5e14b27edf4c4129ed17875221611547450fd56ef42b59f3a",
+      "field_value_chars": 404,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c064",
+      "card": "swe-polybench",
+      "field_path": "benchmark_details.similar_benchmarks",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "871ce74981418576ba6bec1b6bd93e3ea15b9e6f7858d774877918601508c2be",
+      "source_bytes": 142459,
+      "field_value_sha256": "81c08aff7401a78e7d138bf9aef1b3819dd2828ebc9d377e6d67724f65197e21",
+      "field_value_chars": 62,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c065",
+      "card": "tldr9-test",
+      "field_path": "methodology.human_baseline",
+      "kind": "not_specified",
+      "judge_label": "no",
+      "specificity": "na",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "not_specified",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "dbf56eef5799d1d02fd77dcdcc19b2e69381ee48e915bdbd4646c683f8e9dd88",
+      "source_bytes": 3715,
+      "field_value_sha256": "dc12bec5d71f167b495f5a32ae80c61279373eef97fdc1b5584c3e6ae0a8209d",
+      "field_value_chars": 13,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c066",
+      "card": "tldr9-test",
+      "field_path": "methodology.interpretation",
+      "kind": "filled",
+      "judge_label": "supported_by_eee_only",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "dbf56eef5799d1d02fd77dcdcc19b2e69381ee48e915bdbd4646c683f8e9dd88",
+      "source_bytes": 3715,
+      "field_value_sha256": "73f0e41ce9f4a59226524c86c8ea85992792202eb70675e772fc6b34713c5516",
+      "field_value_chars": 16,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c067",
+      "card": "tlp",
+      "field_path": "methodology.human_baseline",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "unflagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 5.04,
+      "source_sha256": "9be83b56091820c8bf7a65062ed2e1a9c784ab5fbd6fc9564a8122824ae0154b",
+      "source_bytes": 92602,
+      "field_value_sha256": "cd672da0ffe5ef1f22b5482951183381945ed60140792c352725989e229e1461",
+      "field_value_chars": 127,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c068",
+      "card": "tro",
+      "field_path": "benchmark_details.name",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "504482f3081cebcccad49c7006c2cdbbe579a3d1037650e43d9b1120ef4a285d",
+      "source_bytes": 135165,
+      "field_value_sha256": "f5cd5eaedc7ec541e61d78e5a16bc939447471c0cebd9161a647fa0c86c599a3",
+      "field_value_chars": 3,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c069",
+      "card": "tro",
+      "field_path": "purpose_and_intended_users.limitations",
+      "kind": "filled",
+      "judge_label": "supported",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "probability",
+          "outer_stratum": "flagged",
+          "selected_kind": "filled",
+          "card_inclusion_fraction": {
+            "numerator": 8,
+            "denominator": 75,
+            "value": 0.10666666666666667
+          },
+          "field_conditional_inclusion_fraction": {
+            "numerator": 2,
+            "denominator": 23,
+            "value": 0.08695652173913043
+          },
+          "row_inclusion_fraction": {
+            "numerator": 16,
+            "denominator": 1725,
+            "value": 0.00927536231884058
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "504482f3081cebcccad49c7006c2cdbbe579a3d1037650e43d9b1120ef4a285d",
+      "source_bytes": 135165,
+      "field_value_sha256": "69057cf652840433b511984bbfb30bd7e4b275f766561dee469fe0643df4d603",
+      "field_value_chars": 128,
+      "arm_membership": "probability",
+      "error_status_stratum": null,
+      "error_row_pi_within_pool": null,
+      "prob_flag_stratum": "flagged",
+      "prob_card_pi_within_s": 0.10666666666666667,
+      "prob_field_pi_given_card": 0.08695652173913043,
+      "prob_row_pi_within_s": 0.00927536231884058
+    },
+    {
+      "item_id": "c070",
+      "card": "uniform-bar-exam",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "0c0b9170a6c6097f7cf46466b7d9f44d7a9556f78f5b00849759a9f826cda15f",
+      "source_bytes": 24057,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c071",
+      "card": "vinabench",
+      "field_path": "methodology.interpretation",
+      "kind": "filled",
+      "judge_label": "partial",
+      "specificity": "specific",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "partial",
+          "inclusion_fraction": {
+            "numerator": 13,
+            "denominator": 259,
+            "value": 0.05019305019305019
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "61b16045f46d2576f428bcca8d5624e466ece1f3b15e50820fa3d16a2b137b3f",
+      "source_bytes": 183396,
+      "field_value_sha256": "54cc8da65e8605c4d74cf34e45f22a678b2703a586587725bbc9b1d0a7a108e7",
+      "field_value_chars": 342,
+      "arm_membership": "error",
+      "error_status_stratum": "partial",
+      "error_row_pi_within_pool": 0.05019305019305019,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c072",
+      "card": "vl-checklist",
+      "field_path": "data.contamination_controls",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "258306280c12814fa11a4affd64b089dd34c052e92b7f292a3094b5399bf1bdf",
+      "source_bytes": 85719,
+      "field_value_sha256": "f9d28571dbe47cdc3c24a9e15d82e4322517a3c0f19f5b322f0929bff84f0477",
+      "field_value_chars": 107,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c073",
+      "card": "vl-checklist",
+      "field_path": "ethical_and_legal_considerations.consent_procedures",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "258306280c12814fa11a4affd64b089dd34c052e92b7f292a3094b5399bf1bdf",
+      "source_bytes": 85719,
+      "field_value_sha256": "3c0d11184efad8bb56f7045dbdb265b724f8b07c1c6a796e203d1287e5d93e80",
+      "field_value_chars": 227,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    },
+    {
+      "item_id": "c074",
+      "card": "wordle-arena",
+      "field_path": "purpose_and_intended_users.audience",
+      "kind": "filled",
+      "judge_label": "unsupported",
+      "specificity": "generic",
+      "outer_stratum": "flagged",
+      "arm_memberships": [
+        {
+          "arm": "error",
+          "category": "unsupported",
+          "inclusion_fraction": {
+            "numerator": 30,
+            "denominator": 30,
+            "value": 1.0
+          }
+        }
+      ],
+      "s_to_corpus_weight": 2.026667,
+      "source_sha256": "2fa0578be021ad432a8e1bcbbdb8b19d43100b424d84fcbea64c7195f751b482",
+      "source_bytes": 36238,
+      "field_value_sha256": "4156bcf50018e7cf5ae29ff6212c6e21a1381612e6ed045e0070019187893c2a",
+      "field_value_chars": 38,
+      "arm_membership": "error",
+      "error_status_stratum": "unsupported",
+      "error_row_pi_within_pool": 1.0,
+      "prob_flag_stratum": null,
+      "prob_card_pi_within_s": null,
+      "prob_field_pi_given_card": null,
+      "prob_row_pi_within_s": null
+    }
+  ],
+  "public_projection": {
+    "raw_source_snapshots_included": false,
+    "reason": "Third-party source snapshots and local preparation paths are not part of the public release."
+  }
+}

@@ -37,14 +37,17 @@ env/
 # Environment variables
 .env
 .env.local
+.env.*
+!.env.example
 
 # Output directories
 output/
 batch_output/
 test_batch/
+cards_for_avijit/
 hf-eee-dataset/
 factreasoner_cache/
-external/merlin/
+external/merlin
 external/FactReasoner/
 external/every_eval_ever/
 .paper_cache.json
@@ -81,9 +84,6 @@ test_output*/
 manual_output/
 missing_output/
 
-# Gold-set evaluation data and outputs are kept local-only (not part of the public package)
-gold_set/
-
 # pip install artifacts
 =*
 
@@ -99,3 +99,22 @@ src/auto_benchmarkcard/tools/rag/chroma_db/
 
 # Internal/private scripts
 scripts/_internal/
+
+# merge-gate receipts, kept local only
+gold_set/reapply_*.json
+gold_set/revalidate
+
+# Local agent state and private workspace links
+.claude/
+.agents/
+.codex_work/
+memory
+CLAUDE.local.md
+!CLAUDE.md
+
+# Private evaluation inputs and incomplete returns
+eval/**/_private/
+eval/**/raw/
+eval/**/sources/
+eval/**/*_raw_copy.csv
+eval/**/*_to_complete.csv

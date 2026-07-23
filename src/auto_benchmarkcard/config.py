@@ -26,6 +26,25 @@ class Config:
         or os.getenv("COMPOSER_MODEL")
         or "deepseek-ai/DeepSeek-V3.1"
     )
+    # Per-stage composer model knobs for the redesign (Stage A curator, Stage B
+    # formatter, validator-loop repair). Default to COMPOSER_MODEL; the measurement
+    # build sets deepseek-v3-2 via env. get_llm_handler(model_name) already supports
+    # per-call models, so the stages just pass these.
+    STAGE_A_MODEL: str = (
+        os.getenv(f"{LLM_ENGINE_TYPE.upper()}_STAGE_A_MODEL")
+        or os.getenv("STAGE_A_MODEL")
+        or COMPOSER_MODEL
+    )
+    STAGE_B_MODEL: str = (
+        os.getenv(f"{LLM_ENGINE_TYPE.upper()}_STAGE_B_MODEL")
+        or os.getenv("STAGE_B_MODEL")
+        or COMPOSER_MODEL
+    )
+    REPAIR_MODEL: str = (
+        os.getenv(f"{LLM_ENGINE_TYPE.upper()}_REPAIR_MODEL")
+        or os.getenv("REPAIR_MODEL")
+        or COMPOSER_MODEL
+    )
     FACTREASONER_MODEL: str = os.getenv(
         "FACTREASONER_MODEL", "llama-3.3-70b-instruct"
     )
@@ -43,6 +62,19 @@ class Config:
     ENABLE_LLM_RERANKING: bool = True
     ENABLE_HYBRID_SEARCH: bool = True
     ENABLE_QUERY_EXPANSION: bool = True
+
+    # Resolve-time HF dataset-match verification (parity with the paper verifier). When ON,
+    # run_hf verifies the mechanically-bound repo before trusting it (3-tier gate, LLM only for
+    # the ambiguous band) and rejects a confidently-wrong match to None (honest-thin). OFF
+    # reproduces the pre-feature run_hf behavior byte-for-byte.
+    HF_VERIFICATION_ENABLED: bool = os.getenv("HF_VERIFICATION_ENABLED", "true").lower() == "true"
+
+    # Paper-binding subject-coherence verification (the mirror of the HF verifier). When ON,
+    # run_paper_resolver verifies a paper_url bound by a NON-resolver path (an EEE/UnitXT pre-set
+    # or an HF arxiv-tag extraction) through the same LLM verifier resolve_paper already uses, and
+    # drops a confidently-wrong binding to fall through to the verified search path (or honest-thin).
+    # OFF reproduces the pre-feature run_paper_resolver behavior byte-for-byte.
+    PAPER_VERIFICATION_ENABLED: bool = os.getenv("PAPER_VERIFICATION_ENABLED", "true").lower() == "true"
 
     # Chunking
     PARENT_CHUNK_SIZE: int = 2048
@@ -98,12 +130,23 @@ def get_llm_handler(model_name: Optional[str] = None):
 
     key = model_name or Config.COMPOSER_MODEL
     if key not in _llm_cache:
+        # Serving substitute for the composer only (e.g. the RITS deployment was retired):
+        # COMPOSER_ENGINE_TYPE reroutes composer-model calls while FactReasoner and any
+        # other models keep the default engine.
+        engine_type = Config.LLM_ENGINE_TYPE
+        composer_engine = os.getenv("COMPOSER_ENGINE_TYPE")
+        if composer_engine and key == Config.COMPOSER_MODEL:
+            engine_type = composer_engine
         try:
-            _log.info("Initializing LLM handler: %s", key)
+            _log.info("Initializing LLM handler: %s (engine=%s)", key, engine_type)
             _llm_cache[key] = LLMHandler(
-                engine_type=Config.LLM_ENGINE_TYPE,
+                engine_type=engine_type,
                 model_name=key,
-                parameters={"temperature": 0.15},
+                # Generous output cap sized for the field-heaviest Stage-B group
+                # (identity_purpose: benchmark_details + purpose_and_intended_users, 13
+                # fields) plus DeepSeek <think> tokens. Without it the server default
+                # truncates the group output and voids the whole group.
+                parameters={"temperature": 0.15, "max_completion_tokens": 16384},
                 verbose=False,
             )
         except Exception as e:
