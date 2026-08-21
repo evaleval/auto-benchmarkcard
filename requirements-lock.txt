@@ -1,7 +1,6 @@
 absl-py==2.4.0
 accelerate==1.13.0
-# Editable install with no version control (ai-atlas-nexus==1.2.1)
--e /Users/aris/Desktop/singapur/risk_atlas_nexus
+ai-atlas-nexus==1.2.4
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.5
 aiosignal==1.4.0
@@ -16,7 +15,7 @@ arrow==1.4.0
 astor==0.8.1
 asttokens==3.0.1
 attrs==26.1.0
--e git+https://github.com/evaleval/auto-benchmarkcard.git@a5406aaf29153a6398a0a24175aa556ca8b625d1#egg=auto_benchmarkcard
+-e git+https://github.com/evaleval/auto-benchmarkcard.git@e5a59bf37f1a5df7bab142f42f85eed6232c7538#egg=auto_benchmarkcard
 babel==2.18.0
 bcrypt==5.0.0
 beautifulsoup4==4.14.3
@@ -32,7 +31,7 @@ certifi==2026.2.25
 cffi==2.0.0
 CFGraph==0.2.1
 cfgv==3.5.0
-chardet==3.0.4
+chardet==5.2.0
 charset-normalizer==3.4.7
 chromadb==1.5.7
 click==8.1.8
@@ -109,6 +108,7 @@ hbreader==0.9.1
 helper_utils==0.0.8
 hf-xet==1.4.3
 html2text==2025.4.15
+html5rdf==1.2.1
 htmldate==1.9.4
 httpcore==1.0.9
 httplib2==0.31.2
@@ -234,6 +234,7 @@ orjson==3.11.8
 ormsgpack==1.12.2
 outlines_core==0.2.11
 overrides==7.7.0
+owlrl==7.6.2
 packaging==25.0
 pandas==3.0.2
 parse==1.21.1
@@ -251,6 +252,7 @@ pre_commit==4.5.1
 prefixcommons==0.1.12
 prefixmaps==0.2.6
 preshed==3.0.13
+prettytable==3.18.0
 prometheus-fastapi-instrumentator==7.1.0
 prometheus_client==0.25.0
 prompt_toolkit==3.0.52
@@ -281,12 +283,14 @@ pyobjc-framework-Cocoa==12.1
 pyobjc-framework-CoreML==12.1
 pyobjc-framework-Quartz==12.1
 pyobjc-framework-Vision==12.1
+pyoxigraph==0.5.9
 pyparsing==3.3.2
 pypdf==6.10.0
 PyPDF2==3.0.1
 pypdfium2==5.7.0
 PyPika==0.51.1
 pyproject_hooks==1.2.0
+pyshacl==0.40.1
 PyShEx==0.8.1
 PyShExC==0.9.1
 pystow==0.8.3
