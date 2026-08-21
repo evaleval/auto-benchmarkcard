@@ -211,6 +211,15 @@ def create_usecase_from_benchmark_card(benchmark_card: Dict[str, Any]) -> Option
         return None
 
 
+def _normalize_risk_description(desc: Any) -> str:
+    """Collapse a risk description to a single string. The detector path wraps it in a list
+    while the deterministic single-judge rule writes a plain string -- normalize both so every
+    possible_risks item has a string description."""
+    if isinstance(desc, list):
+        return " ".join(str(d).strip() for d in desc if str(d).strip())
+    return str(desc).strip() if desc is not None else ""
+
+
 def integrate_risks_into_benchmark_card(
     benchmark_card: Dict[str, Any], risks: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
@@ -222,7 +231,7 @@ def integrate_risks_into_benchmark_card(
         for risk in risks:
             cleaned_risk = {
                 "category": risk["category"],
-                "description": risk["description"],
+                "description": _normalize_risk_description(risk.get("description")),
                 "url": risk.get("url") or None,
             }
             cleaned_risks.append(cleaned_risk)
@@ -235,6 +244,19 @@ def integrate_risks_into_benchmark_card(
     except Exception as e:
         logger.error("Error integrating risks into benchmark card: %s", e)
         return benchmark_card
+
+
+def omit_empty_risk_urls(card: Dict[str, Any]) -> Dict[str, Any]:
+    """Presentation hygiene: drop the 'url' key from any possible_risks entry whose url is
+    empty/None, so the frontend never renders a broken link (e.g. the synthetic single-judge
+    bias risk, whose url is None by the frozen rule). Real atlas risks keep their urls.
+    Mutates in place; returns the card."""
+    risks = card.get("possible_risks")
+    if isinstance(risks, list):
+        for risk in risks:
+            if isinstance(risk, dict) and not risk.get("url"):
+                risk.pop("url", None)
+    return card
 
 
 def identify_and_integrate_risks(benchmark_card: Dict[str, Any]) -> Dict[str, Any]:

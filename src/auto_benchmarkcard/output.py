@@ -25,6 +25,43 @@ def sanitize_benchmark_name(name: str) -> str:
     return s
 
 
+MAX_CHROMA_COLLECTION_LEN = 63
+
+
+def sanitize_chroma_collection_name(name: str, prefix: str = "bc", suffix: str = "") -> str:
+    """Build a chromadb-valid collection name from an arbitrary benchmark name.
+
+    chromadb requires a name that is 3-63 characters, starts and ends with an
+    alphanumeric, contains only [a-zA-Z0-9._-], has no consecutive dots, and is
+    not IPv4-shaped. sanitize_benchmark_name() is filesystem-oriented and can
+    violate these (trailing dots, consecutive dots, over-length names); an
+    invalid name makes Chroma.from_documents raise and silently skips RAG.
+
+    Dots are folded into hyphens (a dotless name can never hit the consecutive-dot
+    or IPv4-shape rules), so the result is always valid. Pass a unique suffix
+    (e.g. a short uuid) for per-benchmark collection isolation.
+    """
+    base = sanitize_benchmark_name(name)
+    base = re.sub(r'-+', '-', base.replace('.', '-')).strip('-')
+
+    prefix = re.sub(r'[^a-zA-Z0-9-]', '', prefix)
+    suffix = re.sub(r'[^a-zA-Z0-9-]', '', suffix)
+
+    # Reserve room for prefix/suffix and their separators so the uniqueness
+    # suffix is never truncated away (which would re-introduce collisions).
+    overhead = len(prefix) + len(suffix) + (1 if prefix else 0) + (1 if suffix else 0)
+    base = base[: max(0, MAX_CHROMA_COLLECTION_LEN - overhead)].strip('-')
+
+    raw = "_".join(p for p in (prefix, base, suffix) if p) or "col"
+    raw = re.sub(r'^[^a-zA-Z0-9]+', '', raw)
+    raw = re.sub(r'[^a-zA-Z0-9]+$', '', raw)
+    raw = raw[:MAX_CHROMA_COLLECTION_LEN]
+    raw = re.sub(r'[^a-zA-Z0-9]+$', '', raw)
+    if len(raw) < 3:
+        raw = (raw + "col")[:3]
+    return raw
+
+
 class OutputManager:
     """Manages timestamped output directory structure for benchmark processing."""
 

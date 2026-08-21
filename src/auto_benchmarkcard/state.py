@@ -30,11 +30,26 @@ class GraphState(TypedDict):
     extracted_ids: Optional[Dict[str, Any]]  # hf_repo, paper_url, risk_tags
     hf_repo: Optional[str]
     hf_json: Optional[Dict[str, Any]]
+    # Set True by run_hf when the resolve-time verifier rejects the mechanically-bound repo
+    # (hf_repo is cleared to None, no hf_json). Belt-and-suspenders guard so the orchestrator
+    # does not loop back into hf_worker on a rejected binding.
+    hf_rejected: Optional[bool]
     docling_output: Optional[Dict[str, Any]]  # paper text from PDF
+    # Fail-loud marker: paper_url was resolved but docling produced no full text
+    # (card builds abstract-only). Set by run_docling, written out by run_composer.
+    docling_telemetry: Optional[Dict[str, Any]]
     html_content: Optional[Dict[str, Any]]  # web page text from trafilatura
+    github_readme: Optional[Dict[str, Any]]  # GitHub repo README text
+    # Fail-loud marker: a repo URL was derivable but no README content was fetched.
+    # Set by run_github_readme, written out by run_composer.
+    github_telemetry: Optional[Dict[str, Any]]
     eee_metadata: Optional[Dict[str, Any]]  # pre-aggregated EEE data (bypasses UnitXT)
     hf_extraction_attempted: Optional[bool]  # prevents re-running HF paper URL extraction
     paper_resolver_attempted: Optional[bool]  # prevents re-running paper resolution
+    # Set True by run_paper_resolver once a bound paper_url has passed (or been replaced by) the
+    # subject-coherence verifier, so the orchestrator does not route a verified paper back for
+    # re-verification. Parity with hf_rejected; paper_resolver_attempted is the harder loop guard.
+    paper_verified: Optional[bool]
 
     # Phase 2 — composition and enrichment
     composed_card: Optional[Dict[str, Any]]  # LLM-generated card from composer

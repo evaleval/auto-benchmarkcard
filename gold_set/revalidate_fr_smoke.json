@@ -1,0 +1,123 @@
+{
+  "label": "fr_smoke",
+  "revise_atoms": false,
+  "source_scoped": true,
+  "escalate_neutral": true,
+  "window_chars": 12000,
+  "rag_fill": true,
+  "high_signal": true,
+  "engine": "rits",
+  "model": "meta-llama/Llama-3.3-70B-Instruct",
+  "n_cards": 4,
+  "total_flags": 6,
+  "elapsed_s": 2167.0,
+  "per_card": {
+    "bigcodebench": {
+      "stratum": "single/paper/known",
+      "flagged_fields": {
+        "ethical_and_legal_considerations.consent_procedures": "[Possible Hallucination], no supporting evidence found in source material"
+      },
+      "n_flagged": 1,
+      "num_atoms": 41,
+      "retrieval": {
+        "source_scoped": true,
+        "n_chunks": 332,
+        "top_k": 4,
+        "chunks_by_source": {
+          "huggingface": 14,
+          "docling": 315,
+          "html": 3
+        }
+      },
+      "escalation": {
+        "escalated": 10,
+        "resolved": 0,
+        "still_neutral": 0,
+        "num_windows": 25,
+        "skipped": null,
+        "failed": "APITimeoutError('Request timed out.')"
+      },
+      "secs": 1287.2
+    },
+    "arc": {
+      "stratum": "single/paper/known",
+      "flagged_fields": {
+        "benchmark_details.languages": "[Absence] explicit no-data placeholder"
+      },
+      "n_flagged": 1,
+      "num_atoms": 35,
+      "retrieval": {
+        "source_scoped": true,
+        "n_chunks": 81,
+        "top_k": 4,
+        "chunks_by_source": {
+          "huggingface": 5,
+          "docling": 72,
+          "html": 4
+        }
+      },
+      "escalation": {
+        "escalated": 6,
+        "resolved": 0,
+        "still_neutral": 6,
+        "num_windows": 12,
+        "skipped": null,
+        "failed": null
+      },
+      "secs": 106.4
+    },
+    "bigcodebench-full": {
+      "stratum": "single/paper/known",
+      "flagged_fields": {
+        "benchmark_details.similar_benchmarks": "[Factuality Score: 0.05], low factual alignment with source material",
+        "ethical_and_legal_considerations.consent_procedures": "[Probable Hallucination], no supporting evidence found in full source material"
+      },
+      "n_flagged": 2,
+      "num_atoms": 30,
+      "retrieval": {
+        "source_scoped": true,
+        "n_chunks": 318,
+        "top_k": 4,
+        "chunks_by_source": {
+          "docling": 315,
+          "html": 3
+        }
+      },
+      "escalation": {
+        "escalated": 6,
+        "resolved": 5,
+        "still_neutral": 1,
+        "num_windows": 22,
+        "skipped": null,
+        "failed": null
+      },
+      "secs": 96.8
+    },
+    "aider-polyglot": {
+      "stratum": "single/paper",
+      "flagged_fields": {
+        "benchmark_details.data_type": "[Factuality Score: 0.50], low factual alignment with source material",
+        "benchmark_details.similar_benchmarks": "[Absence] explicit no-data placeholder"
+      },
+      "n_flagged": 2,
+      "num_atoms": 42,
+      "retrieval": {
+        "source_scoped": true,
+        "n_chunks": 4,
+        "top_k": 4,
+        "chunks_by_source": {
+          "html": 4
+        }
+      },
+      "escalation": {
+        "escalated": 17,
+        "resolved": 4,
+        "still_neutral": 13,
+        "num_windows": 7,
+        "skipped": null,
+        "failed": null
+      },
+      "secs": 676.6
+    }
+  }
+}

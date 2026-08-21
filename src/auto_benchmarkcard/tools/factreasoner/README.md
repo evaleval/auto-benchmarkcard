@@ -32,34 +32,38 @@ Marks problematic fields in the final benchmark card:
 
 ## Usage
 
-### Part of the main pipeline
-FactReasoner runs automatically during the validation phase of card generation:
+### Part of main pipeline
 ```bash
-benchmarkcard generate-unitxt hellaswag
+python agents.py hellaswag
 ```
 
 ### Standalone
 ```bash
-python src/auto_benchmarkcard/tools/factreasoner/factreasoner_tool.py path/to/rag_results.jsonl \
+python tools/factreasoner/factreasoner_tool.py path/to/rag_results.jsonl \
     --benchmark-card path/to/benchmark_card.json \
     --threshold 0.8
 ```
 
 ### In code
 ```python
-from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import evaluate_factuality
+from tools.factreasoner.factreasoner_tool import evaluate_factuality
 
 results = evaluate_factuality(
     formatted_rag_results=rag_results,
     model="llama-3.3-70b-instruct",
-    merlin_path="external/merlin/bin/merlin"
+    merlin_path="FactReasoner/merlin/bin/merlin"
 )
 ```
 
 ## Setup
 
-This tool needs the Merlin reasoning engine built at `external/merlin/bin/merlin`.
-See the "Setting up Merlin" section of the top-level README for build instructions.
+You need the Merlin reasoning engine:
+```bash
+# Download merlin binary and place it here:
+mkdir -p fact_reasoner/merlin/bin
+# Put merlin binary in fact_reasoner/merlin/bin/merlin
+chmod +x fact_reasoner/merlin/bin/merlin
+```
 
 ## Configuration
 
@@ -139,6 +143,6 @@ The original benchmark card with alerts added to problematic fields:
 
 ## Output location
 
-Results are saved under each run's `tool_output/factreasoner/` directory with files like:
+Results are saved to `tools/factreasoner/output/` with files like:
 - `factuality_results_hellaswag.json` - Full evaluation results
 - Used by the main pipeline to create flagged benchmark cards

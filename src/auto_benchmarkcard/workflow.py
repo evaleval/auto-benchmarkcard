@@ -16,6 +16,7 @@ from typing import Any, Dict
 
 from langgraph.graph import END, START, StateGraph
 
+from auto_benchmarkcard.config import Config
 from auto_benchmarkcard.logging_setup import setup_logging_suppression
 from auto_benchmarkcard.state import BenchmarkProcessingError, GraphState
 from auto_benchmarkcard.output import OutputManager, sanitize_benchmark_name
@@ -28,6 +29,7 @@ from auto_benchmarkcard.workers import (
     run_paper_resolver,
     run_docling,
     run_html_extractor,
+    run_github_readme,
     run_hf,
     run_composer,
     run_risk_identification,
@@ -71,7 +73,8 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
         if state["extracted_ids"] is None and not _failed("id extraction"):
             return {"next": "extractor_worker"}
 
-    if state["hf_repo"] is not None and state["hf_json"] is None and not _failed("huggingface lookup"):
+    if (state["hf_repo"] is not None and state["hf_json"] is None
+            and not state.get("hf_rejected") and not _failed("huggingface lookup")):
         return {"next": "hf_worker"}
 
     # Fall back to HF metadata for paper URL if UnitXT didn't provide one
@@ -83,9 +86,19 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
     if needs_hf_extraction:
         return {"next": "hf_extractor_worker"}
 
-    # Paper resolver: run after HF extraction if still no paper_url
+    # Paper resolver: run after HF extraction if still no paper_url, OR to VERIFY a paper_url that
+    # was pre-set by a non-resolver path (an EEE/UnitXT pre-set or an HF arxiv-tag extraction) that
+    # would otherwise ship UNVERIFIED. paper_resolver_attempted is the single-run loop guard (the
+    # worker sets it True on every return branch), so routing a set-but-unverified url here cannot
+    # loop. Mirrors the hf_rejected gate above. Behind PAPER_VERIFICATION_ENABLED: when OFF, a
+    # pre-set url skips the resolver exactly as before (byte-identical routing).
     paper_resolver_attempted = state.get("paper_resolver_attempted", False)
-    if not current_paper_url and not paper_resolver_attempted and not _failed("paper resolution"):
+    needs_verification = (
+        bool(current_paper_url) and Config.PAPER_VERIFICATION_ENABLED
+        and not state.get("paper_verified")
+    )
+    if ((not current_paper_url or needs_verification)
+            and not paper_resolver_attempted and not _failed("paper resolution")):
         return {"next": "paper_resolver_worker"}
 
     paper_url = state.get("extracted_ids", {}).get("paper_url")
@@ -98,6 +111,12 @@ def orchestrator(state: GraphState) -> Dict[str, str]:
         web_url = (state.get("extracted_ids") or {}).get("website_url")
         if eee_urls or web_url:
             return {"next": "html_worker"}
+
+    # GitHub README: after the paper resolver and html so the repo URL can be derived
+    # from the paper abstract or page text, not only structured links. The worker handles
+    # the no-repo case and records fail-loud telemetry either way.
+    if state.get("github_readme") is None and not _failed("github extraction"):
+        return {"next": "github_worker"}
 
     if state["composed_card"] is None and not _failed("composer"):
         return {"next": "composer_worker"}
@@ -122,6 +141,7 @@ def build_workflow():
     builder.add_node("paper_resolver_worker", run_paper_resolver)
     builder.add_node("docling_worker", run_docling)
     builder.add_node("html_worker", run_html_extractor)
+    builder.add_node("github_worker", run_github_readme)
     builder.add_node("hf_worker", run_hf)
     builder.add_node("composer_worker", run_composer)
     builder.add_node("risk_worker", run_risk_identification)
@@ -139,6 +159,7 @@ def build_workflow():
             "paper_resolver_worker": "paper_resolver_worker",
             "docling_worker": "docling_worker",
             "html_worker": "html_worker",
+            "github_worker": "github_worker",
             "hf_worker": "hf_worker",
             "composer_worker": "composer_worker",
             "risk_worker": "risk_worker",
@@ -153,6 +174,7 @@ def build_workflow():
     builder.add_edge("paper_resolver_worker", "orchestrator")
     builder.add_edge("docling_worker", "orchestrator")
     builder.add_edge("html_worker", "orchestrator")
+    builder.add_edge("github_worker", "orchestrator")
     builder.add_edge("hf_worker", "orchestrator")
     builder.add_edge("composer_worker", "orchestrator")
     builder.add_edge("risk_worker", "orchestrator")

@@ -42,9 +42,10 @@ env/
 output/
 batch_output/
 test_batch/
+cards_for_avijit/
 hf-eee-dataset/
 factreasoner_cache/
-external/merlin/
+external/merlin
 external/FactReasoner/
 external/every_eval_ever/
 .paper_cache.json
@@ -81,13 +82,6 @@ test_output*/
 manual_output/
 missing_output/
 
-# Gold-set eval-run snapshots (regenerable; only the truth/manifest/judge/
-# calibration fixtures are tracked, not these per-run reports)
-gold_set/report_*.json
-gold_set/revalidate_*.json
-gold_set/revalidate/
-gold_set/reapply_selftest.json
-
 # pip install artifacts
 =*
 
@@ -103,3 +97,7 @@ src/auto_benchmarkcard/tools/rag/chroma_db/
 
 # Internal/private scripts
 scripts/_internal/
+
+# merge-gate receipts, kept local only
+gold_set/reapply_*.json
+gold_set/revalidate

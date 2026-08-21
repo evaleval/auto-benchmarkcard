@@ -1,0 +1,57 @@
+{
+  "label": "fr1_src",
+  "revise_atoms": false,
+  "source_scoped": true,
+  "escalate_neutral": false,
+  "window_chars": 12000,
+  "rag_fill": true,
+  "high_signal": true,
+  "engine": "rits",
+  "model": "meta-llama/Llama-3.3-70B-Instruct",
+  "n_cards": 2,
+  "total_flags": 3,
+  "elapsed_s": 667.9,
+  "per_card": {
+    "bigcodebench": {
+      "stratum": "single/paper/known",
+      "flagged_fields": {
+        "ethical_and_legal_considerations.consent_procedures": "[Possible Hallucination], no supporting evidence found in source material",
+        "ethical_and_legal_considerations.compliance_with_regulations": "[Possible Hallucination], no supporting evidence found in source material"
+      },
+      "n_flagged": 2,
+      "num_atoms": 41,
+      "retrieval": {
+        "source_scoped": true,
+        "n_chunks": 332,
+        "top_k": 4,
+        "chunks_by_source": {
+          "huggingface": 14,
+          "docling": 315,
+          "html": 3
+        }
+      },
+      "escalation": null,
+      "secs": 41.3
+    },
+    "arc": {
+      "stratum": "single/paper/known",
+      "flagged_fields": {
+        "benchmark_details.languages": "[Absence] explicit no-data placeholder"
+      },
+      "n_flagged": 1,
+      "num_atoms": 35,
+      "retrieval": {
+        "source_scoped": true,
+        "n_chunks": 81,
+        "top_k": 4,
+        "chunks_by_source": {
+          "huggingface": 5,
+          "docling": 72,
+          "html": 4
+        }
+      },
+      "escalation": null,
+      "secs": 626.6
+    }
+  }
+}
