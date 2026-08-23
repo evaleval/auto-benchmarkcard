@@ -32,7 +32,9 @@ from auto_benchmarkcard.tools.github.github_tool import derive_github_repo, fetc
 from auto_benchmarkcard.tools.extractor.extractor_tool import extract_ids
 from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import (
     evaluate_factuality_two_tier,
+    field_referents_from_provenance,
     flag_benchmark_card_fields,
+    verbalize_rag_hypotheses,
 )
 from auto_benchmarkcard.tools.eee.paper_resolver import (
     resolve_paper, _repo_corroboration, _token_is_namelike, verify_hf_match,
@@ -52,7 +54,7 @@ from auto_benchmarkcard.tools.rag.source_retrieval import (
 )
 from auto_benchmarkcard.tools.unitxt import unitxt_tool
 
-from auto_benchmarkcard.validation_policy import ANALYTICAL_FIELDS, IDENTITY_FIELDS
+from auto_benchmarkcard.validation_policy import field_evidence_status, unflag_decision
 
 logger = logging.getLogger(__name__)
 
@@ -1735,14 +1737,34 @@ def run_factreasoner(state):
             if scope_info.get("source_scoped")
             else ""
         )
+        # Referent-explicit hypotheses (SATORI): wrap each atom into a full claim
+        # naming the benchmark and, where the composer's provenance records one,
+        # the field's non-target referent, so wrong-referent errors are visible
+        # to NLI. Runs after source-scoped retrieval, so retrieval queries and
+        # atom granularity are unchanged.
+        composed_card_data = state.get("composed_card", {})
+        provenance_data = composed_card_data.get("provenance") if isinstance(composed_card_data, dict) else None
+        frame_data = composed_card_data.get("frame") if isinstance(composed_card_data, dict) else None
+        card_data = composed_card_data.get("benchmark_card") if isinstance(composed_card_data, dict) else None
+        display_name = ((card_data or {}).get("benchmark_details") or {}).get("name")
+        if not (isinstance(display_name, str) and display_name.strip()) or (
+            display_name.strip().lower() == "not specified"
+        ):
+            display_name = state["query"]
+        verbalized_rag, verbalize_telem = verbalize_rag_hypotheses(
+            scoped_rag,
+            display_name,
+            field_referents=field_referents_from_provenance(provenance_data, frame_data),
+        )
         factuality_results = evaluate_factuality_two_tier(
-            formatted_rag_results=scoped_rag,
+            formatted_rag_results=verbalized_rag,
             source_text=source_text,
             model=Config.FACTREASONER_MODEL,
             cache_dir=Config.FACTREASONER_CACHE_DIR,
             merlin_path=str(Config.MERLIN_BIN),
         )
         factuality_results["retrieval"] = scope_info
+        factuality_results["hypothesis_verbalization"] = verbalize_telem
 
         factuality_filename = f"factuality_results_{benchmark_name}.json"
         factuality_output = state["output_manager"].save_tool_output(
@@ -1763,9 +1785,6 @@ def run_factreasoner(state):
         risk_card_src = state.get("risk_enhanced_card") or state.get("composed_card") or {}
         clean_card = extract_card(risk_card_src)
 
-        composed_card_data = state.get("composed_card", {})
-        provenance_data = composed_card_data.get("provenance") if isinstance(composed_card_data, dict) else None
-
         field_analysis = factuality_results.get("field_analysis", {})
 
         retrieved_contexts = (
@@ -1785,19 +1804,48 @@ def run_factreasoner(state):
         )
 
         if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
+            # Per-field unflag policy (replaces the blanket identity rule): an
+            # identity field's all-neutral flag is lifted only when its provenance
+            # cites evidence that survived the EAV audit. Demoted evidence, no
+            # cited evidence, or a contradiction-based flag keeps the flag.
+            # Analytical fields stay never-flagged (reasoned, not extracted).
             field_details = field_analysis.get("field_details", {})
+            metadata = composed_card_data.get("composition_metadata") if isinstance(composed_card_data, dict) else None
+            eav_demoted = ((metadata or {}).get("eav") or {}).get("demoted") or []
+            unflag_rules = {}
             fields_to_unflag = []
-            for field_name, flag_reason in flagged_card["flagged_fields"].items():
-                if field_name in ANALYTICAL_FIELDS:
+            for field_name in flagged_card["flagged_fields"]:
+                sec, _, fld = field_name.partition(".")
+                prov_entry = ((provenance_data or {}).get(sec) or {}).get(fld)
+                cited, demoted = field_evidence_status(field_name, prov_entry, eav_demoted)
+                unflag, rule = unflag_decision(
+                    field_name,
+                    all_neutral=field_details.get(field_name, {}).get("all_neutral") is True,
+                    cited_evidence=cited,
+                    evidence_demoted=demoted,
+                )
+                unflag_rules[rule] = unflag_rules.get(rule, 0) + 1
+                if unflag:
                     fields_to_unflag.append(field_name)
-                    logger.debug("Unflagging analytical field %s (reasoned, not extracted)", field_name)
-                elif field_name in IDENTITY_FIELDS and field_details.get(field_name, {}).get("all_neutral") is True:
-                    fields_to_unflag.append(field_name)
-                    logger.debug("Unflagging identity field %s (neutral NLI expected for descriptive content)", field_name)
+                    logger.debug("Unflagging %s (%s)", field_name, rule)
             for field_name in fields_to_unflag:
                 del flagged_card["flagged_fields"][field_name]
-            if fields_to_unflag:
-                logger.info("Field-type-aware scoring: unflagged %d identity/analytical fields", len(fields_to_unflag))
+            logger.info(
+                "Per-field unflag policy: unflagged %d fields (%s)",
+                len(fields_to_unflag),
+                ", ".join(f"{r}={c}" for r, c in sorted(unflag_rules.items())) or "no flags",
+            )
+            state["output_manager"].save_tool_output(
+                {
+                    "rules": unflag_rules,
+                    "unflagged": sorted(fields_to_unflag),
+                    "eav_demoted": [
+                        d.get("id") for d in eav_demoted if isinstance(d, dict)
+                    ],
+                },
+                "factreasoner",
+                f"unflag_policy_{benchmark_name}.json",
+            )
 
             # C1/C2: display-layer flag policy (resources/annotation exclusion + source-
             # blocked relabel). Production only; the gold-set flag instruments are untouched.

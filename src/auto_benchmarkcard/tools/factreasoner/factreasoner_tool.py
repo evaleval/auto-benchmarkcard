@@ -120,6 +120,171 @@ def _rits_route(model_id: str) -> tuple[str, str]:
     return slug, key
 
 
+# Referent-explicit hypotheses (SATORI pattern): NLI is structurally blind to
+# wrong-referent errors when the hypothesis never names what the claim is about,
+# so each atom is wrapped into a full claim naming the benchmark (and, when the
+# composer recorded one, the field's non-target referent) before scoring. The
+# wrap changes only the hypothesis text; atom decomposition, ids, fields and
+# contexts stay untouched. The phrases are a local static map on purpose: the
+# composer's field caps serve prompting and must stay independent of scoring.
+FIELD_DESCRIPTION_PHRASES = {
+    "benchmark_details.name": "the benchmark's name",
+    "benchmark_details.overview": "an overview of the benchmark",
+    "benchmark_details.data_type": "the benchmark's data type",
+    "benchmark_details.domains": "the benchmark's domain(s)",
+    "benchmark_details.languages": "the language(s) the benchmark covers",
+    "benchmark_details.similar_benchmarks": "benchmarks similar to this benchmark",
+    "benchmark_details.resources": "resources available for the benchmark",
+    "purpose_and_intended_users.goal": "the benchmark's goal",
+    "purpose_and_intended_users.audience_evaluators": "who runs the benchmark",
+    "purpose_and_intended_users.audience_consumers": "who uses the benchmark's results",
+    "purpose_and_intended_users.tasks": "the task(s) the benchmark evaluates",
+    "purpose_and_intended_users.limitations": "the benchmark's limitations",
+    "purpose_and_intended_users.out_of_scope_uses": "uses out of scope for the benchmark",
+    "data.source": "the source of the benchmark's data",
+    "data.size": "the size of the benchmark's dataset",
+    "data.format": "the format of the benchmark's data",
+    "data.annotation": "how the benchmark's data was annotated",
+    "data.collection_date": "when the benchmark's data was collected",
+    "data.contamination_controls": "the benchmark's contamination controls",
+    "methodology.methods": "the benchmark's evaluation method(s)",
+    "methodology.metrics": "the benchmark's evaluation metric(s)",
+    "methodology.calculation": "how the benchmark's scores are calculated",
+    "methodology.interpretation": "how the benchmark's scores are interpreted",
+    "methodology.baseline_results": "the benchmark's baseline results",
+    "methodology.validation": "how the benchmark's annotations were validated",
+    "methodology.human_baseline": "the benchmark's human baseline",
+    "methodology.validity_justification": "why the benchmark's metrics are valid",
+    "methodology.judge_score_consolidation": "how the benchmark's judge scores are consolidated",
+    "ethical_and_legal_considerations.privacy_and_anonymity": "the benchmark's privacy and anonymity handling",
+    "ethical_and_legal_considerations.data_licensing": "the benchmark's data license",
+    "ethical_and_legal_considerations.consent_procedures": "the benchmark's consent procedures",
+    "ethical_and_legal_considerations.compliance_with_regulations": "the benchmark's regulatory compliance",
+}
+
+
+def _referent_prefix(benchmark_name: str, referent: Optional[Dict[str, str]]) -> str:
+    """The 'For ...' clause naming what the claim is about.
+
+    referent is {"id", "name", "type"} for a non-target frame entity, or None for
+    the benchmark itself. Sibling gets an explicit not-the-target contrast so NLI
+    sees the referent mismatch it is otherwise blind to."""
+    if not referent:
+        return f'For the benchmark "{benchmark_name}"'
+    rname = referent.get("name") or referent.get("id") or ""
+    rtype = referent.get("type") or ""
+    if rtype in ("subset", "split", "setting"):
+        return f'For the "{rname}" {rtype} of benchmark "{benchmark_name}"'
+    if rtype == "version":
+        return f'For version "{rname}" of benchmark "{benchmark_name}"'
+    if rtype == "metric":
+        return f'For the "{rname}" metric of benchmark "{benchmark_name}"'
+    if rtype == "sibling":
+        return f'For the related benchmark "{rname}" (not "{benchmark_name}" itself)'
+    return f'For "{rname}", related to benchmark "{benchmark_name}"'
+
+
+def verbalize_hypothesis(
+    text: str,
+    field: Optional[str],
+    benchmark_name: str,
+    referent: Optional[Dict[str, str]] = None,
+) -> str:
+    """Wrap one atom text into a referent-explicit NLI hypothesis."""
+    if field:
+        phrase = FIELD_DESCRIPTION_PHRASES.get(field, f'the field "{field}"')
+    else:
+        phrase = "the card's content"
+    return f"{_referent_prefix(benchmark_name, referent)}, {phrase}: {text}"
+
+
+def field_referents_from_provenance(
+    provenance: Optional[Dict[str, Any]], frame: Optional[Dict[str, Any]]
+) -> Dict[str, Dict[str, str]]:
+    """Map dotted field path -> non-target referent recorded in its provenance entry.
+
+    Reads entry["referent"] (a frame node id) where the composer provides it and
+    resolves display name/type against the card's referent frame. Fields with no
+    referent key, an empty one, or the frame target are omitted, so their
+    hypotheses carry target-only context. Unknown node ids degrade to the id's
+    own name/type parts rather than being dropped: a recorded non-target referent
+    must reach the hypothesis even if the frame sidecar is missing."""
+    if not isinstance(provenance, dict):
+        return {}
+    frame = frame if isinstance(frame, dict) else {}
+    nodes = {
+        n.get("id"): n for n in frame.get("nodes", []) if isinstance(n, dict) and n.get("id")
+    }
+    target_id = frame.get("target_id") or "target"
+    referents: Dict[str, Dict[str, str]] = {}
+    for sec, fields in provenance.items():
+        if not isinstance(fields, dict):
+            continue
+        for fld, entry in fields.items():
+            if not isinstance(entry, dict):
+                continue
+            ref = str(entry.get("referent", "") or "").strip()
+            if not ref or ref == target_id:
+                continue
+            node = nodes.get(ref) or {}
+            head, _, tail = ref.partition(":")
+            referents[f"{sec}.{fld}"] = {
+                "id": ref,
+                "name": str(node.get("name") or tail or ref),
+                "type": str(node.get("type") or (head if tail else "")),
+            }
+    return referents
+
+
+def verbalize_rag_hypotheses(
+    formatted_rag_results: Dict[str, Any],
+    benchmark_name: str,
+    field_referents: Optional[Dict[str, Dict[str, str]]] = None,
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """Wrap every atom's text into a referent-explicit hypothesis.
+
+    Returns (new_rag, telemetry). Granularity is unchanged: same atoms in the
+    same order with the same ids, fields and context assignments; only "text" is
+    wrapped (the original survives as "text_unverbalized"). The input dict is
+    not mutated. Telemetry counts wrapped hypotheses and how many carried
+    non-target referent context."""
+    field_referents = field_referents or {}
+    atoms = (
+        formatted_rag_results.get("atoms", [])
+        if isinstance(formatted_rag_results, dict)
+        else []
+    )
+    telemetry: Dict[str, Any] = {
+        "atoms_total": len(atoms),
+        "verbalized": 0,
+        "with_referent_context": 0,
+        "referent_fields": [],
+    }
+    referent_fields = set()
+    new_atoms = []
+    for atom in atoms:
+        text = atom.get("text", "") if isinstance(atom, dict) else ""
+        if not text:
+            new_atoms.append(atom)
+            continue
+        field = atom.get("field")
+        referent = field_referents.get(field) if field else None
+        wrapped_atom = dict(atom)
+        wrapped_atom["text_unverbalized"] = text
+        wrapped_atom["text"] = verbalize_hypothesis(
+            text, field, benchmark_name, referent=referent
+        )
+        new_atoms.append(wrapped_atom)
+        telemetry["verbalized"] += 1
+        if referent:
+            telemetry["with_referent_context"] += 1
+            referent_fields.add(field)
+    telemetry["referent_fields"] = sorted(referent_fields)
+    out = dict(formatted_rag_results) if isinstance(formatted_rag_results, dict) else {}
+    out["atoms"] = new_atoms
+    return out, telemetry
+
+
 def _create_atom_marginal_mappings(
     formatted_rag_results: Dict[str, Any], marginals: List[Dict[str, Any]]
 ) -> tuple[Dict[str, Any], Dict[str, Any]]:
