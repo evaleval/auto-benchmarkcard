@@ -2485,12 +2485,25 @@ def _normalize_provenance_sources(
         it.get("evidence_id"): it.get("doc")
         for it in (evidence_items or []) if isinstance(it, dict)
     }
+    id2ref = {
+        it.get("evidence_id"): it.get("referent")
+        for it in (evidence_items or [])
+        if isinstance(it, dict) and it.get("referent") not in (None, "", "target")
+    }
     for fields in all_provenance.values():
         if not isinstance(fields, dict):
             continue
         for entry in fields.values():
             if not isinstance(entry, dict):
                 continue
+            # Referent axis for downstream verification: when the cited evidence is about
+            # a non-target frame node, record the majority referent on the entry so the
+            # NLI hypothesis can name it. Target-only entries carry no key.
+            eids_r = entry.get("evidence_ids")
+            if isinstance(eids_r, list) and eids_r:
+                refs = [id2ref[e] for e in eids_r if e in id2ref]
+                if refs:
+                    entry["referent"] = max(set(refs), key=refs.count)
             src = entry.get("source")
             if src in ("deterministic", "eee"):
                 continue
@@ -3398,6 +3411,7 @@ def compose_benchmark_card(
     eee_metadata: Optional[Dict[str, Any]] = None,
     html_content: Optional[Dict[str, Any]] = None,
     github_readme: Optional[Dict[str, Any]] = None,
+    croissant_facts: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Compose a benchmark card from collected metadata using source-isolated extraction."""
 
@@ -3600,6 +3614,24 @@ def compose_benchmark_card(
 
         det_facts = extract_deterministic_facts(eee_metadata, hf_metadata, extracted_ids, unitxt_metadata)
 
+        # Croissant facts (exact counts and license from the dataset-viewer API) take
+        # precedence over tag-derived buckets; a material license disagreement between
+        # the two deterministic channels is surfaced, never silently resolved.
+        croissant_conflicts: List[Dict[str, Any]] = []
+        if croissant_facts:
+            lic_key = "ethical_and_legal_considerations.data_licensing"
+            for k, v in croissant_facts.items():
+                if k.startswith("_"):
+                    continue
+                if k == lic_key and det_facts.get(k) and _values_differ(det_facts[k], v):
+                    logger.warning("License disagreement: hf tag %r vs croissant %r",
+                                   det_facts[k], v)
+                    croissant_conflicts.append(
+                        {"field": k, "deterministic": v,
+                         "composed": det_facts[k],
+                         "note": "hf tag vs croissant metadata"})
+                det_facts[k] = v
+
         # Phase 3: Gap-fill paper fields that have no verified evidence yet. Runs whenever
         # docling text exists: a short paper (no retriever built) uses the full text as
         # context, and zero paper items just means every gap field is still open.
@@ -3746,7 +3778,7 @@ def compose_benchmark_card(
 
     # Phase 7: Deterministic overrides, with source conflicts surfaced instead of
     # silently resolved (the tag stays authoritative; the reader sees the disagreement).
-    det_conflicts: List[Dict[str, Any]] = []
+    det_conflicts: List[Dict[str, Any]] = list(croissant_conflicts)
     benchmark_card_dict = apply_deterministic_overrides(
         benchmark_card_dict, det_facts, conflicts=det_conflicts)
     for c in det_conflicts:

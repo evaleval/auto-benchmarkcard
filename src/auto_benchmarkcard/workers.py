@@ -1275,6 +1275,26 @@ def run_composer(state):
 
         unitxt_for_composer = state.get("unitxt_json") if not state.get("eee_metadata") else None
 
+        # Croissant structural facts for the bound repo, fetched only when the cheap
+        # name/arxiv corroboration passes (an uncorroborated repo must not feed
+        # deterministic values). Fail-soft: any error means no croissant facts.
+        croissant_facts = None
+        hf_json_pre = state.get("hf_json") or {}
+        repo_id_pre = hf_json_pre.get("id")
+        if repo_id_pre:
+            try:
+                paper_url_pre = (state.get("extracted_ids") or {}).get("paper_url") or ""
+                pm_pre = _ARXIV_URL_RE.search(paper_url_pre)
+                if not _repo_corroboration(
+                    repo_id_pre, sanitize_benchmark_name(state["query"]),
+                    repo_arxiv_id=_first_arxiv_tag(hf_json_pre),
+                    paper_arxiv_id=pm_pre.group(1) if pm_pre else None,
+                ):
+                    from auto_benchmarkcard.tools.hf.croissant import fetch_croissant_facts
+                    croissant_facts = fetch_croissant_facts(repo_id_pre)
+            except Exception as e:
+                logger.warning("Croissant fetch failed (continuing without): %s", e)
+
         result = compose_benchmark_card.func(
             unitxt_metadata=unitxt_for_composer,
             hf_metadata=state.get("hf_json"),
@@ -1284,6 +1304,7 @@ def run_composer(state):
             eee_metadata=state.get("eee_metadata"),
             html_content=state.get("html_content"),
             github_readme=state.get("github_readme"),
+            croissant_facts=croissant_facts,
         )
 
         logger.info("Successfully composed benchmark card")

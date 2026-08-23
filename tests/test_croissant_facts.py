@@ -246,3 +246,15 @@ def test_full_failure_returns_meta_only(monkeypatch):
         "info": "error: ConnectionError",
     }
     assert "fetched_at" in facts["_croissant_meta"]
+
+
+def test_compose_flow_wires_croissant_and_referent_emission():
+    import inspect
+    import auto_benchmarkcard.tools.composer.composer_tool as CT
+    import auto_benchmarkcard.workers as W
+    src = inspect.getsource(CT.compose_benchmark_card.func)
+    assert "croissant_facts" in src and "croissant_conflicts" in src
+    wsrc = inspect.getsource(W.run_composer)
+    assert "fetch_croissant_facts" in wsrc and "_repo_corroboration" in wsrc
+    nsrc = inspect.getsource(CT._normalize_provenance_sources)
+    assert 'entry["referent"]' in nsrc
