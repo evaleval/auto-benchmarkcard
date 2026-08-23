@@ -2092,12 +2092,50 @@ def extract_deterministic_facts(
     return facts
 
 
+# Docling markdown preserves some "#"/"##" heading lines; the first one in a chunk is the
+# only document-location signal available until a real section index exists.
+_MD_HEADING_RE = re.compile(r"^#{1,6}\s+(\S.*)$", re.M)
+
+
+def _excerpt_label(i: int, text: str) -> str:
+    """Honest label for a retrieved paper chunk. Never fabricates section numbers
+    (retrieval order is not document order); when the chunk itself carries a markdown
+    heading, the first one is named for location context."""
+    m = _MD_HEADING_RE.search(text)
+    if m:
+        heading = " ".join(m.group(1).split())[:100].strip()
+        if heading:
+            return f"[Excerpt {i} from paper, near heading: {heading}]"
+    return f"[Excerpt {i} from paper]"
+
+
+def _format_paper_chunks(intro_text: str, chunk_texts: List[str], budget: int):
+    """Assemble the model-read paper context: intro plus retrieved excerpts under honest
+    labels, within budget. Returns (content, chars used)."""
+    formatted = [f"[Abstract and Introduction]\n{intro_text}"]
+    used = len(intro_text)
+    for i, text in enumerate(chunk_texts, 1):
+        if used + len(text) > budget:
+            remaining = budget - used
+            if remaining > 100:
+                clipped = text[:remaining]
+                formatted.append(f"{_excerpt_label(i, clipped)}\n{clipped}")
+            break
+        formatted.append(f"{_excerpt_label(i, text)}\n{text}")
+        used += len(text)
+    return "\n\n".join(formatted), used
+
+
 def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
                      identity_anchor=""):
-    """Targeted RAG retrieval for paper fields that have no verified evidence yet.
+    """Recall pass for paper fields that have no verified evidence yet.
 
     Same Evidence-Item format as the paper call. Quotes are verified against verify_source
     (the full paper text), doc=docling, so gap items share one reference with paper items.
+    With a retriever, the context is deduped retrieved excerpts under honest labels; the
+    gap fields are listed once in the instruction, never bound per-chunk, so the model
+    tags each quote with the field it actually supports. Without a retriever (short paper
+    that fit in context, or indexing failed), the paper text itself is the context.
     Returns (verified records, telemetry).
     """
     covered = {it["field"] for it in paper_items}
@@ -2106,28 +2144,47 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
     if not targets:
         return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
 
-    logger.info("Gap-filling: targeted retrieval for %d fields: %s",
-                len(targets), list(targets))
+    logger.info("Gap-filling: %d missing fields: %s", len(targets), list(targets))
 
-    gap_chunks: Dict[str, str] = {}
-    for path, query in targets.items():
-        try:
-            chunks = paper_retriever.invoke(query)
-            if chunks:
-                gap_chunks[path] = "\n".join(c.page_content for c in chunks[:2])[:1500]
-        except Exception as e:
-            logger.debug("Gap-fill retrieval failed for %s: %s", path, e)
+    if paper_retriever is not None:
+        seen = set()
+        excerpts: List[str] = []
+        for path, query in targets.items():
+            try:
+                chunks = paper_retriever.invoke(query)
+            except Exception as e:
+                logger.debug("Gap-fill retrieval failed for %s: %s", path, e)
+                continue
+            for chunk in chunks[:2]:
+                text = chunk.page_content[:1500]
+                if text[:200] in seen:
+                    continue
+                seen.add(text[:200])
+                excerpts.append(text)
+        if not excerpts:
+            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
+        source_label = "paper excerpts"
+        context = "\n\n".join(f"{_excerpt_label(i, t)}\n{t}"
+                              for i, t in enumerate(excerpts, 1))
+    else:
+        source_label = "research paper"
+        context = verify_source[:Config.PAPER_EXTRACTION_BUDGET]
+        if not context:
+            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
 
-    if not gap_chunks:
-        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
-
-    chunks_text = "\n\n".join(f"[For {path}]\n{text}" for path, text in gap_chunks.items())
     prompt = evidence.build_extraction_prompt(
-        source_label="paper excerpts",
-        fields=list(gap_chunks),
+        source_label=source_label,
+        fields=list(targets),
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
-        source_text=chunks_text,
+        source_text=context,
+    )
+    # build_extraction_prompt has no instruction slot and evidence.py is byte-frozen,
+    # so the un-binding rule rides after the source text.
+    prompt += (
+        "\n\nThe allowed fields above are the ones still missing evidence. Any part of "
+        "the source text may support any of these missing fields, or none of them; tag "
+        "each quote with the field it actually supports, or emit nothing for it."
     )
     return _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill")
 
@@ -3503,18 +3560,9 @@ def compose_benchmark_card(
                                 seen.add(key)
                                 rag_chunks.append(chunk)
 
-                    formatted = [f"[Abstract and Introduction]\n{intro_text}"]
-                    used = len(intro_text)
-                    for i, chunk in enumerate(rag_chunks, 1):
-                        text = chunk.page_content
-                        if used + len(text) > budget:
-                            remaining = budget - used
-                            if remaining > 100:
-                                formatted.append(f"[Section {i}]\n{text[:remaining]}")
-                            break
-                        formatted.append(f"[Section {i}]\n{text}")
-                        used += len(text)
-                    all_paper_content = "\n\n".join(formatted)
+                    all_paper_content, used = _format_paper_chunks(
+                        intro_text, [c.page_content for c in rag_chunks], budget
+                    )
                     logger.info(
                         "Paper: %d intro chars + %d RAG chunks, %d total chars for extraction",
                         len(intro_text), len(rag_chunks), used,
@@ -3586,9 +3634,11 @@ def compose_benchmark_card(
 
         det_facts = extract_deterministic_facts(eee_metadata, hf_metadata, extracted_ids, unitxt_metadata)
 
-        # Phase 3: Gap-fill paper fields that have no verified evidence yet
+        # Phase 3: Gap-fill paper fields that have no verified evidence yet. Runs whenever
+        # docling text exists: a short paper (no retriever built) uses the full text as
+        # context, and zero paper items just means every gap field is still open.
         gap_items = []
-        if paper_items and paper_retriever:
+        if full_paper_text:
             gap_items, t = _fill_paper_gaps(
                 paper_items, paper_retriever, query, paper_source, identity_anchor=identity_anchor
             )
