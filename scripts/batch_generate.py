@@ -29,7 +29,7 @@ from rapidfuzz import fuzz
 # Ensure the package is importable when running from repo root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from auto_benchmarkcard.eee_workflow import process_single_benchmark
+from auto_benchmarkcard.eee_workflow import gate_benchmark_identity, process_single_benchmark
 from auto_benchmarkcard.output import sanitize_benchmark_name
 from auto_benchmarkcard.tools.eee.eee_tool import (
     EEEScanResult,
@@ -346,6 +346,12 @@ def run_batch(
                 bench = scan_result.benchmarks[eee_key]
                 appears_in = appears_in_map.get(eee_key, [])
                 inputs = eee_to_pipeline_inputs(bench, "single", appears_in)
+                gate = gate_benchmark_identity(eee_key, inputs, str(output_dir))
+                if gate and gate.get("action") == "skip":
+                    stats["skipped"] += 1
+                    logger.info("SKIP %s - not_a_benchmark: %s", eee_key,
+                                gate.get("reason", ""))
+                    continue
 
             card = process_single_benchmark(
                 benchmark_name=eee_key,

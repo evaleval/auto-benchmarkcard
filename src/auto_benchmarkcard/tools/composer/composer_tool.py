@@ -3675,6 +3675,20 @@ def compose_benchmark_card(
     # class from the S=150 findings.
     version_flags = _flag_version_conflicts(benchmark_card_dict, card_frame)
 
+    # Domain coverage: a domains list covering under half of the card's own enumerated
+    # subsets/subjects gets flagged (math geometry-only class). Card-level because the
+    # domains and size_breakdown live in different Stage-B groups.
+    coverage_reason = _validator.domain_coverage_flag(
+        benchmark_card_dict.get("benchmark_details", {}).get("domains"),
+        size_breakdown=(benchmark_card_dict.get("data", {}).get("size_breakdown")
+                        if isinstance(benchmark_card_dict.get("data"), dict) else None)
+                       or det_facts.get("data.size_breakdown"),
+        card_frame=card_frame,
+    )
+    if coverage_reason:
+        benchmark_card_dict.setdefault("flagged_fields", {})["domains"] = coverage_reason
+        logger.info("Domain coverage flag: %s", coverage_reason)
+
     # C2: drop a size / size_breakdown the card's own prose contradicts (runs before the
     # deterministic-provenance block so a dropped value emits no stale source=deterministic entry).
     _enforce_numeric_consistency(benchmark_card_dict, det_facts, all_provenance)
