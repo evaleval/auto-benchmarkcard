@@ -13,9 +13,7 @@ from uuid import uuid4
 import requests
 
 from auto_benchmarkcard.card_utils import (
-    apply_deterministic_overrides,
     apply_single_judge_bias_rule,
-    backfill_from_provenance,
     extract_card,
     extract_hf_tags,
     extract_missing_fields,
@@ -1288,6 +1286,12 @@ def run_composer(state):
 
         logger.info("Successfully composed benchmark card")
 
+        # HF repo corroboration runs here, post-compose and pre-validation, so the card
+        # FactReasoner checks is the card that ships (single write order).
+        card_for_gate = result.get("benchmark_card")
+        if isinstance(card_for_gate, dict):
+            _apply_hf_corroboration_gate(state, card_for_gate, result.get("provenance"))
+
         if result.get("provenance"):
             provenance_filename = f"provenance_{sanitize_benchmark_name(state['query'])}.json"
             provenance_output = state["output_manager"].save_tool_output(
@@ -1577,8 +1581,8 @@ def _first_arxiv_tag(hf_json: Dict[str, Any]) -> str | None:
 def _drop_uncorroborated_hf(card, hf_overrides, reason):
     """Neutralize HF-derived identity when the bound repo failed corroboration.
 
-    Clears the override set in place (so apply_deterministic_overrides and its flag-clearing
-    are skipped) and resets the repo-org display fields logo/org_url to the NS sentinel. A
+    Clears the override set in place and resets the repo-org display fields logo/org_url to
+    the NS sentinel. A
     wrong/derivative/aggregate repo poisons every tag-derived field, so prefer NS over shipping
     the wrong entity's metadata. No-op when reason is falsy (repo corroborated); never fabricates."""
     if not reason:
@@ -1631,6 +1635,57 @@ def _drop_subject_incoherent_hf(card, provenance, wrong_paper):
         if not suspect:
             continue
         section[field] = ["Not specified"] if (sec, field) in _NS_LIST_FIELDS else "Not specified"
+
+
+def _apply_hf_corroboration_gate(state, card, provenance):
+    """Corroborate the bound HF repo against the benchmark identity right after composition.
+
+    Runs before risk/RAG/FactReasoner so validation sees the card that ships. A wrong/
+    derivative/aggregate repo (arxiv-tag disagreement, or a basename that doesn't bear the
+    distinctive name) gets its tag-derived identity fields dropped; a subject-incoherent
+    README gets its spliced fields blanked. Drop-only: never writes new content."""
+    hf_json = state.get("hf_json") or {}
+    repo_id = hf_json.get("id")
+    hf_overrides = extract_hf_tags(state.get("hf_json"))
+    if not hf_overrides or not repo_id:
+        return
+    benchmark_name = sanitize_benchmark_name(state["query"])
+    paper_url = (state.get("extracted_ids") or {}).get("paper_url") or ""
+    pm = _ARXIV_URL_RE.search(paper_url)
+    reason = _repo_corroboration(
+        repo_id, benchmark_name,
+        repo_arxiv_id=_first_arxiv_tag(hf_json),
+        paper_arxiv_id=pm.group(1) if pm else None,
+    )
+    if reason:
+        _drop_uncorroborated_hf(card, hf_overrides, reason)
+        state["repo_corroboration"] = {"repo_id": repo_id, "reason": reason}
+        logger.warning(
+            "HF repo %r does not corroborate benchmark %r (%s); dropped HF-derived "
+            "identity fields", repo_id, benchmark_name, reason,
+        )
+        return
+    # M1: the name/arxiv corroboration above cannot catch a same-name repo whose arxiv tag
+    # became the paper. Compare the README's leading description against the EEE-identity
+    # subject; near-disjoint content means the repo describes a different benchmark, so
+    # blank the fields it spliced.
+    if _hf_subject_conflicts(
+        _get_hf_readme(hf_json), _eee_identity_subject(state.get("eee_metadata"))
+    ):
+        extracted_ids = state.get("extracted_ids") or {}
+        paper_url = extracted_ids.get("paper_url") or ""
+        repo_arxiv = _first_arxiv_tag(hf_json)
+        pm = _ARXIV_URL_RE.search(paper_url)
+        wrong_paper = bool(
+            extracted_ids.get("paper_url_from_hf") == paper_url and paper_url
+            and repo_arxiv and pm and pm.group(1) == repo_arxiv
+        )
+        _drop_subject_incoherent_hf(card, provenance, wrong_paper)
+        state["repo_corroboration"] = {"repo_id": repo_id, "reason": "subject_incoherent"}
+        logger.warning(
+            "HF repo %r subject does not match benchmark %r (subject_incoherent); "
+            "blanked spliced overview/methodology/data fields", repo_id, benchmark_name,
+        )
 
 
 def run_factreasoner(state):
@@ -1746,79 +1801,12 @@ def run_factreasoner(state):
                 _source_coverage_blocked(state, source_text),
             )
 
-        if provenance_data:
-            # Card values backfill from the generation-time contexts; only the
-            # unflag decisions see the source-scoped contexts. prose_only gates this to
-            # free-text fields (v2 scoping): this path stamps schema_version="v2", so a
-            # verbatim quote never lands as an enum/list/deterministic field value (S2).
-            flagged_card = backfill_from_provenance(
-                flagged_card, provenance_data, generation_contexts, prose_only=True
-            )
-
+        # Single write order: composition (including deterministic overrides and the HF
+        # corroboration gate in run_composer) finished before validation, so nothing may
+        # write new card content here. The old post-validation provenance backfill and the
+        # second override pass with its flag clearing are gone; only canonicalization and
+        # shape checks remain. Guarded by test_single_write_order.py.
         flagged_card = normalize_not_specified(flagged_card)
-
-        hf_overrides = extract_hf_tags(state.get("hf_json"))
-        if hf_overrides:
-            # Corroborate the bound HF repo against the benchmark identity before trusting its
-            # tag-derived fields. A wrong/derivative/aggregate repo (arxiv-tag disagreement, or a
-            # basename that doesn't bear the distinctive name) gets its overrides + repo-org
-            # display fields dropped instead of shipped.
-            hf_json = state.get("hf_json") or {}
-            repo_id = hf_json.get("id")
-            reason = None
-            if repo_id:
-                paper_url = (state.get("extracted_ids") or {}).get("paper_url") or ""
-                pm = _ARXIV_URL_RE.search(paper_url)
-                reason = _repo_corroboration(
-                    repo_id, benchmark_name,
-                    repo_arxiv_id=_first_arxiv_tag(hf_json),
-                    paper_arxiv_id=pm.group(1) if pm else None,
-                )
-            if reason:
-                flagged_card = _drop_uncorroborated_hf(flagged_card, hf_overrides, reason)
-                state["repo_corroboration"] = {"repo_id": repo_id, "reason": reason}
-                logger.warning(
-                    "HF repo %r does not corroborate benchmark %r (%s); dropped HF-derived "
-                    "identity fields", repo_id, benchmark_name, reason,
-                )
-            elif repo_id:
-                # M1: the name/arxiv corroboration above cannot catch a same-name repo whose
-                # arxiv tag became the paper (actionbench-the-slug vs facebook/actionbench =
-                # ActionMesh). Compare the README's leading description against the EEE-identity
-                # subject; near-disjoint content means the repo describes a different benchmark, so
-                # blank the fields it spliced (overview from the README, and the methodology/data
-                # fields if the wrong paper -- the repo's own arxiv tag -- supplied them).
-                if _hf_subject_conflicts(
-                    _get_hf_readme(hf_json), _eee_identity_subject(state.get("eee_metadata"))
-                ):
-                    extracted_ids = state.get("extracted_ids") or {}
-                    paper_url = extracted_ids.get("paper_url") or ""
-                    repo_arxiv = _first_arxiv_tag(hf_json)
-                    pm = _ARXIV_URL_RE.search(paper_url)
-                    wrong_paper = bool(
-                        extracted_ids.get("paper_url_from_hf") == paper_url and paper_url
-                        and repo_arxiv and pm and pm.group(1) == repo_arxiv
-                    )
-                    _drop_subject_incoherent_hf(flagged_card, provenance_data, wrong_paper)
-                    state["repo_corroboration"] = {
-                        "repo_id": repo_id, "reason": "subject_incoherent"}
-                    logger.warning(
-                        "HF repo %r subject does not match benchmark %r (subject_incoherent); "
-                        "blanked spliced overview/methodology/data fields", repo_id, benchmark_name,
-                    )
-
-        if hf_overrides:
-            logger.info("Applying %d deterministic HF overrides: %s",
-                        len(hf_overrides), list(hf_overrides.keys()))
-            flagged_card = apply_deterministic_overrides(flagged_card, hf_overrides)
-
-            if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
-                for dotted_key in hf_overrides:
-                    flag_key = dotted_key.split(".")[-1]
-                    for k in (flag_key, dotted_key):
-                        if k in flagged_card["flagged_fields"]:
-                            del flagged_card["flagged_fields"][k]
-                            logger.debug("Cleared stale flag for %s (deterministic override)", k)
 
         enforce_card_shape(flagged_card)
         flagged_card["missing_fields"] = drop_inapplicable_judge_missing(
