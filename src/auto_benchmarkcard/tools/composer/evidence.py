@@ -425,19 +425,27 @@ def empty_call_telemetry(doc: str) -> Dict:
     """Zero-count telemetry for a call that emitted nothing (e.g. missing source)."""
     return {
         "doc": doc, "emitted": 0, "verified": 0, "rejected": 0, "truncated": 0,
-        "reject_reasons": {"no_match": 0, "empty": 0, "bad_field": 0},
+        "reject_reasons": {"no_match": 0, "empty": 0, "bad_field": 0, "outside_shown": 0},
     }
 
 
-def verify_items(raw_items, source_text: str, doc: str) -> Tuple[List[Dict], Dict]:
+def verify_items(raw_items, source_text: str, doc: str,
+                 shown_text: str = "") -> Tuple[List[Dict], Dict]:
     """Verify candidate items against the source. Returns (id-less records, call telemetry).
 
     Each record has six keys (field, quote, char_start, doc, kind, note); evidence_id is
     assigned later across all calls. Fail-closed: anything not verifiable is dropped and
     counted. The source is whitespace-normalized once per call.
+
+    When shown_text is given, a quote must also appear in the text the model actually read
+    (the assembled context), not merely somewhere in the full source: a passage the model
+    never saw cannot honestly be its evidence, and this closes the path where any sentence
+    of the whole document verified for any claim. char_start still indexes source_text so
+    all calls share one document reference.
     """
     telem = empty_call_telemetry(doc)
     norm_source = normalize_ws(source_text or "")
+    norm_shown = normalize_ws(shown_text or "")
     records: List[Dict] = []
 
     for raw in raw_items or []:
@@ -454,6 +462,11 @@ def verify_items(raw_items, source_text: str, doc: str) -> Tuple[List[Dict], Dic
         if not norm_quote:
             telem["rejected"] += 1
             telem["reject_reasons"]["empty"] += 1
+            continue
+
+        if norm_shown and norm_quote not in norm_shown:
+            telem["rejected"] += 1
+            telem["reject_reasons"]["outside_shown"] += 1
             continue
 
         char_start = verify_quote(norm_quote, norm_source)
@@ -487,7 +500,7 @@ def new_card_telemetry() -> Dict:
     """Empty card-level quote-verify telemetry (feeds the GO-gate quote-verify-rate)."""
     return {
         "emitted": 0, "verified": 0, "rejected": 0, "truncated": 0,
-        "reject_reasons": {"no_match": 0, "empty": 0, "bad_field": 0},
+        "reject_reasons": {"no_match": 0, "empty": 0, "bad_field": 0, "outside_shown": 0},
         "by_doc": {},
     }
 
@@ -497,7 +510,7 @@ def merge_telemetry(card: Dict, call: Dict) -> None:
     for k in ("emitted", "verified", "rejected", "truncated"):
         card[k] += call[k]
     for reason, count in call["reject_reasons"].items():
-        card["reject_reasons"][reason] += count
+        card["reject_reasons"][reason] = card["reject_reasons"].get(reason, 0) + count
     bucket = card["by_doc"].setdefault(
         call["doc"], {"emitted": 0, "verified": 0, "rejected": 0, "truncated": 0}
     )

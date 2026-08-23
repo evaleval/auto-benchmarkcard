@@ -132,12 +132,14 @@ def _get_benchmark_identity(
     )
 
 
-def _run_extraction(prompt: str, verify_source: str, doc: str, label: str):
+def _run_extraction(prompt: str, verify_source: str, doc: str, label: str,
+                    shown_text: str = ""):
     """Run one Stage-A call: LLM -> robust JSON parse -> quote verification.
 
     Returns (verified records without evidence_id, call telemetry). Fail-soft: an LLM or
     parse failure yields zero items, never an exception. Every quote is verified as an
-    exact substring of verify_source; the LLM is never trusted.
+    exact substring of verify_source, and, when shown_text is given, of the context the
+    model actually read; the LLM is never trusted.
     """
     try:
         llm_handler = get_llm_handler()
@@ -149,7 +151,8 @@ def _run_extraction(prompt: str, verify_source: str, doc: str, label: str):
         return [], evidence.empty_call_telemetry(doc)
 
     parsed = evidence.parse_curator_extraction(raw)
-    records, telem = evidence.verify_items(parsed.evidence, verify_source, doc)
+    records, telem = evidence.verify_items(parsed.evidence, verify_source, doc,
+                                           shown_text=shown_text)
     logger.info("%s extraction: %d/%d quotes verified", label, telem["verified"], telem["emitted"])
     return records, telem
 
@@ -181,7 +184,8 @@ def extract_facts_from_paper(
         source_text=paper_content,
         name_alias_line=name_alias_line,
     )
-    return _run_extraction(prompt, verify_source or paper_content, doc, "Paper")
+    return _run_extraction(prompt, verify_source or paper_content, doc, "Paper",
+                           shown_text=paper_content)
 
 
 def extract_facts_from_hf_readme(
@@ -1840,14 +1844,15 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
         identity_anchor=identity_anchor,
         source_text=context,
     )
-    # build_extraction_prompt has no instruction slot and evidence.py is byte-frozen,
-    # so the un-binding rule rides after the source text.
+    # build_extraction_prompt has no instruction slot, so the un-binding rule rides
+    # after the source text.
     prompt += (
         "\n\nThe allowed fields above are the ones still missing evidence. Any part of "
         "the source text may support any of these missing fields, or none of them; tag "
         "each quote with the field it actually supports, or emit nothing for it."
     )
-    return _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill")
+    return _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill",
+                           shown_text=context)
 
 
 # Hallucinated pipeline-org owners that leak into resource URLs -- the same furniture family as

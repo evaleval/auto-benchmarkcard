@@ -389,3 +389,30 @@ def test_no_curator_hint_or_query_names_a_specific_benchmark():
     for spec in ev.CURATOR_FIELDS.values():
         blob = ((spec.get("hint") or "") + " " + (spec.get("gap_query") or "")).lower()
         assert not any(b in blob for b in banned)
+
+
+def test_quote_outside_shown_context_is_rejected():
+    # present in the full source but absent from what the model read
+    full = "The benchmark has 500 items. Related work uses 900 items in another set."
+    shown = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "900 items in another set", "kind": "stated"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, shown_text=shown)
+    assert records == []
+    assert telem["reject_reasons"]["outside_shown"] == 1
+
+
+def test_quote_in_shown_context_keeps_full_doc_char_start():
+    full = "Intro text first. The benchmark has 500 items."
+    shown = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "has 500 items", "kind": "stated"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, shown_text=shown)
+    assert len(records) == 1
+    assert records[0]["char_start"] == full.index("has 500 items")
+    assert telem["verified"] == 1
+
+
+def test_no_shown_text_keeps_legacy_behavior():
+    full = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "500 items", "kind": "stated"}]
+    records, _ = ev.verify_items(items, full, ev.DOC_PAPER)
+    assert len(records) == 1

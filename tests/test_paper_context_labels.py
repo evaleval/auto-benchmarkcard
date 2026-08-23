@@ -83,7 +83,7 @@ class _Retriever:
 def _capture_extraction(monkeypatch):
     calls = []
 
-    def fake(prompt, verify_source, doc, label):
+    def fake(prompt, verify_source, doc, label, shown_text=""):
         calls.append({"prompt": prompt, "verify_source": verify_source,
                       "doc": doc, "label": label})
         return [], evidence.empty_call_telemetry(doc)
