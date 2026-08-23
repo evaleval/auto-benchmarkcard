@@ -22,12 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from auto_benchmarkcard.eee_workflow import process_single_benchmark
-from auto_benchmarkcard.output import OutputManager, sanitize_benchmark_name
-from auto_benchmarkcard.tools.composer.composer_tool import (
-    extract_sub_benchmark_facts,
-    compose_sub_benchmark_card,
-    generate_sub_benchmark_fallback_description,
-)
+from auto_benchmarkcard.output import sanitize_benchmark_name
 from auto_benchmarkcard.workflow import setup_logging_suppression
 
 logger = logging.getLogger("generate_manual")
@@ -308,132 +303,15 @@ def main():
                 logger.error("ERROR %s - %s: %s (%.0fs)", name, reason, e, dt)
                 failed_list.append(_make_failure_entry(name, reason, str(e), paper_url, hf_repo, appears_in))
 
-    # Pass 2: generate sub-benchmark cards via inheritance
+    # Sub-benchmark cards are retired: variants live on the parent card per the
+    # 2026-05-06 granularity decision. The old parent-copy inheritance path bypassed
+    # quote verification and produced wrong-scope cards by construction.
     if subs:
-        print(f"\n{'=' * 60}")
-        print(f"PASS 2: Generating {len(subs)} sub-benchmarks via parent inheritance")
-        print(f"{'=' * 60}")
-
-    for i, (name, paper_url, hf_repo, appears_in) in enumerate(subs, 1):
-        logger.info("[%d/%d] Generating sub-benchmark: %s (parent: %s)", i, len(subs), name, appears_in)
-        t0 = time.time()
-
-        parent_name = appears_in[0] if appears_in else None
-        if not parent_name or parent_name not in parent_results:
-            # Try loading parent card from disk (may have been generated in a previous run)
-            parent_card = _load_parent_card(parent_name, output_dir) if parent_name else None
-            if parent_card:
-                parent_results[parent_name] = {"card": parent_card}
-            else:
-                dt = time.time() - t0
-                stats["failed"] += 1
-                logger.warning("SKIP %s - parent %s not available (%.0fs)", name, parent_name, dt)
-                failed_list.append(_make_failure_entry(name, "parent_failed", f"Parent '{parent_name}' not available", paper_url, hf_repo, appears_in))
-                continue
-
-        parent_card = parent_results[parent_name]["card"]
-
-        try:
-            # Load parent's docling output for paper text
-            docling_output = _load_docling_output(parent_name, output_dir)
-            paper_content = ""
-            paper_title = ""
-            if docling_output and docling_output.get("success"):
-                paper_content = docling_output.get("filtered_text", "")
-                paper_title = docling_output.get("metadata", {}).get("title", "")
-
-            # If sub-benchmark has its own paper, load that instead
-            if paper_url and paper_url != _get_parent_paper_url(parent_name):
-                sub_docling = _load_docling_output(name, output_dir)
-                if sub_docling and sub_docling.get("success"):
-                    paper_content = sub_docling.get("filtered_text", "")
-                    paper_title = sub_docling.get("metadata", {}).get("title", "")
-
-            if not paper_content and not hf_repo:
-                # No paper content available and no HF repo — generate via full pipeline
-                # (this handles cases where sub has its own paper_url not yet processed)
-                if paper_url:
-                    logger.info("Sub-benchmark %s has own paper_url, running full pipeline", name)
-                    inputs = build_pipeline_inputs(name, paper_url, hf_repo, appears_in)
-                    card = process_single_benchmark(
-                        benchmark_name=name,
-                        pipeline_inputs=inputs,
-                        base_output_path=str(output_dir),
-                        debug=args.debug,
-                    )
-                    dt = time.time() - t0
-                    if card:
-                        stats["succeeded"] += 1
-                        logger.info("OK %s via full pipeline (%.0fs)", name, dt)
-                    else:
-                        stats["failed"] += 1
-                        failed_list.append(_make_failure_entry(name, "composer_failed", "Full pipeline returned None", paper_url, hf_repo, appears_in))
-                    continue
-                else:
-                    dt = time.time() - t0
-                    stats["failed"] += 1
-                    logger.warning("SKIP %s - no paper content or HF repo (%.0fs)", name, dt)
-                    failed_list.append(_make_failure_entry(name, "sub_benchmark_no_info", "No paper content or HF repo available", paper_url, hf_repo, appears_in))
-                    continue
-
-            # Load HF README for parent (if available)
-            hf_readme_content = ""
-            parent_hf = _get_parent_hf_repo(parent_name)
-            if parent_hf:
-                hf_readme_content = _load_hf_readme(parent_name, output_dir)
-
-            # Search for sub-benchmark-specific info in parent paper + HF README
-            sub_facts = extract_sub_benchmark_facts(
-                paper_content=paper_content,
-                parent_name=parent_name,
-                sub_name=name,
-                paper_title=paper_title,
-                hf_readme_content=hf_readme_content,
-            )
-
-            # If no grounded facts, generate a fallback description
-            fallback_desc = None
-            if not sub_facts:
-                parent_bc = parent_card.get("benchmark_card", parent_card)
-                parent_overview = parent_bc.get("benchmark_details", {}).get("overview", "")
-                fallback_desc = generate_sub_benchmark_fallback_description(
-                    sub_name=name,
-                    parent_name=parent_name,
-                    parent_overview=parent_overview,
-                )
-
-            # Compose sub-benchmark card
-            eee_meta = build_pipeline_inputs(name, paper_url, hf_repo, appears_in).get("eee_metadata")
-            sub_card = compose_sub_benchmark_card(
-                parent_card=parent_card,
-                sub_facts=sub_facts,
-                sub_name=name,
-                eee_metadata=eee_meta,
-                fallback_description=fallback_desc,
-            )
-
-            # Save the card
-            safe_name = sanitize_benchmark_name(name)
-            sub_output_manager = OutputManager(safe_name, str(output_dir))
-            card_filename = f"benchmark_card_{safe_name}.json"
-            sub_output_manager.save_benchmark_card(sub_card, card_filename)
-
-            dt = time.time() - t0
-            stats["succeeded"] += 1
-            if sub_facts:
-                info_status = "with specific facts"
-            elif fallback_desc:
-                info_status = "with fallback description"
-            else:
-                info_status = "inherited from parent"
-            logger.info("OK %s (%s, %.0fs)", name, info_status, dt)
-
-        except Exception as e:
-            dt = time.time() - t0
-            stats["failed"] += 1
-            reason = _classify_failure(name, paper_url, hf_repo, appears_in, str(e))
-            logger.error("ERROR %s - %s: %s (%.0fs)", name, reason, e, dt)
-            failed_list.append(_make_failure_entry(name, reason, str(e), paper_url, hf_repo, appears_in))
+        print(f"\nSKIPPING {len(subs)} sub-benchmarks: separate sub-cards are retired "
+              "(variants belong on the parent card).")
+        for name, _, _, appears_in in subs:
+            stats["skipped"] = stats.get("skipped", 0) + 1
+            logger.info("SKIP %s - sub-benchmark of %s (sub-cards retired)", name, appears_in)
 
     duration = time.time() - start
     m, s = divmod(int(duration), 60)

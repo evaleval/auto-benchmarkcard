@@ -72,3 +72,11 @@ def test_factreasoner_tail_writes_no_content():
 def test_composer_invokes_corroboration_gate():
     src = inspect.getsource(W.run_composer)
     assert "_apply_hf_corroboration_gate" in src
+
+
+def test_sub_benchmark_parent_copy_path_is_retired():
+    # variants live on the parent card; the parent-copy specialization path is gone
+    import auto_benchmarkcard.tools.composer.composer_tool as CT
+    for name in ("compose_sub_benchmark_card", "_specialize_card_with_facts",
+                 "extract_sub_benchmark_facts", "_EXTRACTOR_SYSTEM"):
+        assert not hasattr(CT, name)
