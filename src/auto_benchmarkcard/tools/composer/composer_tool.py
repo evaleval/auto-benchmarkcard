@@ -1966,15 +1966,37 @@ def post_process_card(card: Dict[str, Any]) -> Dict[str, Any]:
     return card
 
 
+def _values_differ(a, b) -> bool:
+    """Material difference between a composed value and a deterministic one."""
+    def norm(v):
+        if isinstance(v, list):
+            return frozenset(str(x).strip().lower() for x in v if str(x).strip())
+        return str(v).strip().lower()
+    return norm(a) != norm(b)
+
+
 def apply_deterministic_overrides(
     card: Dict[str, Any],
     deterministic_facts: Dict[str, Any],
+    conflicts: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Override LLM-generated fields with deterministic ground-truth values.
 
     Always overrides languages and license; fill-only for metrics and format.
+    When an always-override replaces a materially different composed value, the
+    replacement still happens (the tag stays authoritative) but the conflict is
+    recorded in the optional conflicts list instead of vanishing silently.
     """
     overrides_applied = []
+
+    def _note_conflict(field, det_val):
+        if conflicts is None:
+            return
+        sec, key = field.split(".", 1)
+        existing = card.get(sec, {}).get(key) if isinstance(card.get(sec), dict) else None
+        if existing is None or _is_empty(existing) or not _values_differ(existing, det_val):
+            return
+        conflicts.append({"field": field, "deterministic": det_val, "composed": existing})
 
     _EMPTY = {"not specified", "not specified.", "no information found", ""}
 
@@ -1990,6 +2012,8 @@ def apply_deterministic_overrides(
         return False
 
     if "benchmark_details.languages" in deterministic_facts:
+        _note_conflict("benchmark_details.languages",
+                       deterministic_facts["benchmark_details.languages"])
         card.setdefault("benchmark_details", {})["languages"] = \
             deterministic_facts["benchmark_details.languages"]
         overrides_applied.append("languages")
@@ -2006,11 +2030,15 @@ def apply_deterministic_overrides(
     # data_type is always-override (matches card_utils _ALWAYS_OVERRIDE); keeps this site
     # byte-identical to the workers override for all six deterministic fields (S1/S10).
     if "benchmark_details.data_type" in deterministic_facts:
+        _note_conflict("benchmark_details.data_type",
+                       deterministic_facts["benchmark_details.data_type"])
         card.setdefault("benchmark_details", {})["data_type"] = \
             deterministic_facts["benchmark_details.data_type"]
         overrides_applied.append("data_type")
 
     if "ethical_and_legal_considerations.data_licensing" in deterministic_facts:
+        _note_conflict("ethical_and_legal_considerations.data_licensing",
+                       deterministic_facts["ethical_and_legal_considerations.data_licensing"])
         card.setdefault("ethical_and_legal_considerations", {})["data_licensing"] = \
             deterministic_facts["ethical_and_legal_considerations.data_licensing"]
         overrides_applied.append("license")
@@ -3143,6 +3171,55 @@ def _aggregate_validation(group_telemetry):
     }
 
 
+def _flag_version_conflicts(card: Dict[str, Any], card_frame) -> List[Dict[str, str]]:
+    """Flag fields whose version tokens disagree with the card's majority version.
+
+    Deterministic and conservative: only scalar/list prose values in the five content
+    sections are scanned with the frame's version regexes (URL chunks excluded); flags
+    fire only when a clear majority token exists (>= 2 fields) and a minority field
+    mentions a different token without also mentioning the majority one. Flags land in
+    flagged_fields; values are never changed."""
+    found: Dict[str, set] = {}
+    for sec in ("benchmark_details", "purpose_and_intended_users", "data",
+                "methodology", "ethical_and_legal_considerations"):
+        fields = card.get(sec)
+        if not isinstance(fields, dict):
+            continue
+        for key, val in fields.items():
+            texts = []
+            if isinstance(val, str):
+                texts = [val]
+            elif isinstance(val, list):
+                texts = [x for x in val if isinstance(x, str)]
+            tokens = set()
+            for t in texts:
+                for m in list(frame_mod._VERSION_RE.finditer(t)) + \
+                         list(frame_mod._VERSION_WORD_RE.finditer(t)):
+                    if not frame_mod._in_url_chunk(t, m.start(), m.end()):
+                        tokens.add(m.group(1))
+            if tokens:
+                found[f"{sec}.{key}"] = tokens
+    all_tokens: Dict[str, int] = {}
+    for toks in found.values():
+        for t in toks:
+            all_tokens[t] = all_tokens.get(t, 0) + 1
+    if len(all_tokens) < 2:
+        return []
+    majority = max(all_tokens, key=lambda t: all_tokens[t])
+    if all_tokens[majority] < 2:
+        return []
+    flags = []
+    for field, toks in found.items():
+        if majority in toks:
+            continue
+        minority = sorted(toks)[0]
+        reason = (f"version mismatch: mentions v{minority} while other fields "
+                  f"say v{majority}")
+        card.setdefault("flagged_fields", {})[field.rsplit(".", 1)[-1]] = reason
+        flags.append({"field": field, "minority": minority, "majority": majority})
+    return flags
+
+
 @tool("compose_benchmark_card")
 def compose_benchmark_card(
     unitxt_metadata: Optional[Dict[str, Any]] = None,
@@ -3498,11 +3575,26 @@ def compose_benchmark_card(
         if isinstance(benchmark_card_dict[section_key], dict):
             benchmark_card_dict[section_key].pop("provenance", None)
 
-    # Phase 7: Deterministic overrides
-    benchmark_card_dict = apply_deterministic_overrides(benchmark_card_dict, det_facts)
+    # Phase 7: Deterministic overrides, with source conflicts surfaced instead of
+    # silently resolved (the tag stays authoritative; the reader sees the disagreement).
+    det_conflicts: List[Dict[str, Any]] = []
+    benchmark_card_dict = apply_deterministic_overrides(
+        benchmark_card_dict, det_facts, conflicts=det_conflicts)
+    for c in det_conflicts:
+        key = c["field"].rsplit(".", 1)[-1]
+        benchmark_card_dict.setdefault("flagged_fields", {})[key] = (
+            f"source conflict: deterministic tag says {c['deterministic']!r} but the "
+            f"composed sources said {c['composed']!r}")
+        logger.warning("Deterministic override conflict on %s: %r vs %r",
+                       c["field"], c["deterministic"], c["composed"])
 
     # Phase 8: Post-processing
     benchmark_card_dict = post_process_card(benchmark_card_dict)
+
+    # Card-level version consistency: fields carrying a minority version token get
+    # flagged (never rewritten). Catches the overview-says-v2-methodology-says-v0.1
+    # class from the S=150 findings.
+    version_flags = _flag_version_conflicts(benchmark_card_dict, card_frame)
 
     # C2: drop a size / size_breakdown the card's own prose contradicts (runs before the
     # deterministic-provenance block so a dropped value emits no stale source=deterministic entry).
@@ -3659,6 +3751,8 @@ def compose_benchmark_card(
             },
             "gates": gate_telem.get("summary", {}),
             "eav": eav_telem,
+            "det_conflicts": det_conflicts,
+            "version_flags": version_flags,
             "validation": {
                 "per_group": group_telemetry,
                 "card": _aggregate_validation(group_telemetry),

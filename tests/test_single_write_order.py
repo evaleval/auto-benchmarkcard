@@ -80,3 +80,48 @@ def test_sub_benchmark_parent_copy_path_is_retired():
     for name in ("compose_sub_benchmark_card", "_specialize_card_with_facts",
                  "extract_sub_benchmark_facts", "_EXTRACTOR_SYSTEM"):
         assert not hasattr(CT, name)
+
+
+def test_always_override_conflict_is_surfaced():
+    from auto_benchmarkcard.tools.composer.composer_tool import apply_deterministic_overrides
+    card = {"ethical_and_legal_considerations": {"data_licensing": "CC-BY-NC-SA-4.0"}}
+    conflicts = []
+    apply_deterministic_overrides(
+        card, {"ethical_and_legal_considerations.data_licensing": "Apache-2.0"},
+        conflicts=conflicts)
+    assert card["ethical_and_legal_considerations"]["data_licensing"] == "Apache-2.0"
+    assert conflicts and conflicts[0]["field"].endswith("data_licensing")
+    assert conflicts[0]["composed"] == "CC-BY-NC-SA-4.0"
+
+
+def test_always_override_agreement_is_silent():
+    from auto_benchmarkcard.tools.composer.composer_tool import apply_deterministic_overrides
+    card = {"benchmark_details": {"languages": ["English"]}}
+    conflicts = []
+    apply_deterministic_overrides(
+        card, {"benchmark_details.languages": ["english"]}, conflicts=conflicts)
+    assert conflicts == []
+
+
+def test_version_conflict_flags_minority_field():
+    from auto_benchmarkcard.tools.composer.composer_tool import _flag_version_conflicts
+    card = {
+        "benchmark_details": {"overview": "Arena v2.0 evaluates models on hard prompts.",
+                              "name": "arena"},
+        "methodology": {"judge_models": ["GPT-4 as used in v0.1 of the pipeline"],
+                        "calculation": "Scores follow the v2.0 protocol."},
+        "data": {}, "purpose_and_intended_users": {},
+        "ethical_and_legal_considerations": {},
+    }
+    flags = _flag_version_conflicts(card, None)
+    assert len(flags) == 1 and flags[0]["field"] == "methodology.judge_models"
+    assert "version mismatch" in card["flagged_fields"]["judge_models"]
+
+
+def test_version_single_token_no_flags():
+    from auto_benchmarkcard.tools.composer.composer_tool import _flag_version_conflicts
+    card = {"benchmark_details": {"overview": "Uses v2.0 across the board."},
+            "methodology": {}, "data": {}, "purpose_and_intended_users": {},
+            "ethical_and_legal_considerations": {}}
+    assert _flag_version_conflicts(card, None) == []
+    assert "flagged_fields" not in card
