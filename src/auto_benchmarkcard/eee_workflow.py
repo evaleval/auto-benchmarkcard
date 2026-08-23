@@ -18,9 +18,10 @@ import os
 import re
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
+from urllib.parse import urlparse
 
 from auto_benchmarkcard.card_utils import extract_missing_fields, map_benchmark_type
-from auto_benchmarkcard.config import Config
+from auto_benchmarkcard.config import Config, get_llm_handler
 from auto_benchmarkcard.tools.composer import aboutness
 from auto_benchmarkcard.tools.composer.composer_tool import (
     drop_inapplicable_judge_missing, enforce_card_shape)
@@ -859,6 +860,301 @@ def _resolve_hf_repos(
     return pipeline_inputs_map
 
 
+# Identity gate for aggregator-only entries. Leaderboard aggregators (llm-stats, alphaxiv)
+# sometimes list records that are not benchmarks at all: a bare metric scale treated as a
+# benchmark (a 1-5 MOS), a non-benchmark paper repurposed as one, or leaderboard chart
+# fragments about unrelated tasks glued under one name. When such an entry's only evidence
+# of existence is the aggregator scrape itself, one cheap LLM check runs before the full
+# pipeline is spent on it. Signals are structural; nothing is keyed on a benchmark name.
+
+_AGGREGATOR_SOURCE_LABELS = frozenset({"llm-stats", "llmstats", "llm stats", "alphaxiv"})
+_AGGREGATOR_URL_HOSTS = ("llm-stats.com", "alphaxiv.org")
+# Generic eval vocabulary carries no identity: the token "bench" appearing inside the word
+# "benchmark" in a metric description must not count as a mention of "<Name>-Bench".
+_GENERIC_NAME_TOKENS = frozenset({
+    "bench", "benchmark", "benchmarks", "eval", "evals", "evaluation", "evaluations",
+    "dataset", "datasets", "task", "tasks", "test", "tests", "score", "scores",
+    "llm", "llms", "the", "and",
+})
+IDENTITY_GATE_MIN_CONFIDENCE = 0.7
+
+IDENTITY_GATE_PROMPT = """You are auditing a single record scraped from a public AI-leaderboard aggregator. Some aggregator entries are not actual benchmarks: a metric or scoring scale (e.g. a 1-5 naturalness MOS) listed as if it were a benchmark, a research paper or algorithm that has no AI evaluation dataset behind it, or leaderboard chart fragments about unrelated tasks glued together under one name.
+
+Record:
+- Entry name: {name}
+- Aggregator source: {source}
+- Source URLs: {urls}
+- Models on the leaderboard: {num_models}
+- Scores: {score_stats}
+- Metrics:
+{metrics_block}
+
+Question: does this record describe an actual AI benchmark or evaluation dataset, i.e. a concrete, identifiable task or dataset used to evaluate AI models, correctly identified by the entry name above?
+
+Answer false when the entry is a metric or scoring scale rather than a benchmark, when it is a paper or algorithm that is not an evaluation dataset for AI models, or when the metrics describe unrelated tasks that cannot plausibly all belong to one benchmark with this name. Answer true when the record coherently describes a real benchmark, even if the metadata is thin, and answer true whenever you are unsure.
+
+Respond with ONLY a JSON object:
+{{"is_benchmark": true or false, "confidence": <0.0-1.0>, "reason": "<one sentence>"}}"""
+
+
+def _is_aggregator_url(url: str) -> bool:
+    """True when the URL's host is a leaderboard-aggregator domain (or a subdomain of one)."""
+    try:
+        host = urlparse(url).netloc.lower().split(":")[0]
+    except ValueError:
+        return False
+    return any(host == h or host.endswith("." + h) for h in _AGGREGATOR_URL_HOSTS)
+
+
+def _is_aggregator_source(eee_metadata: Dict[str, Any]) -> bool:
+    """True when the record was scraped from a leaderboard aggregator.
+
+    Primary signal is the scan provenance label (eee_source_folder / eval_library): the
+    alphaxiv scrape can carry a non-aggregator source_url (ResearchPulse-Bench lists only
+    an HF dataset URL the aggregator itself claimed), so the URL check alone is not enough.
+    All-aggregator source_urls is the fallback when the labels are absent.
+    """
+    labels = {
+        str(eee_metadata.get(k) or "").strip().lower()
+        for k in ("eee_source_folder", "eval_library")
+    }
+    if labels & _AGGREGATOR_SOURCE_LABELS:
+        return True
+    urls = [u for u in (eee_metadata.get("source_urls") or []) if isinstance(u, str)]
+    return bool(urls) and all(_is_aggregator_url(u) for u in urls)
+
+
+def _is_aggregator_only(pipeline_inputs: Dict[str, Any]) -> bool:
+    """True when the entry's evidence of existence is only the aggregator scrape.
+
+    An EEE-provided HF binding (existing_hf_repo) or a pre-set paper URL is independent
+    evidence, so those entries never reach the gate. A search-resolved hf_repo does NOT
+    count: it is derived from the name alone and unverified at this point (the
+    ResearchPulse-Bench case, where search bound a repo the HF verifier later rejected).
+    """
+    eee_metadata = pipeline_inputs.get("eee_metadata") or {}
+    if eee_metadata.get("existing_hf_repo"):
+        return False
+    extracted_ids = pipeline_inputs.get("extracted_ids") or {}
+    if extracted_ids.get("paper_url"):
+        return False
+    return _is_aggregator_source(eee_metadata)
+
+
+def _thin_singleton_score(eee_metadata: Dict[str, Any]) -> bool:
+    """Suspicion signal: the record is a single bare leaderboard score with almost no models
+    behind it, and the aggregator itself marks the entry unverified or its scale inferred.
+    The shape of a metric or algorithm-paper entry (nmos, cbnsl: 1 model, one
+    inferred-proportion score), not of a populated leaderboard.
+    """
+    metrics = eee_metadata.get("metrics") or {}
+    if len(metrics) != 1:
+        return False
+    (metric_id, metric), = metrics.items()
+    if not isinstance(metric, dict):
+        return False
+    if not (metric.get("metric_kind") == "benchmark_score"
+            or str(metric_id).endswith(".score")):
+        return False
+    num_models = eee_metadata.get("num_models_evaluated")
+    if not isinstance(num_models, int) or isinstance(num_models, bool) or num_models > 2:
+        return False
+    details = metric.get("additional_details") or {}
+    inferred = str(details.get("bound_strategy") or "").startswith("inferred")
+    unverified = str(details.get("raw_verified") or "").lower() != "true"
+    return inferred or unverified
+
+
+def _name_detached_metrics(eee_metadata: Dict[str, Any]) -> bool:
+    """Suspicion signal: no metric id, name, description, or detail mentions any
+    identity-bearing token of the benchmark name (the garbled-identity shape: alphaxiv
+    chart fragments about other datasets glued under this name). Tokens are matched on
+    alphanumeric boundaries; generic eval words are excluded so "bench" never attaches
+    via the word "benchmark". No usable tokens means no evidence, which fails toward pass.
+    """
+    name = str(eee_metadata.get("benchmark_name") or "")
+    metrics = eee_metadata.get("metrics") or {}
+    if not metrics or not name.strip():
+        return False
+    tokens = [
+        t for t in re.findall(r"[a-z0-9]+", name.lower())
+        if len(t) >= 3 and t not in _GENERIC_NAME_TOKENS
+    ]
+    whole = re.sub(r"[^a-z0-9]", "", name.lower())
+    if len(whole) >= 3 and whole not in _GENERIC_NAME_TOKENS and whole not in tokens:
+        tokens.append(whole)
+    if not tokens:
+        return False
+    parts = []
+    for metric_id, metric in metrics.items():
+        parts.append(str(metric_id))
+        if isinstance(metric, dict):
+            parts.append(str(metric.get("metric_name") or ""))
+            parts.append(str(metric.get("evaluation_description") or ""))
+            details = metric.get("additional_details")
+            if isinstance(details, dict):
+                parts.extend(str(v) for v in details.values())
+    haystack = " ".join(parts).lower()
+    haystack_norm = re.sub(r"[^a-z0-9]", "", haystack)
+    for token in tokens:
+        if re.search(r"(?<![a-z0-9])" + re.escape(token) + r"(?![a-z0-9])", haystack):
+            return False
+        if token == whole and whole in haystack_norm:
+            return False
+    return True
+
+
+def _identity_prescreen(eee_metadata: Dict[str, Any]) -> List[str]:
+    """Deterministic, LLM-free suspicion heuristics; returns the names of fired signals."""
+    signals = []
+    if _thin_singleton_score(eee_metadata):
+        signals.append("thin_singleton_score")
+    if _name_detached_metrics(eee_metadata):
+        signals.append("name_detached_metrics")
+    return signals
+
+
+def _build_identity_gate_prompt(eee_metadata: Dict[str, Any]) -> str:
+    metrics = eee_metadata.get("metrics") or {}
+    lines = []
+    for metric_id, metric in list(metrics.items())[:8]:
+        if not isinstance(metric, dict):
+            metric = {}
+        desc = str(metric.get("evaluation_description") or "No description")
+        if len(desc) > 400:
+            desc = desc[:400] + "..."
+        lines.append(f"- {metric_id} ({metric.get('metric_name') or 'unnamed'}): {desc}")
+    eval_summary = eee_metadata.get("evaluation_summary") or {}
+    stats = eval_summary.get("score_statistics") or {}
+    cfg = eval_summary.get("metric_config") or {}
+    top = eval_summary.get("top_performers") or []
+    top_str = ", ".join(
+        f"{t.get('model')} ({t.get('score')})" for t in top[:3] if isinstance(t, dict)
+    ) or "none listed"
+    score_stats = (
+        f"mean={stats.get('mean')}, min={stats.get('min')}, max={stats.get('max')} "
+        f"on a {cfg.get('min_possible')}-{cfg.get('max_possible')} scale; top: {top_str}"
+    )
+    return IDENTITY_GATE_PROMPT.format(
+        name=eee_metadata.get("benchmark_name") or "unknown",
+        source=eee_metadata.get("eee_source_folder")
+        or eee_metadata.get("eval_library") or "unknown",
+        urls=", ".join((eee_metadata.get("source_urls") or [])[:5]) or "none",
+        num_models=eee_metadata.get("num_models_evaluated", 0),
+        score_stats=score_stats,
+        metrics_block="\n".join(lines) or "- none",
+    )
+
+
+def _parse_identity_json(text: str) -> Dict[str, Any]:
+    """Parse the verdict JSON, tolerating markdown fences and surrounding prose.
+    Raises ValueError on an empty response so the caller treats it as a failure."""
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("empty LLM response")
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text
+        text = text.rsplit("```", 1)[0].strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end > start:
+            return json.loads(text[start:end + 1])
+        raise
+
+
+def _llm_identity_verdict(eee_metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """One cheap LLM call asking whether the record describes an actual benchmark.
+
+    Fail-open: any exception (or a malformed verdict) returns None and the caller passes
+    the entry, so an LLM outage can never block card generation. A transient JSON-parse
+    failure gets one re-ask before giving up.
+    """
+    try:
+        llm = get_llm_handler(Config.COMPOSER_MODEL)
+        prompt = _build_identity_gate_prompt(eee_metadata)
+        text = llm.generate(prompt)
+        try:
+            verdict = _parse_identity_json(text)
+        except (ValueError, json.JSONDecodeError):
+            text = llm.generate(prompt)
+            verdict = _parse_identity_json(text)
+        is_benchmark = verdict.get("is_benchmark")
+        if not isinstance(is_benchmark, bool):
+            return None
+        return {
+            "is_benchmark": is_benchmark,
+            "confidence": float(verdict.get("confidence", 0.0) or 0.0),
+            "reason": str(verdict.get("reason") or "").strip(),
+        }
+    except Exception as e:
+        logger.warning("Identity gate LLM call failed for '%s': %s",
+                       eee_metadata.get("benchmark_name"), e)
+        return None
+
+
+def _write_identity_gate_sidecar(
+    benchmark_name: str, base_output_path: Optional[str], result: Dict[str, Any]
+) -> None:
+    """Audit record for every LLM-consulted gate decision, written to the batch output root
+    (next to the per-benchmark session dirs). Best-effort: an unwritable sidecar must not
+    change the gate outcome."""
+    root = (os.path.join(base_output_path, Config.OUTPUT_DIR)
+            if base_output_path else Config.OUTPUT_DIR)
+    gate_dir = os.path.join(root, "identity_gate")
+    try:
+        os.makedirs(gate_dir, exist_ok=True)
+        payload = {"benchmark": benchmark_name,
+                   "checked_at": datetime.now().isoformat(), **result}
+        path = os.path.join(
+            gate_dir, f"{sanitize_benchmark_name(benchmark_name)}.json")
+        with open(path, "w") as f:
+            json.dump(payload, f, indent=2)
+    except OSError as e:
+        logger.warning("Could not write identity gate sidecar for '%s': %s",
+                       benchmark_name, e)
+
+
+def gate_benchmark_identity(
+    benchmark_name: str,
+    pipeline_inputs: Dict[str, Any],
+    base_output_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Pre-pipeline identity gate for aggregator-only EEE entries.
+
+    Entries with independent evidence (EEE-bound HF repo, paper URL, non-aggregator
+    provenance) pass untouched and never reach the LLM; aggregator-only entries whose
+    metadata shape looks suspicious (see _identity_prescreen) get one LLM verdict, and
+    only a confident not-a-benchmark verdict skips the entry. Everything else passes.
+
+    Returns {"action": "pass"|"skip", "reason", "signals", "llm_called", "llm_failed",
+    "verdict"}; a sidecar JSON is written for every LLM-consulted decision.
+    """
+    result: Dict[str, Any] = {
+        "action": "pass", "reason": None, "signals": [],
+        "llm_called": False, "llm_failed": False, "verdict": None,
+    }
+    if not _is_aggregator_only(pipeline_inputs):
+        return result
+    eee_metadata = pipeline_inputs.get("eee_metadata") or {}
+    result["signals"] = _identity_prescreen(eee_metadata)
+    if not result["signals"]:
+        return result
+    result["llm_called"] = True
+    verdict = _llm_identity_verdict(eee_metadata)
+    result["verdict"] = verdict
+    if verdict is None:
+        result["llm_failed"] = True
+    elif (verdict["is_benchmark"] is False
+          and verdict["confidence"] >= IDENTITY_GATE_MIN_CONFIDENCE):
+        result["action"] = "skip"
+        reason = verdict["reason"] or "aggregator entry judged not a benchmark"
+        result["reason"] = f"not_a_benchmark: {reason}"
+    _write_identity_gate_sidecar(benchmark_name, base_output_path, result)
+    return result
+
+
 def run_eee_pipeline(
     eee_path: str,
     output_path: Optional[str] = None,
@@ -908,6 +1204,7 @@ def run_eee_pipeline(
         "successful": [],
         "failed": [],
         "skipped": [],
+        "identity_gate": {"checked": 0, "gated": 0, "passed": 0, "llm_failed": 0},
     }
 
     # Process individual benchmarks
@@ -915,6 +1212,18 @@ def run_eee_pipeline(
         logger.info("[%d/%d] Processing: %s", i, len(pipeline_inputs_map), name)
 
         try:
+            gate = gate_benchmark_identity(name, inputs, base_output_path=output_path)
+            gate_telemetry = summary["identity_gate"]
+            gate_telemetry["checked"] += 1
+            if gate["llm_failed"]:
+                gate_telemetry["llm_failed"] += 1
+            if gate["action"] == "skip":
+                gate_telemetry["gated"] += 1
+                summary["skipped"].append({"benchmark": name, "reason": gate["reason"]})
+                logger.info("Skipping '%s' before the pipeline: %s", name, gate["reason"])
+                continue
+            gate_telemetry["passed"] += 1
+
             if not inputs.get("hf_repo"):
                 logger.info("No HF repo for '%s', proceeding with EEE data + paper resolver", name)
 
