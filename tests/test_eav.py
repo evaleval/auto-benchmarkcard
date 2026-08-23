@@ -271,3 +271,13 @@ def test_noop_without_frame_or_handler_or_items():
         make_item("E01", "purpose_and_intended_users.goal", region="intro")]}
     updated, telem = eav.run_eav(digest, make_frame(), handler)
     assert updated == digest and telem["calls"] == 0 and handler.prompts == []
+
+
+def test_compose_flow_activates_gates_and_eav():
+    import inspect
+    import auto_benchmarkcard.tools.composer.composer_tool as CT
+    src = inspect.getsource(CT.compose_benchmark_card.func)
+    assert "frame=card_frame" in src and "gate_telemetry=gate_telem" in src
+    assert "eav_mod.run_eav" in src
+    # EAV runs before Stage B's citable id set is built
+    assert src.index("eav_mod.run_eav") < src.index("digest_ids = {")

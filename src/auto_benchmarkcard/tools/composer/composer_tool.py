@@ -27,6 +27,7 @@ from auto_benchmarkcard.config import Config, get_llm_handler
 from auto_benchmarkcard.output import sanitize_chroma_collection_name
 from auto_benchmarkcard.tools.composer import aboutness
 from auto_benchmarkcard.tools.composer import docstructure
+from auto_benchmarkcard.tools.composer import eav as eav_mod
 from auto_benchmarkcard.tools.composer import evidence
 from auto_benchmarkcard.tools.composer import frame as frame_mod
 from auto_benchmarkcard.tools.composer import field_spec as fs
@@ -3378,9 +3379,29 @@ def compose_benchmark_card(
     # Phase 4: Assign evidence ids and build the per-field digest (the only Stage-B input).
     # evidence_digest replaces merged_facts; the Stage-B section loop below reads
     # evidence_digest[field] instead of merged_facts.get(section) (handoff to [B+V]).
+    gate_telem = {}
     evidence_items, evidence_digest = evidence.finalize_evidence(
-        paper_items, gap_items, html_items, hf_items, github_items
+        paper_items, gap_items, html_items, hf_items, github_items,
+        frame=card_frame, gate_telemetry=gate_telem,
     )
+    if gate_telem.get("summary"):
+        logger.info("Assignment gates: %s", gate_telem["summary"])
+
+    # EAV: one grouped audit call over the risky slice of the digest, demoting
+    # items whose quote is not about the claimed referent or field. Runs before
+    # digest_ids so Stage B can never cite a demoted item.
+    eav_telem = {}
+    if card_frame and card_frame.get("nodes"):
+        try:
+            evidence_digest, eav_telem = eav_mod.run_eav(
+                evidence_digest, card_frame, get_llm_handler())
+            if eav_telem.get("demoted") or eav_telem.get("corrected"):
+                logger.info(
+                    "EAV: checked=%d demoted=%d corrected=%d",
+                    eav_telem.get("checked", 0), len(eav_telem.get("demoted", [])),
+                    eav_telem.get("corrected", 0))
+        except Exception as e:
+            logger.warning("EAV pass failed (continuing without): %s", e)
     logger.info(
         "Quote-verify: %d/%d quotes verified (%.0f%%); rejected=%s truncated=%d",
         quote_telem["verified"], quote_telem["emitted"],
@@ -3636,6 +3657,8 @@ def compose_benchmark_card(
                 "telemetry": (card_frame or {}).get("telemetry", {}),
                 "doc_index_sections": len(doc_index.sections) if doc_index else 0,
             },
+            "gates": gate_telem.get("summary", {}),
+            "eav": eav_telem,
             "validation": {
                 "per_group": group_telemetry,
                 "card": _aggregate_validation(group_telemetry),
