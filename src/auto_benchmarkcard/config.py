@@ -57,6 +57,8 @@ class Config:
     # Max chars of paper text sent to the LLM (25K chars ~ 6K tokens)
     PAPER_EXTRACTION_BUDGET: int = 25000
     PAPER_INTRO_CHARS: int = 4000
+    # Max chars of ranked retrieved excerpts shown per gap-fill sweep
+    GAP_EXCERPT_BUDGET: int = 12000
 
     # RAG
     ENABLE_LLM_RERANKING: bool = True

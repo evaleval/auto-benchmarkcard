@@ -1,4 +1,5 @@
-"""Tests for honest paper-context labels and the un-primed gap-fill pass (referent fix, phase 1).
+"""Tests for honest paper-context labels and the un-primed gap-fill pass (referent fix,
+phase 1), plus the ranked-widening / second-sweep recall mechanics.
 
 Network-free: retrieval is faked with plain objects and the extraction call is captured
 via a monkeypatched _run_extraction (or a fake LLM handler for the full-compose seam).
@@ -66,14 +67,17 @@ def test_format_paper_chunks_budget_clips_and_stops():
 # ------------------------------------------------------------- gap-fill ----
 
 class _Retriever:
-    """Returns docs_for.get(query, default); raises for queries in raise_for."""
+    """Returns docs_for.get(query, default); raises for queries in raise_for.
+    Records every query in .queries so tests can assert what each sweep retrieved."""
 
     def __init__(self, default, docs_for=None, raise_for=()):
         self.default = default
         self.docs_for = docs_for or {}
         self.raise_for = set(raise_for)
+        self.queries = []
 
     def invoke(self, query):
+        self.queries.append(query)
         if query in self.raise_for:
             raise RuntimeError("retrieval down")
         return [SimpleNamespace(page_content=t)
@@ -132,17 +136,186 @@ def test_gap_fill_without_retriever_uses_paper_text(monkeypatch):
 
 
 def test_gap_fill_without_retriever_and_empty_source_is_a_noop(monkeypatch):
+    # 3-tuple unpack: _fill_paper_gaps now also returns gap-recall telemetry
     calls = _capture_extraction(monkeypatch)
-    items, telem = C._fill_paper_gaps([], None, "TestBench", "")
+    items, telem, gap = C._fill_paper_gaps([], None, "TestBench", "")
     assert items == [] and calls == []
     assert telem == evidence.empty_call_telemetry(evidence.DOC_PAPER)
+    assert gap == {"gap_sweeps": 0, "gap_fields_open_before": [],
+                   "gap_fields_open_after": []}
 
 
 def test_gap_fill_all_fields_covered_is_a_noop(monkeypatch):
     calls = _capture_extraction(monkeypatch)
     covered = [{"field": p} for p in evidence.gap_fields()]
-    items, _ = C._fill_paper_gaps(covered, None, "TestBench", "paper text")
+    items, _, gap = C._fill_paper_gaps(covered, None, "TestBench", "paper text")
     assert items == [] and calls == []
+    assert gap["gap_sweeps"] == 0
+
+
+# ------------------------------------- ranked widening + second sweep ----
+
+def _scripted_extraction(monkeypatch, per_call_fields):
+    """Fake _run_extraction that returns verified records for the given field lists,
+    one list per call in order; extra calls return nothing."""
+    calls = []
+
+    def fake(prompt, verify_source, doc, label, shown_text="", doc_index=None, frame=None):
+        fields = per_call_fields[len(calls)] if len(calls) < len(per_call_fields) else []
+        calls.append({"prompt": prompt, "shown_text": shown_text})
+        telem = evidence.empty_call_telemetry(doc)
+        telem["emitted"] = telem["verified"] = len(fields)
+        return [{"field": f} for f in fields], telem
+
+    monkeypatch.setattr(C, "_run_extraction", fake)
+    return calls
+
+
+_TWO_GAPS = {"data.annotation": "annotation query",
+             "methodology.validation": "validation query"}
+
+
+def test_gap_fill_widens_retrieval_to_top4(monkeypatch):
+    calls = _capture_extraction(monkeypatch)
+    monkeypatch.setattr(evidence, "gap_fields",
+                        lambda: {"data.annotation": "annotation query"})
+    chunks = [f"chunk body number {i} " + "x" * 50 for i in range(6)]
+    retriever = _Retriever(default=chunks)
+    C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    prompt = calls[0]["prompt"]
+    # top-4 per query (was top-2); equal scores keep retrieval order
+    for i in range(4):
+        assert f"chunk body number {i}" in prompt
+    assert "chunk body number 4" not in prompt
+    assert "[Excerpt 4 from paper]" in prompt
+
+
+def test_gap_fill_ranks_hint_relevant_excerpts_first(monkeypatch):
+    calls = _capture_extraction(monkeypatch)
+    monkeypatch.setattr(evidence, "gap_fields",
+                        lambda: {"data.annotation": "annotation query"})
+    filler = "irrelevant filler prose about nothing in particular"
+    relevant = "Labeling was done by experts with strict quality control over annotated items."
+    retriever = _Retriever(default=[filler, relevant])
+    C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    prompt = calls[0]["prompt"]
+    assert f"[Excerpt 1 from paper]\n{relevant}" in prompt
+    assert prompt.index(relevant) < prompt.index(filler)
+
+
+def test_rank_gap_excerpts_deterministic_and_budgeted():
+    hints = {"annotation", "quality", "control"}
+    a = "annotation quality control " * 10
+    b = "annotation only " * 10
+    c = "nothing relevant here " * 10
+    ranked = C._rank_gap_excerpts([c, b, a], hints, budget=10_000)
+    assert ranked == [a, b, c]
+    assert C._rank_gap_excerpts([c, b, a], hints, budget=10_000) == ranked
+    # ties keep retrieval order
+    assert C._rank_gap_excerpts(["annotation alpha", "annotation beta"], hints,
+                                budget=1000) == ["annotation alpha", "annotation beta"]
+    # an over-budget excerpt is skipped; a smaller lower-ranked one still fits
+    big = "annotation quality control " + "z" * 500
+    small = "annotation " + "y" * 20
+    assert C._rank_gap_excerpts([big, small], hints, budget=len(small) + 10) == [small]
+    assert C._rank_gap_excerpts([small, big], hints, budget=len(big) + 10) == [big]
+
+
+def test_gap_hint_tokens_use_curator_hints():
+    tokens = C._gap_hint_tokens(["data.annotation"])
+    # from the curator hint "How labeling was done, who annotated, quality control"
+    assert {"labeling", "annotated", "quality", "control"} <= tokens
+    assert "how" not in tokens and "was" not in tokens
+
+
+def test_second_sweep_runs_on_remaining_fields_when_productive(monkeypatch):
+    monkeypatch.setattr(evidence, "gap_fields", lambda: dict(_TWO_GAPS))
+    calls = _scripted_extraction(monkeypatch, [["data.annotation"]])
+    retriever = _Retriever(default=["Some chunk about annotation and validation."])
+    items, telem, gap = C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    assert len(calls) == 2
+    # the second sweep offers only the still-open field
+    assert "- methodology.validation" in calls[1]["prompt"]
+    assert "- data.annotation" not in calls[1]["prompt"]
+    assert [it["field"] for it in items] == ["data.annotation"]
+    assert gap == {"gap_sweeps": 2, "gap_fields_open_before": [2, 1],
+                   "gap_fields_open_after": [1, 1]}
+    assert telem["emitted"] == 1 and telem["verified"] == 1
+
+
+def test_no_second_sweep_when_first_sweep_unproductive(monkeypatch):
+    monkeypatch.setattr(evidence, "gap_fields", lambda: dict(_TWO_GAPS))
+    calls = _scripted_extraction(monkeypatch, [[]])
+    retriever = _Retriever(default=["Some chunk."])
+    items, _, gap = C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    assert len(calls) == 1
+    assert items == []
+    assert gap == {"gap_sweeps": 1, "gap_fields_open_before": [2],
+                   "gap_fields_open_after": [2]}
+
+
+def test_no_second_sweep_when_first_sweep_fills_everything(monkeypatch):
+    monkeypatch.setattr(evidence, "gap_fields", lambda: dict(_TWO_GAPS))
+    calls = _scripted_extraction(
+        monkeypatch, [["data.annotation", "methodology.validation"]])
+    retriever = _Retriever(default=["chunk"])
+    items, _, gap = C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    assert len(calls) == 1
+    assert gap == {"gap_sweeps": 1, "gap_fields_open_before": [2],
+                   "gap_fields_open_after": [0]}
+
+
+def test_hard_cap_two_calls_even_when_second_sweep_productive(monkeypatch):
+    monkeypatch.setattr(evidence, "gap_fields", lambda: {
+        "data.annotation": "q1", "methodology.validation": "q2", "data.source": "q3"})
+    calls = _scripted_extraction(monkeypatch, [["data.annotation"], ["data.source"]])
+    retriever = _Retriever(default=["chunk text"])
+    items, telem, gap = C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    # one field is still open after a productive second sweep: no third call
+    assert len(calls) == 2
+    assert gap == {"gap_sweeps": 2, "gap_fields_open_before": [3, 2],
+                   "gap_fields_open_after": [2, 1]}
+    assert sorted(it["field"] for it in items) == ["data.annotation", "data.source"]
+    assert telem["emitted"] == 2 and telem["verified"] == 2
+
+
+def test_second_sweep_retrieves_fresh_chunks_for_remaining_queries_only(monkeypatch):
+    monkeypatch.setattr(evidence, "gap_fields", lambda: dict(_TWO_GAPS))
+    calls = _scripted_extraction(monkeypatch, [["data.annotation"]])
+    retriever = _Retriever(default=["first chunk body"],
+                           docs_for={"validation query": ["second chunk about validation"]})
+    C._fill_paper_gaps([], retriever, "TestBench", "full paper text")
+    assert retriever.queries == ["annotation query", "validation query", "validation query"]
+    assert "second chunk about validation" in calls[1]["prompt"]
+    assert "first chunk body" not in calls[1]["prompt"]
+
+
+def test_second_sweep_short_paper_uses_full_text_again(monkeypatch):
+    monkeypatch.setattr(evidence, "gap_fields", lambda: dict(_TWO_GAPS))
+    calls = _scripted_extraction(monkeypatch, [["data.annotation"]])
+    paper = "ShortBench evaluates parsing. Annotated by experts."
+    items, _, gap = C._fill_paper_gaps([], None, "ShortBench", paper)
+    assert len(calls) == 2
+    assert paper in calls[1]["prompt"]
+    assert calls[1]["shown_text"] == paper
+    assert "- methodology.validation" in calls[1]["prompt"]
+    assert "- data.annotation" not in calls[1]["prompt"]
+    assert gap["gap_sweeps"] == 2
+
+
+def test_fold_gap_telemetry_sums_counts():
+    a = evidence.empty_call_telemetry(evidence.DOC_PAPER)
+    a["emitted"], a["verified"], a["rejected"] = 3, 2, 1
+    a["reject_reasons"]["no_match"] = 1
+    b = evidence.empty_call_telemetry(evidence.DOC_PAPER)
+    b["emitted"], b["verified"], b["rejected"] = 2, 1, 1
+    b["reject_reasons"]["empty"] = 1
+    b["referent_resolution"] = {"default_target": 1}
+    C._fold_gap_telemetry(a, b)
+    assert a["emitted"] == 5 and a["verified"] == 3 and a["rejected"] == 2
+    assert a["reject_reasons"]["no_match"] == 1 and a["reject_reasons"]["empty"] == 1
+    assert a["referent_resolution"] == {"default_target": 1}
+    assert a["doc"] == evidence.DOC_PAPER
 
 
 # ------------------------------------------- compose seam (short paper) ----
@@ -167,13 +340,15 @@ class _FakeHandler:
 
 def test_short_paper_still_gets_gap_fill_pass(monkeypatch):
     # the paper fits in the budget so no retriever is built; gap-fill must run anyway
+    # (fake returns the 3-tuple shape and its gap-recall dict must reach the metadata)
     rec = {}
 
     def fake_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
                   identity_anchor="", doc_index=None, frame=None):
         rec["retriever"] = paper_retriever
         rec["verify_source"] = verify_source
-        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
+        gap = {"gap_sweeps": 1, "gap_fields_open_before": [3], "gap_fields_open_after": [3]}
+        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), gap
 
     monkeypatch.setattr(C, "_fill_paper_gaps", fake_gaps)
     monkeypatch.setattr(C, "get_llm_handler", lambda *a, **k: _FakeHandler())
@@ -186,6 +361,8 @@ def test_short_paper_still_gets_gap_fill_pass(monkeypatch):
     assert res["benchmark_card"]
     assert rec["retriever"] is None
     assert "ShortBench is a benchmark" in rec["verify_source"]
+    assert res["composition_metadata"]["gap_recall"] == {
+        "gap_sweeps": 1, "gap_fields_open_before": [3], "gap_fields_open_after": [3]}
 
 
 def test_gap_fill_forwards_index_and_frame(monkeypatch):

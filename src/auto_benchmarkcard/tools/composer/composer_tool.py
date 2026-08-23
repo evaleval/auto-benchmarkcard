@@ -1805,26 +1805,60 @@ def _format_paper_chunks(intro_text: str, chunk_texts: List[str], budget: int):
     return "\n\n".join(formatted), used
 
 
-def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
-                     identity_anchor="", doc_index=None, frame=None):
-    """Recall pass for paper fields that have no verified evidence yet.
+# Tokenizer for the deterministic gap-excerpt ranking; tokens under 3 chars never match.
+# The stopwords keep shared function words in the curator hints from inflating overlap.
+_GAP_TOKEN_RE = re.compile(r"[a-z0-9]{3,}")
+_GAP_STOPWORDS = frozenset({
+    "the", "and", "not", "nor", "for", "with", "from", "that", "this", "these",
+    "those", "was", "were", "are", "how", "who", "what", "where", "when", "any",
+    "also", "its", "etc", "only", "goes", "here",
+})
 
-    Same Evidence-Item format as the paper call. Quotes are verified against verify_source
-    (the full paper text), doc=docling, so gap items share one reference with paper items.
-    With a retriever, the context is deduped retrieved excerpts under honest labels; the
-    gap fields are listed once in the instruction, never bound per-chunk, so the model
-    tags each quote with the field it actually supports. Without a retriever (short paper
-    that fit in context, or indexing failed), the paper text itself is the context.
-    Returns (verified records, telemetry).
-    """
-    covered = {it["field"] for it in paper_items}
-    targets = {path: query for path, query in evidence.gap_fields().items()
-               if path not in covered}
-    if not targets:
-        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
 
-    logger.info("Gap-filling: %d missing fields: %s", len(targets), list(targets))
+def _gap_hint_tokens(targets) -> set:
+    """Union of content tokens from the open gap fields' curator hints."""
+    tokens = set()
+    for path in targets:
+        hint = evidence.CURATOR_FIELDS.get(path, {}).get("hint", "")
+        tokens.update(_GAP_TOKEN_RE.findall(hint.lower()))
+    return tokens - _GAP_STOPWORDS
 
+
+def _rank_gap_excerpts(excerpts: List[str], hint_tokens: set, budget: int) -> List[str]:
+    """Order the deduped excerpt pool by token overlap with the gap-field hints and keep
+    the best ones within the total char budget. Deterministic and LLM-free: the score is
+    the count of distinct shared tokens, ties keep retrieval order, and an excerpt that
+    would overflow the budget is skipped so a smaller lower-ranked one can still fit."""
+    scores = [len(set(_GAP_TOKEN_RE.findall(t.lower())) & hint_tokens) for t in excerpts]
+    order = sorted(range(len(excerpts)), key=lambda i: (-scores[i], i))
+    kept: List[str] = []
+    used = 0
+    for i in order:
+        if used + len(excerpts[i]) > budget:
+            continue
+        kept.append(excerpts[i])
+        used += len(excerpts[i])
+    return kept
+
+
+def _fold_gap_telemetry(acc: Dict, call: Dict) -> None:
+    """Sum a second gap sweep's call telemetry into the first, in place. Both sweeps are
+    DOC_PAPER calls, so the merged dict still folds into card telemetry as one call."""
+    for k in ("emitted", "verified", "rejected", "truncated"):
+        acc[k] += call[k]
+    for reason, count in call["reject_reasons"].items():
+        acc["reject_reasons"][reason] = acc["reject_reasons"].get(reason, 0) + count
+    if "referent_resolution" in call:
+        rr = acc.setdefault("referent_resolution", {})
+        for how, count in call["referent_resolution"].items():
+            rr[how] = rr.get(how, 0) + count
+
+
+def _gap_sweep(targets, paper_retriever, benchmark_name, verify_source,
+               identity_anchor, doc_index, frame):
+    """One gap-fill extraction call over the given open fields. Returns
+    (records, telemetry, ran); ran is False when no call was made (nothing retrieved,
+    or an empty source on the retriever-less path)."""
     if paper_retriever is not None:
         seen = set()
         excerpts: List[str] = []
@@ -1834,14 +1868,16 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
             except Exception as e:
                 logger.debug("Gap-fill retrieval failed for %s: %s", path, e)
                 continue
-            for chunk in chunks[:2]:
+            for chunk in chunks[:4]:
                 text = chunk.page_content[:1500]
                 if text[:200] in seen:
                     continue
                 seen.add(text[:200])
                 excerpts.append(text)
+        excerpts = _rank_gap_excerpts(excerpts, _gap_hint_tokens(targets),
+                                      Config.GAP_EXCERPT_BUDGET)
         if not excerpts:
-            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
+            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), False
         source_label = "paper excerpts"
         context = "\n\n".join(f"{_excerpt_label(i, t)}\n{t}"
                               for i, t in enumerate(excerpts, 1))
@@ -1849,7 +1885,7 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
         source_label = "research paper"
         context = verify_source[:Config.PAPER_EXTRACTION_BUDGET]
         if not context:
-            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
+            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), False
 
     prompt = evidence.build_extraction_prompt(
         source_label=source_label,
@@ -1866,8 +1902,61 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
         "the source text may support any of these missing fields, or none of them; tag "
         "each quote with the field it actually supports, or emit nothing for it."
     )
-    return _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill",
-                           shown_text=context, doc_index=doc_index, frame=frame)
+    records, telem = _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill",
+                                     shown_text=context, doc_index=doc_index, frame=frame)
+    return records, telem, True
+
+
+def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
+                     identity_anchor="", doc_index=None, frame=None):
+    """Recall pass for paper fields that have no verified evidence yet.
+
+    Same Evidence-Item format as the paper call. Quotes are verified against verify_source
+    (the full paper text), doc=docling, so gap items share one reference with paper items.
+    With a retriever, the context is deduped retrieved excerpts (top-4 per gap query,
+    ranked by token overlap with the open fields' hints, within Config.GAP_EXCERPT_BUDGET)
+    under honest labels; the gap fields are listed once in the instruction, never bound
+    per-chunk, so the model tags each quote with the field it actually supports. Without a
+    retriever (short paper that fit in context, or indexing failed), the paper text itself
+    is the context.
+
+    When fields remain open after the first sweep AND that sweep verified at least one
+    quote (the source is productive), one more sweep runs restricted to the remaining
+    fields, with fresh retrieval for just their queries. Hard cap: 2 extraction calls
+    per card. Returns (verified records, telemetry, gap-recall telemetry with gap_sweeps
+    and per-sweep gap_fields_open_before/after counts).
+    """
+    gap_recall = {"gap_sweeps": 0, "gap_fields_open_before": [], "gap_fields_open_after": []}
+    covered = {it["field"] for it in paper_items}
+    targets = {path: query for path, query in evidence.gap_fields().items()
+               if path not in covered}
+    if not targets:
+        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), gap_recall
+
+    logger.info("Gap-filling: %d missing fields: %s", len(targets), list(targets))
+    records, telem, ran = _gap_sweep(targets, paper_retriever, benchmark_name,
+                                     verify_source, identity_anchor, doc_index, frame)
+    if not ran:
+        return records, telem, gap_recall
+
+    filled = {r["field"] for r in records}
+    remaining = {p: q for p, q in targets.items() if p not in filled}
+    gap_recall["gap_sweeps"] = 1
+    gap_recall["gap_fields_open_before"].append(len(targets))
+    gap_recall["gap_fields_open_after"].append(len(remaining))
+
+    if remaining and records:
+        logger.info("Gap-fill second sweep: %d fields still open", len(remaining))
+        records2, telem2, ran2 = _gap_sweep(remaining, paper_retriever, benchmark_name,
+                                            verify_source, identity_anchor, doc_index, frame)
+        if ran2:
+            still_open = len(remaining) - len({r["field"] for r in records2} & set(remaining))
+            gap_recall["gap_sweeps"] = 2
+            gap_recall["gap_fields_open_before"].append(len(remaining))
+            gap_recall["gap_fields_open_after"].append(still_open)
+            records = records + records2
+            _fold_gap_telemetry(telem, telem2)
+    return records, telem, gap_recall
 
 
 # Hallucinated pipeline-org owners that leak into resource URLs -- the same furniture family as
@@ -3515,8 +3604,9 @@ def compose_benchmark_card(
         # docling text exists: a short paper (no retriever built) uses the full text as
         # context, and zero paper items just means every gap field is still open.
         gap_items = []
+        gap_recall = {}
         if full_paper_text:
-            gap_items, t = _fill_paper_gaps(
+            gap_items, t, gap_recall = _fill_paper_gaps(
                 paper_items, paper_retriever, query, paper_source,
                 identity_anchor=identity_anchor, doc_index=doc_index, frame=card_frame,
             )
@@ -3845,6 +3935,7 @@ def compose_benchmark_card(
             },
             "gates": gate_telem.get("summary", {}),
             "eav": eav_telem,
+            "gap_recall": gap_recall,
             "det_conflicts": det_conflicts,
             "version_flags": version_flags,
             "validation": {
