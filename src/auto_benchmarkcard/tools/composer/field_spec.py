@@ -140,7 +140,30 @@ LIST_CAPS = {
 }
 
 # Human-readable caps / guidance for the prompt field-spec block (dotted path).
+# Top-defect fields carry a GoLLIE-style negative clause stating what does NOT belong.
 FIELD_CAPS = {
+    "benchmark_details.authors": (
+        "the benchmark's own creators; NOT authors of cited or related work"
+    ),
+    "benchmark_details.languages": (
+        "the language(s) of the benchmark items themselves; NOT languages merely "
+        "mentioned or compared against"
+    ),
+    "methodology.metrics": (
+        "the metric(s) this benchmark reports; NOT metrics used only in analyses "
+        "or for other benchmarks"
+    ),
+    "data.size": (
+        "the whole benchmark's size; NOT a subset, split, or a prior version's count"
+    ),
+    "data.size_breakdown": (
+        "per-split/subset counts of THIS benchmark; NOT experiment sample counts or "
+        "another dataset's splits"
+    ),
+    "data.source": (
+        "where the data originates and how it was collected; NOT the hosting platform "
+        "or datasets used only for comparison"
+    ),
     "benchmark_details.overview": (
         "2-3 sentences; state the direct measurement criterion -- the literal measured "
         "object (primary metric + item/sample type + count or domain breadth), e.g. "
@@ -162,12 +185,18 @@ FIELD_CAPS = {
     "methodology.human_baseline": (
         "human or reference baseline result + its conditions; NOT model scores (those go in baseline_results)"
     ),
-    "methodology.baseline_results": "model/baseline scores with numbers; include model conditions where reported",
+    "methodology.baseline_results": (
+        "model/baseline scores with numbers; include model conditions where reported; "
+        "NOT scores reported on other benchmarks"
+    ),
     "methodology.validity_justification": (
         "only what the paper says about construct validity / metric-choice justification (extract-only)"
     ),
     # List content guidance (form is added generically for any LIST_FIELDS field).
-    "benchmark_details.domains": "the subject areas / application domains the items cover, as stated",
+    "benchmark_details.domains": (
+        "the subject areas / application domains the items cover, as stated; "
+        "NOT task formats, metrics, or capabilities"
+    ),
     "purpose_and_intended_users.tasks": (
         "discrete evaluation tasks only; no scope-framing or what-it-is-not"
     ),

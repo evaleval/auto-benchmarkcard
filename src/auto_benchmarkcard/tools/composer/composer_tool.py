@@ -3673,7 +3673,10 @@ def compose_benchmark_card(
 
     # Seam 1: Stage A's verified per-field digest (built above in Phase 4) is the only
     # Stage-B input; it replaces the legacy section-text adapter.
-    digest_ids = {it["evidence_id"] for items in evidence_digest.values() for it in items}
+    # Mapping id -> field tag activates the validator's evidence-field agreement check
+    # (a cited id must be tagged for the field citing it); ids are unique across the digest.
+    digest_ids = {it["evidence_id"]: it["field"]
+                  for items in evidence_digest.values() for it in items}
     det_filled_paths = {k for k in det_facts if isinstance(k, str) and "." in k}
 
     composite_guidance = ""

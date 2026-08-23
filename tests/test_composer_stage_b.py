@@ -441,11 +441,12 @@ def test_field_gloss_keeps_useful_parenthetical_strips_machinery():
 
 
 def test_uncapped_prose_field_surfaces_description_gloss():
-    # data.source has no FIELD_CAPS entry -> its noise-stripped description gloss appears
-    assert "data.source" not in fs.FIELD_CAPS
-    desc_gloss = C._field_gloss(DataInfo.model_fields["source"])
+    # data.annotation has no FIELD_CAPS entry -> its noise-stripped description gloss appears
+    # (witness switched from data.source, which now carries a negative referent cap)
+    assert "data.annotation" not in fs.FIELD_CAPS
+    desc_gloss = C._field_gloss(DataInfo.model_fields["annotation"])
     assert desc_gloss                                  # the model field carries a description
-    assert desc_gloss in _spec_lines("data")["source"]
+    assert desc_gloss in _spec_lines("data")["annotation"]
 
 
 def test_capped_field_shows_cap_not_raw_description():
@@ -464,8 +465,9 @@ def test_new_field_caps_present_with_expected_substrings():
     assert "GDPR" in comp and "do NOT restate the license" in comp
     assert "distinct from methods" in caps["methodology.calculation"]
     assert "do NOT restate" in caps["purpose_and_intended_users.limitations"]
-    # metrics is an established list field; a content cap would fight "copy verbatim"
-    assert "methodology.metrics" not in caps
+    # metrics now carries a negative referent clause only (states what does NOT belong,
+    # so it does not fight the established "copy verbatim" instruction)
+    assert "NOT metrics used only" in caps["methodology.metrics"]
 
 
 # -------------------------------------------------------- full compose ----

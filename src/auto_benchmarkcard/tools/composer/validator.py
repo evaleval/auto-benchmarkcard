@@ -6,9 +6,11 @@ attempt is kept and any still-invalid field is recorded in flagged_fields rather
 than raising, so the card always ships.
 
 Validators: structural (Pydantic), enum-membership (registry-driven), canonical
-Not-specified, evidence-linkage (cited evidence_id must exist in the digest),
-list-hygiene, and empty-structured collapse. Enum vocab + field classification
-come from field_spec (the single source of truth shared with the prompt builder).
+Not-specified, evidence-linkage (cited evidence_id must exist in the digest AND,
+when the caller supplies the digest's id->field tags, must be tagged for the
+citing field), list-hygiene, and empty-structured collapse. Enum vocab + field
+classification come from field_spec (the single source of truth shared with the
+prompt builder).
 """
 
 import json
@@ -25,7 +27,8 @@ from auto_benchmarkcard.tools.composer import field_spec as fs
 
 _NS_STRINGS = {"not specified", "not specified.", "no information found", "no information found."}
 _MAX_ROUNDS = 3
-_SEVERITY = {"structural": 100, "evidence_missing": 10, "leaked_evidence_id": 8, "enum_not_member": 5}
+_SEVERITY = {"structural": 100, "evidence_missing": 10, "evidence_field_mismatch": 9,
+             "leaked_evidence_id": 8, "enum_not_member": 5}
 
 # Truncation handling. When an output is cut off (stop_reason == "length"), re-run the BASE
 # prompt with a larger token budget rather than appending repair text (which only re-truncates).
@@ -63,7 +66,7 @@ class Attempt:
     parsed: Optional[dict]
     norm: Optional[Dict[str, dict]]
     errors: List[VErr]
-    stats: Dict[str, int]
+    stats: Dict[str, Any]
 
 
 @dataclass
@@ -182,8 +185,11 @@ def ns_normalize(field: str, val: Any):
     return val, False
 
 
-def list_hygiene(path: str, val: Any):
-    """Bare-string coerce, drop NS mixed with reals, dedup, truncate to cap. In-code fix only."""
+def list_hygiene(path: str, val: Any, truncations: Optional[List[dict]] = None):
+    """Bare-string coerce, drop NS mixed with reals, dedup, truncate to cap. In-code fix only.
+
+    A cap truncation is silent by design (the card ships) but never invisible: when the
+    caller passes a truncations list, every cut is recorded there for telemetry."""
     if isinstance(val, str):
         val = [val]
     if not isinstance(val, list):
@@ -201,6 +207,8 @@ def list_hygiene(path: str, val: Any):
         out.append(x)
     cap = fs.LIST_CAPS.get(path)
     if cap and len(out) > cap:
+        if truncations is not None:
+            truncations.append({"field": path, "original": len(out), "kept": cap})
         out = out[:cap]
     return out
 
@@ -299,6 +307,34 @@ def evidence_check(path: str, field_prov: Any, digest_ids: set) -> Optional[VErr
     return None
 
 
+def evidence_field_agreement(path: str, field_prov: Any,
+                             digest_fields: Dict[str, str]) -> Optional[VErr]:
+    """Cited ids must be tagged for the citing field, not merely exist in the digest.
+
+    Exact field-path match for enum/structured/extractive fields; prose-class fields
+    (per field_spec.field_class) may cite any field of the same card section, since
+    prose summaries legitimately draw on section-mates. Ids missing from digest_fields
+    are evidence_check's problem and are skipped here."""
+    ids = field_prov.get("evidence_ids") if isinstance(field_prov, dict) else None
+    if not ids or not isinstance(ids, list):
+        return None
+    prose = fs.field_class(path) == "prose"
+    sec = path.split(".", 1)[0]
+    bad = []
+    for i in ids:
+        tag = digest_fields.get(i)
+        if tag is None or tag == path:
+            continue
+        if prose and tag.split(".", 1)[0] == sec:
+            continue
+        bad.append(f"{i} (tagged {tag})")
+    if bad:
+        return VErr(path, "evidence_field_mismatch",
+                    f"cited evidence is tagged for a different field: {'; '.join(bad)}",
+                    observed=", ".join(bad))
+    return None
+
+
 # Contract v1 §2: provenance source/evidence stay STRINGS. The Dict[..., Any]
 # widening (needed so quote_loc/evidence_ids survive) dropped Pydantic's type wall,
 # so a dict/list-valued source or evidence (the LLM confusing it with the adjacent
@@ -343,10 +379,13 @@ def _typecheck(model_cls, secdict: dict) -> Tuple[Optional[dict], List[VErr]]:
 
 def validate_sections(parsed: dict, section_names: List[str],
                       section_models: Dict[str, Any], digest_ids: set,
-                      exempt_extra: set) -> Tuple[Dict[str, dict], List[VErr], Dict[str, int]]:
+                      exempt_extra: set,
+                      digest_fields: Optional[Dict[str, str]] = None,
+                      ) -> Tuple[Dict[str, dict], List[VErr], Dict[str, Any]]:
     errors: List[VErr] = []
-    stats = {"ns_normalized": 0, "n_other": 0, "n_enum_fields": 0,
-             "established_mismatch": 0, "evidence_demoted": 0}
+    stats: Dict[str, Any] = {"ns_normalized": 0, "n_other": 0, "n_enum_fields": 0,
+                             "established_mismatch": 0, "evidence_demoted": 0,
+                             "list_truncations": []}
     norm: Dict[str, dict] = {}
     evidence_exempt = fs.EVIDENCE_EXEMPT | exempt_extra
 
@@ -395,7 +434,7 @@ def validate_sections(parsed: dict, section_names: List[str],
                 continue
 
             if fld in fs.LIST_FIELDS:
-                val = list_hygiene(path, val)
+                val = list_hygiene(path, val, stats["list_truncations"])
                 secdict[fld] = val
                 if is_not_specified(val):
                     continue
@@ -443,6 +482,10 @@ def validate_sections(parsed: dict, section_names: List[str],
                 ev = evidence_check(path, prov.get(fld), digest_ids)
                 if ev:
                     errors.append(ev)
+                elif digest_fields is not None:
+                    mm = evidence_field_agreement(path, prov.get(fld), digest_fields)
+                    if mm:
+                        errors.append(mm)
 
         norm[sec] = secdict
 
@@ -467,11 +510,17 @@ FIX_TABLE = {
                     "markdown fences, no trailing commas; every string double-quoted and every brace balanced."),
     "structural": ("Field {F} is required and must have the correct type. If you have no grounded value, "
                    "set it to \"Not specified\" (or [\"Not specified\"] for a list field). Do not omit it."),
-    "enum_not_member": ("Value {X} for field {F} is not in the allowed set {S}. Pick the single closest "
-                        "allowed value, or if none fits use \"other:<short text>\". Do not invent a value outside the set."),
+    "enum_not_member": ("Value {X} for field {F} is not in the allowed set {S}. Use an allowed value ONLY "
+                        "if it is genuinely the same thing as what the evidence states; never substitute a "
+                        "similar-looking one. Otherwise use \"other:<verbatim term from the evidence>\". "
+                        "Do not invent a value outside the set."),
     "evidence_missing": ("Field {F} has a substantive value but cites no valid evidence id from the digest. "
                          "Either add an evidence_ids entry referencing the digest id(s) that support it, or set "
                          "the field to \"Not specified\". Only ids that already appear in the digest are valid - do not invent ids."),
+    "evidence_field_mismatch": ("Field {F} cites evidence id(s) {X} that are tagged for a different field in "
+                                "the digest. Re-cite the evidence item(s) whose tagged field actually supports "
+                                "this value, or set the field to \"Not specified\". An id existing in the digest "
+                                "is not enough - its evidence must be about this field."),
     "leaked_evidence_id": ("Field {F} is a bare evidence id (e.g. E01). Evidence ids are citations, not values - "
                            "put the real text or \"Not specified\", and cite the id under provenance.evidence_ids instead."),
 }
@@ -562,6 +611,10 @@ def finalize(best: Attempt, section_names: List[str], section_models: Dict[str, 
                 _set_ns(sections, e.path)
                 flagged[e.path] = f"[schema_invalid] evidence: {e.detail}"
                 evidence_demoted += 1
+            elif e.type == "evidence_field_mismatch":
+                _set_ns(sections, e.path)
+                flagged[e.path] = f"[schema_invalid] evidence_mismatch: {e.detail}"
+                evidence_demoted += 1
             elif e.type == "leaked_evidence_id":
                 _set_ns(sections, e.path)
                 flagged[e.path] = f"[schema_invalid] leaked_evidence_id: {e.detail}"
@@ -607,9 +660,16 @@ def run_group_with_repair(group_name: str, section_names: List[str],
                           det_filled_paths=None, max_rounds: int = _MAX_ROUNDS) -> GroupOutcome:
     """Generate -> validate -> source-free repair (capped) -> keep best -> ship.
 
-    generate_fn(prompt) -> raw model text. digest_ids: iterable of valid evidence ids
-    from [A]'s digest. det_filled_paths: extra evidence-exempt dotted paths filled by [0]."""
-    digest_ids = set(digest_ids or ())
+    generate_fn(prompt) -> raw model text. digest_ids: valid evidence ids from [A]'s
+    digest, either an iterable of ids or a mapping evidence_id -> digest field tag;
+    only the mapping form enables the evidence-tag/field agreement check.
+    det_filled_paths: extra evidence-exempt dotted paths filled by [0]."""
+    if isinstance(digest_ids, dict):
+        digest_fields = dict(digest_ids)
+        digest_ids = set(digest_fields)
+    else:
+        digest_fields = None
+        digest_ids = set(digest_ids or ())
     exempt_extra = set(det_filled_paths or ())
     attempts: List[Attempt] = []
     prompt = base_prompt
@@ -631,7 +691,8 @@ def run_group_with_repair(group_name: str, section_names: List[str],
             att = Attempt(rnd, None, None, [VErr(group_name, "unparseable", perr or "unparseable")], {})
         else:
             norm, errors, stats = validate_sections(
-                parsed, section_names, section_models, digest_ids, exempt_extra)
+                parsed, section_names, section_models, digest_ids, exempt_extra,
+                digest_fields=digest_fields)
             att = Attempt(rnd, parsed, norm, errors, stats)
         attempts.append(att)
 
@@ -665,6 +726,15 @@ def _finalize_with_telemetry(best: Attempt, attempts: List[Attempt], section_nam
                              section_models, converged: bool, truncation_retries: int = 0) -> GroupOutcome:
     stats = best.stats or {}
     n_enum = stats.get("n_enum_fields", 0)
+    # Mismatch telemetry over the whole loop: a path counts as found if any attempt raised
+    # evidence_field_mismatch on it, and as repaired if the shipped best attempt no longer
+    # does (an unparseable best ships NS skeletons, so nothing counts as repaired).
+    mismatch_found = {e.path for a in attempts for e in a.errors
+                      if e.type == "evidence_field_mismatch"}
+    if best.norm is not None:
+        mismatch_left = {e.path for e in best.errors if e.type == "evidence_field_mismatch"}
+    else:
+        mismatch_left = mismatch_found
     telemetry = {
         "first_pass_valid": (attempts[0].norm is not None and not attempts[0].errors),
         "iterations_to_valid": next((a.rnd + 1 for a in attempts if a.norm is not None and not a.errors), len(attempts)),
@@ -676,6 +746,9 @@ def _finalize_with_telemetry(best: Attempt, attempts: List[Attempt], section_nam
         "ns_normalized": stats.get("ns_normalized", 0),
         "established_mismatch": stats.get("established_mismatch", 0),
         "evidence_demoted": stats.get("evidence_demoted", 0),
+        "evidence_mismatch_found": len(mismatch_found),
+        "evidence_mismatch_repaired": len(mismatch_found - mismatch_left),
+        "list_truncations": stats.get("list_truncations", []),
         "truncation_retries": truncation_retries,
     }
     return finalize(best, section_names, section_models, telemetry)
