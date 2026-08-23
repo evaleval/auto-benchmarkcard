@@ -1299,6 +1299,11 @@ def run_composer(state):
             )
             logger.info(f"Provenance tracking saved to: {provenance_output}")
 
+        # Referent frame sidecar: the card's candidate-referent world, for gates and review.
+        if result.get("frame"):
+            frame_filename = f"frame_{sanitize_benchmark_name(state['query'])}.json"
+            state["output_manager"].save_tool_output(result["frame"], "composer", frame_filename)
+
         # Persist the composer's run telemetry (quote-verify counters, per-group validator
         # telemetry, aboutness). Additive sidecar only, never part of the card.
         if result.get("composition_metadata"):

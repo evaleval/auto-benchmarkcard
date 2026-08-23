@@ -26,7 +26,9 @@ from auto_benchmarkcard.card_utils import _label_hosting_format, extract_hf_tags
 from auto_benchmarkcard.config import Config, get_llm_handler
 from auto_benchmarkcard.output import sanitize_chroma_collection_name
 from auto_benchmarkcard.tools.composer import aboutness
+from auto_benchmarkcard.tools.composer import docstructure
 from auto_benchmarkcard.tools.composer import evidence
+from auto_benchmarkcard.tools.composer import frame as frame_mod
 from auto_benchmarkcard.tools.composer import field_spec as fs
 from auto_benchmarkcard.tools.composer import validator as _validator
 
@@ -133,7 +135,7 @@ def _get_benchmark_identity(
 
 
 def _run_extraction(prompt: str, verify_source: str, doc: str, label: str,
-                    shown_text: str = ""):
+                    shown_text: str = "", doc_index=None, frame=None):
     """Run one Stage-A call: LLM -> robust JSON parse -> quote verification.
 
     Returns (verified records without evidence_id, call telemetry). Fail-soft: an LLM or
@@ -152,7 +154,8 @@ def _run_extraction(prompt: str, verify_source: str, doc: str, label: str,
 
     parsed = evidence.parse_curator_extraction(raw)
     records, telem = evidence.verify_items(parsed.evidence, verify_source, doc,
-                                           shown_text=shown_text)
+                                           shown_text=shown_text, doc_index=doc_index,
+                                           frame=frame)
     logger.info("%s extraction: %d/%d quotes verified", label, telem["verified"], telem["emitted"])
     return records, telem
 
@@ -160,6 +163,7 @@ def _run_extraction(prompt: str, verify_source: str, doc: str, label: str,
 def extract_facts_from_paper(
     paper_content: str, benchmark_name: str, identity_anchor: str = "",
     paper_title: str = "", verify_source: str = "", doc: str = "",
+    doc_index=None, frame=None,
 ):
     """Extract verified Evidence Items from paper text in isolation (no other sources).
 
@@ -183,9 +187,10 @@ def extract_facts_from_paper(
         identity_anchor=identity_anchor,
         source_text=paper_content,
         name_alias_line=name_alias_line,
+        frame=frame,
     )
     return _run_extraction(prompt, verify_source or paper_content, doc, "Paper",
-                           shown_text=paper_content)
+                           shown_text=paper_content, doc_index=doc_index, frame=frame)
 
 
 def extract_facts_from_hf_readme(
@@ -193,6 +198,7 @@ def extract_facts_from_hf_readme(
     benchmark_name: str,
     hf_retriever: Any = None,
     identity_anchor: str = "",
+    frame=None,
 ):
     """Extract verified Evidence Items from the HF README (capped at 15K chars)."""
     readme = _get_hf_readme(hf_metadata)
@@ -206,14 +212,16 @@ def extract_facts_from_hf_readme(
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=hf_content,
+        frame=frame,
     )
-    return _run_extraction(prompt, hf_content, evidence.DOC_HF, "HF README")
+    return _run_extraction(prompt, hf_content, evidence.DOC_HF, "HF README", frame=frame)
 
 
 def extract_facts_from_html(
     html_content: Dict[str, Any],
     benchmark_name: str,
     identity_anchor: str = "",
+    frame=None,
 ):
     """Extract verified Evidence Items from HTML web page content."""
     text = html_content.get("text", "")
@@ -227,14 +235,16 @@ def extract_facts_from_html(
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=html_text,
+        frame=frame,
     )
-    return _run_extraction(prompt, html_text, evidence.DOC_HTML, "HTML")
+    return _run_extraction(prompt, html_text, evidence.DOC_HTML, "HTML", frame=frame)
 
 
 def extract_facts_from_github_readme(
     github_readme: Dict[str, Any],
     benchmark_name: str,
     identity_anchor: str = "",
+    frame=None,
 ):
     """Extract verified Evidence Items from a GitHub repo README.
 
@@ -252,8 +262,9 @@ def extract_facts_from_github_readme(
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=readme_text,
+        frame=frame,
     )
-    return _run_extraction(prompt, readme_text, evidence.DOC_GITHUB, "GitHub README")
+    return _run_extraction(prompt, readme_text, evidence.DOC_GITHUB, "GitHub README", frame=frame)
 
 
 def _get_hf_readme(hf_metadata: Optional[Dict[str, Any]]) -> str:
@@ -1792,7 +1803,7 @@ def _format_paper_chunks(intro_text: str, chunk_texts: List[str], budget: int):
 
 
 def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
-                     identity_anchor=""):
+                     identity_anchor="", doc_index=None, frame=None):
     """Recall pass for paper fields that have no verified evidence yet.
 
     Same Evidence-Item format as the paper call. Quotes are verified against verify_source
@@ -1843,6 +1854,7 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=context,
+        frame=frame,
     )
     # build_extraction_prompt has no instruction slot, so the un-binding rule rides
     # after the source text.
@@ -1852,7 +1864,7 @@ def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source
         "each quote with the field it actually supports, or emit nothing for it."
     )
     return _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill",
-                           shown_text=context)
+                           shown_text=context, doc_index=doc_index, frame=frame)
 
 
 # Hallucinated pipeline-org owners that leak into resource URLs -- the same furniture family as
@@ -2989,9 +3001,19 @@ def _digest_block(evidence_digest, section_names):
             continue
         lines.append(f"## {sec}")
         for it in items:
+            # referent and section give Stage B the binding signal without reopening
+            # free source text; both are Python-derived, never model prose.
+            extras = ""
+            ref = it.get("referent", "")
+            if ref and ref != "target":
+                extras += f" | about: {ref}"
+            sec_path = it.get("section_path", "")
+            if sec_path:
+                extras += f" | sec: {sec_path.rsplit(' > ', 1)[-1]}"
             lines.append(
                 f"- [{it.get('evidence_id', '?')}] "
-                f"({it.get('field', sec)} | {it.get('doc', '?')}/{it.get('kind', 'stated')}) "
+                f"({it.get('field', sec)} | {it.get('doc', '?')}/{it.get('kind', 'stated')}"
+                f"{extras}) "
                 f"{it.get('quote', '')}"
             )
     return "\n".join(lines) if lines else "(no evidence items for this group)"
@@ -3271,6 +3293,34 @@ def compose_benchmark_card(
             full_paper_text = _normalize_docling_text(docling_output.get("filtered_text", ""))
         paper_source = full_paper_text or all_paper_content
 
+        # Referent layer: the section/table index is built over the SAME string quotes
+        # verify against (paper_source), so index offsets and char_start compose. The
+        # frame enumerates this card's candidate referents; its LLM sibling pass is
+        # fail-soft and the whole layer degrades to None on any error.
+        doc_index = None
+        if paper_source:
+            try:
+                doc_index = docstructure.build_index(paper_source)
+            except Exception as e:
+                logger.warning("Document index failed (continuing without): %s", e)
+        card_frame = None
+        try:
+            frame_llm = None
+            try:
+                frame_llm = get_llm_handler()
+            except Exception:
+                frame_llm = None
+            card_frame = frame_mod.build_frame(
+                query, eee_metadata, hf_metadata, doc_index=doc_index,
+                paper_text=paper_source, llm_handler=frame_llm,
+            )
+            logger.info(
+                "Referent frame: %d nodes (%s)", len(card_frame.get("nodes", [])),
+                card_frame.get("telemetry", {}).get("llm_pass", "?"))
+        except Exception as e:
+            logger.warning("Referent frame failed (continuing without): %s", e)
+            card_frame = None
+
         quote_telem = evidence.new_card_telemetry()
 
         paper_items = []
@@ -3280,22 +3330,26 @@ def compose_benchmark_card(
             paper_items, t = extract_facts_from_paper(
                 all_paper_content, query, identity_anchor, paper_title=paper_title,
                 verify_source=paper_source, doc=paper_doc,
+                doc_index=doc_index, frame=card_frame,
             )
             evidence.merge_telemetry(quote_telem, t)
 
         hf_items = []
         if has_hf_readme:
-            hf_items, t = extract_facts_from_hf_readme(hf_metadata, query, identity_anchor=identity_anchor)
+            hf_items, t = extract_facts_from_hf_readme(
+                hf_metadata, query, identity_anchor=identity_anchor, frame=card_frame)
             evidence.merge_telemetry(quote_telem, t)
 
         html_items = []
         if has_html:
-            html_items, t = extract_facts_from_html(html_content, query, identity_anchor=identity_anchor)
+            html_items, t = extract_facts_from_html(
+                html_content, query, identity_anchor=identity_anchor, frame=card_frame)
             evidence.merge_telemetry(quote_telem, t)
 
         github_items = []
         if has_github:
-            github_items, t = extract_facts_from_github_readme(github_readme, query, identity_anchor=identity_anchor)
+            github_items, t = extract_facts_from_github_readme(
+                github_readme, query, identity_anchor=identity_anchor, frame=card_frame)
             evidence.merge_telemetry(quote_telem, t)
 
         det_facts = extract_deterministic_facts(eee_metadata, hf_metadata, extracted_ids, unitxt_metadata)
@@ -3306,7 +3360,8 @@ def compose_benchmark_card(
         gap_items = []
         if full_paper_text:
             gap_items, t = _fill_paper_gaps(
-                paper_items, paper_retriever, query, paper_source, identity_anchor=identity_anchor
+                paper_items, paper_retriever, query, paper_source,
+                identity_anchor=identity_anchor, doc_index=doc_index, frame=card_frame,
             )
             evidence.merge_telemetry(quote_telem, t)
     finally:
@@ -3576,10 +3631,16 @@ def compose_benchmark_card(
             "model_used": get_llm_handler().model_name,
             "confidence": confidence,
             "quote_verify": quote_telem,
+            "frame": {
+                "nodes": len((card_frame or {}).get("nodes", [])),
+                "telemetry": (card_frame or {}).get("telemetry", {}),
+                "doc_index_sections": len(doc_index.sections) if doc_index else 0,
+            },
             "validation": {
                 "per_group": group_telemetry,
                 "card": _aggregate_validation(group_telemetry),
                 "aboutness": aboutness_telem,
             },
         },
+        "frame": card_frame,
     }

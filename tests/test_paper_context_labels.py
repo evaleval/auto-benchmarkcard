@@ -83,9 +83,9 @@ class _Retriever:
 def _capture_extraction(monkeypatch):
     calls = []
 
-    def fake(prompt, verify_source, doc, label, shown_text=""):
+    def fake(prompt, verify_source, doc, label, shown_text="", doc_index=None, frame=None):
         calls.append({"prompt": prompt, "verify_source": verify_source,
-                      "doc": doc, "label": label})
+                      "doc": doc, "label": label, "doc_index": doc_index, "frame": frame})
         return [], evidence.empty_call_telemetry(doc)
 
     monkeypatch.setattr(C, "_run_extraction", fake)
@@ -170,7 +170,7 @@ def test_short_paper_still_gets_gap_fill_pass(monkeypatch):
     rec = {}
 
     def fake_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
-                  identity_anchor=""):
+                  identity_anchor="", doc_index=None, frame=None):
         rec["retriever"] = paper_retriever
         rec["verify_source"] = verify_source
         return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
@@ -186,3 +186,15 @@ def test_short_paper_still_gets_gap_fill_pass(monkeypatch):
     assert res["benchmark_card"]
     assert rec["retriever"] is None
     assert "ShortBench is a benchmark" in rec["verify_source"]
+
+
+def test_gap_fill_forwards_index_and_frame(monkeypatch):
+    calls = _capture_extraction(monkeypatch)
+    frame = {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "TestBench", "aliases": []}]}
+    idx = object()
+    C._fill_paper_gaps([], None, "TestBench", "full paper text here",
+                       doc_index=idx, frame=frame)
+    assert calls[0]["doc_index"] is idx
+    assert calls[0]["frame"] is frame
+    assert "target: TestBench (target)" in calls[0]["prompt"]
