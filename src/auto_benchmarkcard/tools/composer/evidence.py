@@ -717,13 +717,20 @@ def route_evidence(records: List[Dict]) -> List[Dict]:
 def finalize_evidence(
     paper: List[Dict], gap: List[Dict], html: List[Dict], hf: List[Dict],
     github: Optional[List[Dict]] = None,
+    frame: Optional[Dict] = None, gate_telemetry: Optional[Dict] = None,
 ) -> Tuple[List[EvidenceItem], Dict[str, List[EvidenceItem]]]:
     """Route by topic, assign ids in canonical order (paper, gap, html, github, hf), build the digest.
 
     route_evidence runs before id assignment so the surviving ids stay dense (E01..En) and the
-    derived re-filed records get their own ids at the tail, matching the digest exactly.
+    derived re-filed records get their own ids at the tail, matching the digest exactly. The
+    assignment gates (aboutness.apply_assignment_gates) then check each routed record's
+    referent/region/claim_role against its field tag; they are a no-op without a frame, so
+    legacy callers are unchanged. Gate actions land in gate_telemetry when given.
     """
+    from auto_benchmarkcard.tools.composer import aboutness
+
     routed = route_evidence([*paper, *gap, *html, *(github or []), *hf])
+    routed = aboutness.apply_assignment_gates(routed, frame, gate_telemetry)
     items = assign_evidence_ids([routed])
     return items, build_digest(items)
 
