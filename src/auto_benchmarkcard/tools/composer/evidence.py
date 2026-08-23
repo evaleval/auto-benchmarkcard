@@ -247,12 +247,20 @@ CURATOR_FIELDS: Dict[str, Dict] = {
 EVIDENCE_FIELD_WHITELIST = frozenset(CURATOR_FIELDS)
 
 
+CLAIM_ROLES = ("primary_result", "secondary", "illustration", "method_metadata")
+
+
 class EvidenceItem(TypedDict):
-    """A verified evidence record (the 7-key contract output).
+    """A verified evidence record (v2 contract output).
 
     char_start indexes the WHITESPACE-NORMALIZED doc (runs of whitespace collapsed to one
     space, stripped), not the raw source. A downstream consumer that wants to slice the
     span must normalize the doc the same way (normalize_ws) before using char_start.
+
+    v2 adds the referent axis: referent is the frame node id the quote is ABOUT (resolved
+    against the card's referent frame, never trusted raw from the model), claim_role types
+    the claim, and section_path/region/table_id are recomputed deterministically from
+    char_start via the document index; they are empty when no index exists for the doc.
     """
     evidence_id: str
     field: str
@@ -261,18 +269,27 @@ class EvidenceItem(TypedDict):
     doc: str
     kind: str
     note: str
+    referent: str
+    claim_role: str
+    section_path: str
+    region: str
+    table_id: str
 
 
 class EvidenceItemIn(BaseModel):
     """What the LLM emits per item. No evidence_id / char_start / doc (Python sets those).
 
-    kind is a plain str (not Literal) so a stray value does not invalidate the whole
-    extraction; verify_items coerces anything outside {stated, derived} to stated.
+    kind/claim_role are plain str (not Literal) so a stray value does not invalidate the
+    whole extraction; verify_items coerces anything outside the allowed sets. referent is
+    the model's claim about which frame entity the quote describes; Python resolves it
+    against the frame and never trusts an unknown id.
     """
     field: str = ""
     quote: str = ""
     kind: str = "stated"
     note: str = ""
+    referent: str = ""
+    claim_role: str = ""
 
 
 class CuratorExtraction(BaseModel):
@@ -307,6 +324,17 @@ EXTRACTION_SYSTEM = (
 )
 
 
+def render_frame_block(frame: Optional[Dict]) -> str:
+    """Render the referent frame as prompt lines ('- id: name (type)'), or ''."""
+    if not frame or not frame.get("nodes"):
+        return ""
+    lines = ["Entities in this card's world (referent ids):"]
+    for n in frame["nodes"]:
+        role = f", {n['role']} metric" if n.get("type") == "metric" and n.get("role") not in (None, "", "unknown") else ""
+        lines.append(f"- {n['id']}: {n['name']} ({n['type']}{role})")
+    return "\n".join(lines)
+
+
 def build_extraction_prompt(
     source_label: str,
     fields: List[str],
@@ -314,21 +342,34 @@ def build_extraction_prompt(
     identity_anchor: str = "",
     source_text: str = "",
     name_alias_line: str = "",
+    frame: Optional[Dict] = None,
 ) -> str:
     """Assemble the full extraction prompt (system + body) for one source call.
 
     Built by concatenation rather than str.format so the JSON example braces need no
-    escaping. The model is asked for verbatim quotes only; Python verifies them.
+    escaping. The model is asked for verbatim quotes only; Python verifies them. When a
+    referent frame is given, each item also carries the referent id and a claim role, both
+    validated in Python afterwards.
     """
     header = (
         f'Read this {source_label} about the benchmark "{benchmark_name}" and extract '
         f"verbatim supporting quotes."
     )
-    schema_line = (
-        'Return a JSON object of this form: '
-        '{"evidence": [{"field": "<dotted.path>", "quote": "<verbatim text>", '
-        '"kind": "stated|derived", "note": "<optional>"}]}'
-    )
+    with_frame = bool(frame and frame.get("nodes"))
+    if with_frame:
+        schema_line = (
+            'Return a JSON object of this form: '
+            '{"evidence": [{"field": "<dotted.path>", "quote": "<verbatim text>", '
+            '"kind": "stated|derived", "referent": "<entity id>", '
+            '"claim_role": "primary_result|secondary|illustration|method_metadata", '
+            '"note": "<optional>"}]}'
+        )
+    else:
+        schema_line = (
+            'Return a JSON object of this form: '
+            '{"evidence": [{"field": "<dotted.path>", "quote": "<verbatim text>", '
+            '"kind": "stated|derived", "note": "<optional>"}]}'
+        )
     rules = (
         "For each item:\n"
         "- \"field\": one of the allowed dotted paths listed below (use the exact path).\n"
@@ -338,6 +379,19 @@ def build_extraction_prompt(
         "- \"kind\": \"stated\" if the quote directly states the fact; \"derived\" if the field "
         "is a conclusion you infer, in which case \"quote\" must be the premise sentence(s).\n"
         "- \"note\": optional short gloss (never used as evidence; may be empty).\n"
+    )
+    if with_frame:
+        rules += (
+            "- \"referent\": the id of the entity the quote is ABOUT, from the entity list "
+            "below. Usually \"target\". A quote that describes a sibling benchmark, one "
+            "subset, one version, or one split of the data must carry THAT id, not "
+            "\"target\". Precision here matters more than coverage.\n"
+            "- \"claim_role\": \"primary_result\" for the benchmark's own facts and headline "
+            "results; \"secondary\" for cited or comparison facts; \"illustration\" for "
+            "examples and hypotheticals; \"method_metadata\" for details of the evaluation "
+            "machinery rather than the benchmark itself.\n"
+        )
+    rules += (
         "\n"
         "Rules:\n"
         f"- Only extract facts about \"{benchmark_name}\". Ignore other benchmarks or datasets "
@@ -352,7 +406,11 @@ def build_extraction_prompt(
         parts.append(identity_anchor)
     if name_alias_line:
         parts.append(name_alias_line)
-    parts.extend([schema_line, rules, "Allowed fields:", render_field_list(fields),
+    parts.append(schema_line)
+    parts.append(rules)
+    if with_frame:
+        parts.append(render_frame_block(frame))
+    parts.extend(["Allowed fields:", render_field_list(fields),
                   f"\nSOURCE TEXT ({source_label}):", source_text])
     body = "\n".join(parts)
     return f"{EXTRACTION_SYSTEM}\n\n{body}"
@@ -429,21 +487,54 @@ def empty_call_telemetry(doc: str) -> Dict:
     }
 
 
+def _resolve_referent(claimed: str, quote: str, frame) -> Tuple[str, str]:
+    """Resolve the model's referent claim against the frame. Returns (node_id, how).
+
+    Never trusts an unknown id: an exact node id wins; else the claimed string is matched
+    against node names/aliases; else the QUOTE text is scanned, and only when exactly one
+    non-target node matches while the target does not, that node wins (a quote naming a
+    single sibling/subset is about it); everything else defaults to the target."""
+    from auto_benchmarkcard.tools.composer import frame as frame_mod
+    ids = {n["id"] for n in frame.get("nodes", [])}
+    claimed = (claimed or "").strip()
+    if claimed in ids:
+        return claimed, "claimed_id"
+    if claimed:
+        hits = frame_mod.match_mention(frame, claimed)
+        if len(hits) == 1:
+            return hits[0], "claimed_name"
+    quote_hits = frame_mod.match_mention(frame, quote)
+    target_id = frame.get("target_id", "target")
+    non_target = [h for h in quote_hits if h != target_id]
+    if len(non_target) == 1 and target_id not in quote_hits:
+        return non_target[0], "quote_mention"
+    return target_id, "default_target"
+
+
 def verify_items(raw_items, source_text: str, doc: str,
-                 shown_text: str = "") -> Tuple[List[Dict], Dict]:
+                 shown_text: str = "", doc_index=None,
+                 frame: Optional[Dict] = None) -> Tuple[List[Dict], Dict]:
     """Verify candidate items against the source. Returns (id-less records, call telemetry).
 
-    Each record has six keys (field, quote, char_start, doc, kind, note); evidence_id is
-    assigned later across all calls. Fail-closed: anything not verifiable is dropped and
-    counted. The source is whitespace-normalized once per call.
+    Records carry the v2 keys; evidence_id is assigned later across all calls. Fail-closed:
+    anything not verifiable is dropped and counted. The source is whitespace-normalized
+    once per call.
 
     When shown_text is given, a quote must also appear in the text the model actually read
     (the assembled context), not merely somewhere in the full source: a passage the model
     never saw cannot honestly be its evidence, and this closes the path where any sentence
     of the whole document verified for any claim. char_start still indexes source_text so
     all calls share one document reference.
+
+    section_path/region/table_id come only from doc_index.locate/table_at on the verified
+    char_start, never from the model. referent is resolved against the frame (see
+    _resolve_referent); resolution counts land in telemetry["referent_resolution"].
     """
     telem = empty_call_telemetry(doc)
+    if frame is not None:
+        telem["referent_resolution"] = {
+            "claimed_id": 0, "claimed_name": 0, "quote_mention": 0, "default_target": 0,
+        }
     norm_source = normalize_ws(source_text or "")
     norm_shown = normalize_ws(shown_text or "")
     records: List[Dict] = []
@@ -483,6 +574,26 @@ def verify_items(raw_items, source_text: str, doc: str,
         if kind not in ("stated", "derived"):
             kind = "stated"
 
+        claim_role = str(d.get("claim_role", "") or "").strip()
+        if claim_role not in CLAIM_ROLES:
+            claim_role = "primary_result"
+
+        section_path = region = table_id = ""
+        if doc_index is not None:
+            sec = doc_index.locate(char_start)
+            if sec is not None:
+                section_path = " > ".join(sec.path)
+                region = sec.region
+            tab = doc_index.table_at(char_start)
+            if tab is not None:
+                table_id = tab.table_id
+
+        referent = ""
+        if frame is not None:
+            referent, how = _resolve_referent(str(d.get("referent", "") or ""),
+                                              norm_quote, frame)
+            telem["referent_resolution"][how] += 1
+
         records.append({
             "field": field,
             "quote": norm_quote,
@@ -490,6 +601,11 @@ def verify_items(raw_items, source_text: str, doc: str,
             "doc": doc,
             "kind": kind,
             "note": str(d.get("note", "") or ""),
+            "referent": referent,
+            "claim_role": claim_role,
+            "section_path": section_path,
+            "region": region,
+            "table_id": table_id,
         })
         telem["verified"] += 1
 
@@ -516,6 +632,10 @@ def merge_telemetry(card: Dict, call: Dict) -> None:
     )
     for k in ("emitted", "verified", "rejected", "truncated"):
         bucket[k] += call[k]
+    if "referent_resolution" in call:
+        acc = card.setdefault("referent_resolution", {})
+        for how, count in call["referent_resolution"].items():
+            acc[how] = acc.get(how, 0) + count
 
 
 def verify_rate(card: Dict) -> float:

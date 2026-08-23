@@ -150,10 +150,11 @@ def test_evidence_id_sequencing_across_calls():
     assert ids == ["E01", "E02", "E03", "E04"]
     # order is paper, gap, html, hf
     assert items[0]["doc"] == "docling" and items[3]["doc"] == "html"
-    # every record has exactly the 7 contract keys
+    # every record has exactly the v2 contract keys
     for it in items:
         assert set(it.keys()) == {
-            "evidence_id", "field", "quote", "char_start", "doc", "kind", "note"}
+            "evidence_id", "field", "quote", "char_start", "doc", "kind", "note",
+            "referent", "claim_role", "section_path", "region", "table_id"}
     # digest grouped by field, in evidence_id order within a field
     assert [it["evidence_id"] for it in digest["data.size"]] == ["E01", "E03"]
     assert [it["evidence_id"] for it in digest["methodology.metrics"]] == ["E02", "E04"]
@@ -416,3 +417,86 @@ def test_no_shown_text_keeps_legacy_behavior():
     items = [{"field": "data.size", "quote": "500 items", "kind": "stated"}]
     records, _ = ev.verify_items(items, full, ev.DOC_PAPER)
     assert len(records) == 1
+
+
+class _FakeSec:
+    def __init__(self, path, region):
+        self.path = path
+        self.region = region
+
+
+class _FakeTab:
+    def __init__(self, tid):
+        self.table_id = tid
+
+
+class _FakeIndex:
+    def __init__(self, sec=None, tab=None):
+        self._sec, self._tab = sec, tab
+
+    def locate(self, off):
+        return self._sec
+
+    def table_at(self, off):
+        return self._tab
+
+
+def _mini_frame():
+    return {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "mybench", "aliases": []},
+        {"id": "sibling:fibble", "type": "sibling", "name": "Fibble", "aliases": []},
+        {"id": "subset:hard", "type": "subset", "name": "Hard", "aliases": ["Hard subset"]},
+    ]}
+
+
+def test_v2_keys_attached_with_index_and_frame():
+    full = "The benchmark has 500 items in the test pool."
+    items = [{"field": "data.size", "quote": "has 500 items", "kind": "stated",
+              "referent": "target", "claim_role": "primary_result"}]
+    idx = _FakeIndex(sec=_FakeSec(["4 Data", "4.1 Size"], "data"), tab=_FakeTab("t2"))
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER,
+                                     doc_index=idx, frame=_mini_frame())
+    r = records[0]
+    assert r["section_path"] == "4 Data > 4.1 Size"
+    assert r["region"] == "data"
+    assert r["table_id"] == "t2"
+    assert r["referent"] == "target"
+    assert r["claim_role"] == "primary_result"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+
+
+def test_referent_unknown_id_falls_back_to_quote_mention():
+    full = "Fibble uses a rotating answer wordlist."
+    items = [{"field": "methodology.calculation", "quote": "Fibble uses a rotating answer wordlist",
+              "kind": "stated", "referent": "sibling:nonexistent"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "sibling:fibble"
+    assert telem["referent_resolution"]["quote_mention"] == 1
+
+
+def test_referent_defaults_to_target_and_role_coerced():
+    full = "The dataset is drawn from public forums."
+    items = [{"field": "data.source", "quote": "drawn from public forums",
+              "kind": "stated", "claim_role": "banana"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "target"
+    assert records[0]["claim_role"] == "primary_result"
+    assert telem["referent_resolution"]["default_target"] == 1
+
+
+def test_v2_keys_empty_without_index_or_frame():
+    full = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "500 items", "kind": "stated"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER)
+    r = records[0]
+    assert r["referent"] == "" and r["section_path"] == "" and r["table_id"] == ""
+    assert "referent_resolution" not in telem
+
+
+def test_prompt_carries_frame_block_and_new_schema():
+    p = ev.build_extraction_prompt("research paper", ["data.size"], "mybench",
+                                   source_text="text", frame=_mini_frame())
+    assert "sibling:fibble" in p and '"referent"' in p and '"claim_role"' in p
+    p2 = ev.build_extraction_prompt("research paper", ["data.size"], "mybench",
+                                    source_text="text")
+    assert "referent" not in p2
