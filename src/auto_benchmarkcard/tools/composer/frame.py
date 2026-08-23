@@ -189,6 +189,12 @@ def _target_node(benchmark_name: str, eee_metadata: Optional[Dict[str, Any]],
     }
 
 
+# appears_in mixes true parent suites with EEE scrape-source labels; the labels are
+# not benchmarks and would mistrip the sibling-name veto (a card legitimately cites
+# llm-stats as a source).
+_SOURCE_LABELS = {"llm-stats", "llm_stats", "llmstats", "alphaxiv"}
+
+
 def _eee_sibling_nodes(eee_metadata: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
     nodes = []
     if not isinstance(eee_metadata, dict):
@@ -198,6 +204,8 @@ def _eee_sibling_nodes(eee_metadata: Optional[Dict[str, Any]]) -> List[Dict[str,
         for name in eee_metadata.get(key) or []:
             if isinstance(name, str) and name.strip():
                 name = name.strip()
+                if name.lower() in _SOURCE_LABELS:
+                    continue
                 nodes.append({
                     "id": "sibling:" + _slug(name),
                     "type": "sibling",

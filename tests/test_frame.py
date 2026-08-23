@@ -349,3 +349,11 @@ def test_builder_counts_telemetry():
     assert counts["versions"] == 1
     assert counts["splits"] == 2  # test (paper) + train (frontmatter)
     assert fr["telemetry"]["total_nodes"] == len(fr["nodes"])
+
+
+def test_scrape_source_labels_are_not_siblings():
+    eee = {"benchmark_name": "mybench", "appears_in": ["llm-stats", "alphaxiv", "helm_lite"],
+           "metrics": {}}
+    fr = F.build_frame("mybench", eee, None)
+    names = {n["name"] for n in fr["nodes"] if n["type"] == "sibling"}
+    assert names == {"helm_lite"}
