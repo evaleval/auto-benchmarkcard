@@ -22,7 +22,9 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from pydantic import BaseModel, Field, create_model, field_validator
 
-from auto_benchmarkcard.card_utils import _label_hosting_format, extract_hf_tags, map_benchmark_type
+from auto_benchmarkcard.card_utils import (
+    _label_hosting_format, extract_code_languages, extract_hf_tags, map_benchmark_type,
+)
 from auto_benchmarkcard.config import Config, get_llm_handler
 from auto_benchmarkcard.output import sanitize_chroma_collection_name
 from auto_benchmarkcard.tools.composer import aboutness
@@ -2488,10 +2490,45 @@ def _languages_is_ns(value: Any) -> bool:
     return _is_ns_str(value)
 
 
+# EEE llm-stats raw_categories tokens that name a modality (mapped to DATA_TYPE_VOCAB).
+# Domain/skill categories (code, agents, reasoning, ...) are deliberately absent: RepoBench
+# carries category "code" with raw_modality "text", so a category alone is no modality claim.
+_EEE_CATEGORY_MODALITY = {
+    "vision": "image", "image": "image", "images": "image",
+    "video": "video", "videos": "video",
+    "audio": "audio", "speech": "audio",
+}
+
+
+def _eee_extra_modalities(eee_metadata: Optional[Dict[str, Any]]) -> set:
+    """Modality tokens the EEE llm-stats metadata deterministically declares: when a metric's
+    additional_details says raw_modality=multimodal, its raw_categories name the modalities.
+    Returns DATA_TYPE_VOCAB members only; empty without a multimodal signal."""
+    out: set = set()
+    for cfg in ((eee_metadata or {}).get("metrics") or {}).values():
+        ad = cfg.get("additional_details") if isinstance(cfg, dict) else None
+        if not isinstance(ad, dict):
+            continue
+        if str(ad.get("raw_modality", "")).strip().lower() != "multimodal":
+            continue
+        cats = ad.get("raw_categories")
+        if isinstance(cats, str):
+            try:
+                cats = json.loads(cats)
+            except ValueError:
+                cats = []
+        for c in cats if isinstance(cats, list) else []:
+            tok = _EEE_CATEGORY_MODALITY.get(str(c).strip().lower())
+            if tok:
+                out.add(tok)
+    return out
+
+
 def apply_coverage_backstops(
     card: Dict[str, Any],
     provenance: Optional[Dict[str, Any]],
     eee_metadata: Optional[Dict[str, Any]] = None,
+    hf_metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """C3 reconciliation. Mutates card in place.
     Tier-1: lift a license that is NS in the card but present in provenance with a real source and
@@ -2499,7 +2536,13 @@ def apply_coverage_backstops(
       across the d8 corpus and produced mostly type-mismatched re-lifts. Never touches
       overview/size/size_breakdown (C1/C2 own those).
     Tier-2: a code benchmark with NS languages gets ["not-applicable"] (contract S4.3 code shape;
-      matches the HF-tag path so a no-HF variant is consistent with its sibling)."""
+      matches the HF-tag path so a no-HF variant is consistent with its sibling).
+    Tier-3: a code benchmark whose bound repo deterministically names its programming languages
+      (tags, repo-id tokens, or a README Languages section) gets them surfaced in data.format,
+      since the languages enum is natural-language-or-not-applicable by contract.
+    Tier-4: EEE metadata declaring raw_modality=multimodal adds its named modalities to a
+      filled data_type (a repo whose images are URL strings never earns a modality:image tag).
+      Add-only, DATA_TYPE_VOCAB members only; no-op without the multimodal signal."""
     # Tier-1: license lift.
     sec, field = "ethical_and_legal_considerations", "data_licensing"
     section = card.get(sec)
@@ -2521,6 +2564,42 @@ def apply_coverage_backstops(
             _is_code_benchmark(card, eee_metadata):
         bd["languages"] = ["not-applicable"]
         logger.info("Coverage backstop: code benchmark -> languages not-applicable")
+
+    # Tier-3: surface a code benchmark's programming languages in data.format. The
+    # not-applicable languages shape (Tier-2 / HF-tag path) is contract-correct but hides
+    # what the benchmark targets; when the bound repo names the languages, append them.
+    data = card.get("data")
+    is_code = _is_code_benchmark(card, eee_metadata) or (
+        isinstance(bd, dict) and bd.get("languages") == ["not-applicable"])
+    if isinstance(data, dict) and is_code:
+        code_langs = extract_code_languages(hf_metadata)
+        fmt = data.get("format")
+        already = isinstance(fmt, str) and "code in " in fmt.lower()
+        if code_langs and not already:
+            suffix = "code in " + ", ".join(code_langs)
+            if _is_ns_str(fmt):
+                data["format"] = suffix[0].upper() + suffix[1:]
+            else:
+                data["format"] = f"{fmt}; {suffix}"
+            logger.info("Coverage backstop: code languages -> data.format %r", data["format"])
+
+    # Tier-4: EEE-declared modalities missing from data_type. Extends only an already
+    # filled, all-in-vocab value and never removes a token; image derived from the
+    # ambiguous "vision" category is skipped when video is already present (video
+    # subsumes it, e.g. PerceptionTest).
+    if isinstance(bd, dict):
+        cur = bd.get("data_type")
+        extra = _eee_extra_modalities(eee_metadata)
+        if extra and isinstance(cur, str) and not _is_ns_str(cur):
+            have = {t.strip() for t in cur.split(",") if t.strip()}
+            if have and all(t in fs.DATA_TYPE_VOCAB for t in have):
+                new = extra - have
+                if "video" in have:
+                    new.discard("image")
+                if new:
+                    bd["data_type"] = ", ".join(sorted(have | new))
+                    logger.info(
+                        "Coverage backstop: EEE multimodal -> data_type %r", bd["data_type"])
 
 
 def apply_display_fields(
@@ -3715,8 +3794,9 @@ def compose_benchmark_card(
 
     # C3: reconciliation backstops (runs after enforce_card_shape so all fields exist as NS).
     # Tier-1 lifts a license held in provenance; Tier-2 gives a code benchmark the not-applicable
-    # languages shape. Excludes overview/size/size_breakdown so it can never re-lift a C1/C2 drop.
-    apply_coverage_backstops(benchmark_card_dict, all_provenance, eee_metadata)
+    # languages shape; Tier-3/4 surface repo code languages and EEE-declared modalities.
+    # Excludes overview/size/size_breakdown so it can never re-lift a C1/C2 drop.
+    apply_coverage_backstops(benchmark_card_dict, all_provenance, eee_metadata, hf_metadata)
 
     # Record schema_invalid residuals from the Stage-B validator loop.
     if all_flagged:

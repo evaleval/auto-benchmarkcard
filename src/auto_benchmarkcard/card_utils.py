@@ -620,6 +620,73 @@ def _tags_signal_code(tags: List[str]) -> bool:
     return False
 
 
+# Canonical programming-language names for extract_code_languages. Keys are lowercase
+# match tokens (bare tags / repo-id tokens); values are display names, which are also
+# matched case-sensitively inside a README "Languages" section.
+_PROG_LANG_MAP = {
+    "python": "Python", "java": "Java", "javascript": "JavaScript",
+    "typescript": "TypeScript", "c++": "C++", "cpp": "C++", "c#": "C#",
+    "csharp": "C#", "go": "Go", "golang": "Go", "rust": "Rust", "ruby": "Ruby",
+    "php": "PHP", "kotlin": "Kotlin", "scala": "Scala", "sql": "SQL",
+    "haskell": "Haskell", "julia": "Julia", "perl": "Perl", "lua": "Lua",
+}
+
+# A README "Languages" heading: markdown heading or a bold line (both appear in the
+# HF dataset-card template convention).
+_LANGUAGES_HEADING_RE = re.compile(r"^(?:#{1,6}\s*\**|\*\*)Languages?\**\s*$", re.I | re.M)
+_NEXT_HEADING_RE = re.compile(r"^(?:#{1,6}\s+\S|\*\*[^*\n]+\*\*\s*$)", re.M)
+
+
+def _languages_section_text(readme: Any) -> str:
+    """The body of a README's "Languages" section (up to the next heading), or ''."""
+    if not isinstance(readme, str) or not readme:
+        return ""
+    m = _LANGUAGES_HEADING_RE.search(readme)
+    if not m:
+        return ""
+    rest = readme[m.end():]
+    nxt = _NEXT_HEADING_RE.search(rest)
+    if nxt:
+        rest = rest[:nxt.start()]
+    return rest[:800]
+
+
+def extract_code_languages(hf_metadata: Optional[Dict[str, Any]]) -> List[str]:
+    """Programming-language names the bound HF repo deterministically declares: bare tags
+    ('python'), repo-id tokens (repobench_python_v1.1 -> Python), or names written in the
+    README's "Languages" section. Section names are matched case-sensitively so prose like
+    'go to' or a lowercase harness command ('python -m ...') never trips. Returns sorted
+    display names. Additive helper only; extract_hf_tags output is unaffected."""
+    if not hf_metadata:
+        return []
+    meta = hf_metadata
+    if "tags" not in meta:
+        for v in meta.values():
+            if isinstance(v, dict) and "tags" in v:
+                meta = v
+                break
+    found = set()
+    tags = meta.get("tags")
+    for tag in tags if isinstance(tags, list) else []:
+        if isinstance(tag, str) and ":" not in tag:
+            name = _PROG_LANG_MAP.get(tag.strip().lower())
+            if name:
+                found.add(name)
+    repo_id = meta.get("id")
+    if isinstance(repo_id, str):
+        for tok in re.split(r"[/_\-. ]+", repo_id.lower()):
+            name = _PROG_LANG_MAP.get(tok)
+            if name:
+                found.add(name)
+    section = _languages_section_text(meta.get("readme_markdown"))
+    if section:
+        for name in set(_PROG_LANG_MAP.values()):
+            pattern = r"(?<![\w+#])" + re.escape(name) + r"(?![\w+#])"
+            if re.search(pattern, section):
+                found.add(name)
+    return sorted(found)
+
+
 # Bare serialization / hosting tokens. When one of these is presented as data.format it
 # describes how the dataset is STORED on the Hub, not what one example contains, so it is
 # relabelled as the hosting format rather than left to masquerade as the data structure.
