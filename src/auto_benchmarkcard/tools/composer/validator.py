@@ -10,7 +10,9 @@ Not-specified, evidence-linkage (cited evidence_id must exist in the digest AND,
 when the caller supplies the digest's id->field tags, must be tagged for the
 citing field), list-hygiene, and empty-structured collapse. Enum vocab + field
 classification come from field_spec (the single source of truth shared with the
-prompt builder).
+prompt builder). A post-finalize coverage-completeness check (flag-only, opt-in
+via the size_breakdown/card_frame kwargs) catches domains lists that ship one
+true element as if it were the whole set.
 """
 
 import json
@@ -632,6 +634,112 @@ def finalize(best: Attempt, section_names: List[str], section_models: Dict[str, 
 
 
 # ---------------------------------------------------------------------------
+# coverage-completeness check (v1: benchmark_details.domains only)
+# ---------------------------------------------------------------------------
+
+# The coverage-truncation class from the S=150 findings: a list field ships one true
+# element as if it were the whole set (the math card's domains=['Geometry'] though the
+# card's own size_breakdown enumerates seven subjects). Deterministic and flag-only:
+# the value is never rewritten, because subset names are not always domains (difficulty
+# tiers like Easy/Medium/Hard enumerate subsets that are NOT subject areas), so the
+# check can honestly say "the list looks incomplete" but never what the completed list
+# would be. Non-topical subset names (splits, difficulty tiers, catch-all configs,
+# pure-digit names) never count toward the enumerated total, so tier-partitioned
+# benchmarks are not falsely flagged.
+_COVERAGE_STOPLIST = frozenset({
+    "easy", "medium", "hard", "train", "test", "validation", "dev", "val",
+    "full", "all", "main", "default",
+})
+_COVERAGE_MIN_NAMES = 3
+_COVERAGE_TOKEN_RE = re.compile(r"[0-9a-z]+")
+
+
+def _coverage_names(names) -> List[str]:
+    """Topical candidate names: stoplist and pure-digit names removed, deduped
+    case-insensitively, first spelling kept."""
+    out: List[str] = []
+    seen = set()
+    for name in names:
+        if not isinstance(name, str):
+            continue
+        name = name.strip()
+        low = name.lower()
+        if not name or name.isdigit() or low in _COVERAGE_STOPLIST or low in seen:
+            continue
+        seen.add(low)
+        out.append(name)
+    return out
+
+
+def _coverage_tokens(text: str) -> set:
+    return set(_COVERAGE_TOKEN_RE.findall(text.lower()))
+
+
+def domain_coverage_flag(domains: Any, size_breakdown: Any = None,
+                         card_frame: Any = None) -> Optional[str]:
+    """Flag reason when benchmark_details.domains looks truncated, else None.
+
+    Enumerated names come from the card's data.size_breakdown (only when the dict has
+    >= _COVERAGE_MIN_NAMES keys) and/or the referent frame's subset nodes (only when
+    there are >= _COVERAGE_MIN_NAMES of them). Flags only when the domains list has
+    fewer than half as many entries as the topical names AND at least one topical name
+    is textually absent from the list. Absence is a whole-token check (an enumerated
+    'Art' is not satisfied by 'state-of-the-art'); a name whose every token appears
+    across the domains entries counts as covered. Conservative by construction: a
+    domains list that is NS, non-list, or covers at least half the enumeration is
+    never flagged, and since the list has at least one real entry the half rule
+    already requires >= 3 topical names.
+    """
+    if not isinstance(domains, list):
+        return None
+    reals = [d for d in domains
+             if isinstance(d, str) and not _is_ns_str(d) and not is_not_specified(d)]
+    if not reals:
+        return None
+    pool: List[str] = []
+    if isinstance(size_breakdown, dict) and len(size_breakdown) >= _COVERAGE_MIN_NAMES:
+        pool.extend(k for k in size_breakdown if isinstance(k, str))
+    if isinstance(card_frame, dict):
+        subset_names = [n.get("name") for n in card_frame.get("nodes") or []
+                        if isinstance(n, dict) and n.get("type") == "subset"]
+        if len(subset_names) >= _COVERAGE_MIN_NAMES:
+            pool.extend(s for s in subset_names if isinstance(s, str))
+    candidates = _coverage_names(pool)
+    m = len(candidates)
+    n = len(reals)
+    if 2 * n >= m:
+        return None
+    listed_tokens: set = set()
+    for d in reals:
+        listed_tokens |= _coverage_tokens(d)
+    missing = [c for c in candidates if not (_coverage_tokens(c) <= listed_tokens)]
+    if not missing:
+        return None
+    return f"coverage: lists {n} of {m} enumerated subsets/subjects"
+
+
+def _apply_domain_coverage(outcome: GroupOutcome, section_names: List[str],
+                           size_breakdown: Any, card_frame: Any) -> GroupOutcome:
+    """Post-finalize and opt-in: runs only when the caller supplied size_breakdown or
+    card_frame AND the group carries benchmark_details, so legacy callers get
+    byte-identical outcomes (no new flag, no new telemetry keys). Runs after finalize
+    on purpose: a coverage flag is advisory, keeps the shipped value, and must not
+    enter the repair loop or the schema_invalid telemetry."""
+    if size_breakdown is None and card_frame is None:
+        return outcome
+    if "benchmark_details" not in section_names:
+        return outcome
+    bd = outcome.sections.get("benchmark_details")
+    domains = bd.get("domains") if isinstance(bd, dict) else None
+    reason = domain_coverage_flag(domains, size_breakdown, card_frame)
+    outcome.telemetry["coverage_checks"] = 1
+    outcome.telemetry["coverage_flags"] = 1 if reason else 0
+    if reason:
+        outcome.flagged["domains"] = reason
+    return outcome
+
+
+# ---------------------------------------------------------------------------
 # the state machine
 # ---------------------------------------------------------------------------
 
@@ -657,13 +765,17 @@ def _unwrap(raw):
 def run_group_with_repair(group_name: str, section_names: List[str],
                           section_models: Dict[str, Any], base_prompt: str,
                           generate_fn: Callable[[str], str], digest_ids,
-                          det_filled_paths=None, max_rounds: int = _MAX_ROUNDS) -> GroupOutcome:
+                          det_filled_paths=None, max_rounds: int = _MAX_ROUNDS,
+                          size_breakdown=None, card_frame=None) -> GroupOutcome:
     """Generate -> validate -> source-free repair (capped) -> keep best -> ship.
 
     generate_fn(prompt) -> raw model text. digest_ids: valid evidence ids from [A]'s
     digest, either an iterable of ids or a mapping evidence_id -> digest field tag;
     only the mapping form enables the evidence-tag/field agreement check.
-    det_filled_paths: extra evidence-exempt dotted paths filled by [0]."""
+    det_filled_paths: extra evidence-exempt dotted paths filled by [0].
+    size_breakdown / card_frame (both optional, default None so legacy callers are
+    untouched): the card's data.size_breakdown dict and the referent frame; supplying
+    either enables the post-finalize domains coverage-completeness flag."""
     if isinstance(digest_ids, dict):
         digest_fields = dict(digest_ids)
         digest_ids = set(digest_fields)
@@ -697,8 +809,10 @@ def run_group_with_repair(group_name: str, section_names: List[str],
         attempts.append(att)
 
         if att.norm is not None and not att.errors:
-            return _finalize_with_telemetry(att, attempts, section_names, section_models,
-                                            converged=True, truncation_retries=truncation_retries)
+            return _apply_domain_coverage(
+                _finalize_with_telemetry(att, attempts, section_names, section_models,
+                                         converged=True, truncation_retries=truncation_retries),
+                section_names, size_breakdown, card_frame)
 
         truncated = stop_reason == "length"
         if truncated and trunc_escalations >= _MAX_TRUNC_ESCALATIONS:
@@ -718,8 +832,10 @@ def run_group_with_repair(group_name: str, section_names: List[str],
                 prompt = build_repair_prompt(base_prompt, err_list)
 
     best = keep_best(attempts)
-    return _finalize_with_telemetry(best, attempts, section_names, section_models,
-                                    converged=False, truncation_retries=truncation_retries)
+    return _apply_domain_coverage(
+        _finalize_with_telemetry(best, attempts, section_names, section_models,
+                                 converged=False, truncation_retries=truncation_retries),
+        section_names, size_breakdown, card_frame)
 
 
 def _finalize_with_telemetry(best: Attempt, attempts: List[Attempt], section_names,
