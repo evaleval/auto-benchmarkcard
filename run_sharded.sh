@@ -22,7 +22,7 @@ VENV=/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.venv/bin/python
 # misbehaves: AkashML. FactReasoner and everything else stay on RITS.
 MODEL=deepseek-ai/DeepSeek-V4-Flash
 OR_MODEL_ID=deepseek/deepseek-v4-flash
-OR_PROVIDERS=Baidu
+OR_PROVIDERS="${OR_PROVIDERS:-Baidu,GMICloud,Novita}"
 OR_QUANT=fp8
 
 # Load API keys (OPENALEX/S2/GITHUB) from the main-repo .env into every child process.
