@@ -449,11 +449,42 @@ def main():
                     help="max web_search calls per card")
     ap.add_argument("--timeout", type=int, default=600,
                     help="SDK request timeout in seconds")
+    ap.add_argument("--allow-frozen-drift", default=None, metavar="REASON",
+                    help="run despite frozen-file drift, recording REASON and the "
+                         "drifting md5s in run_meta. Only legitimate because this "
+                         "screen imports none of the frozen judge files")
     args = ap.parse_args()
 
     sys.path.insert(0, os.path.join(REPO, "scripts"))
-    from check_frozen import check
-    check()
+    import check_frozen
+
+    # The frozen set exists for the faithfulness JUDGE and its imports. This screen
+    # imports none of them: it reads the card JSON and tool_output off disk and talks
+    # to the API under a pinned prompt prefix, model and params, so its own instrument
+    # identity is prompt_prefix_md5 plus the recorded request_params. When judge-side
+    # files drift, refusing to run would block the screen for a reason that does not
+    # apply to it, but a silent bypass is how numbers end up quarantined. So the drift
+    # has to be named on the command line and it is recorded in run_meta.
+    frozen_drift = None
+    if args.allow_frozen_drift:
+        base = _read_json(check_frozen.BASELINE)
+        now = check_frozen.current()
+        frozen_drift = {
+            "declared_reason": args.allow_frozen_drift,
+            "files": {rel: {"baseline": md5, "now": now["frozen"].get(rel)}
+                      for rel, md5 in base["frozen"].items()
+                      if now["frozen"].get(rel) != md5},
+        }
+        if not frozen_drift["files"]:
+            frozen_drift = None  # nothing drifted, the flag was unnecessary
+        else:
+            for rel, m in frozen_drift["files"].items():
+                print(f"check_frozen: DECLARED DRIFT {rel} "
+                      f"({m['baseline']} -> {m['now']})", file=sys.stderr)
+            print(f"check_frozen: proceeding, reason: {args.allow_frozen_drift}",
+                  file=sys.stderr)
+    else:
+        check_frozen.check()
 
     cfg_path = os.path.join(REPO, args.config)
     if not os.path.exists(cfg_path):
@@ -556,6 +587,7 @@ def main():
         "pricing_usd_per_mtok": PRICING_USD_PER_MTOK[args.model],
         "web_search_cost_usd_per_request": WEB_SEARCH_COST_USD,
         "prompt_prefix_md5": prompt_prefix_md5,
+        "frozen_drift": frozen_drift,
         "config_path": args.config,
         "config_md5": cfg_md5,
         "total_usage": totals,
