@@ -410,3 +410,11 @@ def test_compose_flow_wires_croissant_and_referent_emission():
     assert "fetch_croissant_facts" in wsrc and "_repo_corroboration" in wsrc
     nsrc = inspect.getsource(CT._normalize_provenance_sources)
     assert 'entry["referent"]' in nsrc
+
+
+def test_rai_fill_wiring_present_and_after_provenance_init():
+    import inspect
+    import auto_benchmarkcard.tools.composer.composer_tool as CT
+    src = inspect.getsource(CT.compose_benchmark_card.func)
+    assert "croissant_rai" in src
+    assert src.index("all_provenance = {}") < src.index("rai_filled = [")

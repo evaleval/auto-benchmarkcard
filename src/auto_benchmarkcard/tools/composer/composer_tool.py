@@ -23,7 +23,8 @@ from langchain_core.documents import Document
 from pydantic import BaseModel, Field, create_model, field_validator
 
 from auto_benchmarkcard.card_utils import (
-    _label_hosting_format, extract_code_languages, extract_hf_tags, map_benchmark_type,
+    _label_hosting_format, extract_code_languages, extract_hf_tags, is_not_specified,
+    map_benchmark_type,
 )
 from auto_benchmarkcard.config import Config, get_llm_handler
 from auto_benchmarkcard.output import sanitize_chroma_collection_name
@@ -3781,6 +3782,26 @@ def compose_benchmark_card(
     det_conflicts: List[Dict[str, Any]] = list(croissant_conflicts)
     benchmark_card_dict = apply_deterministic_overrides(
         benchmark_card_dict, det_facts, conflicts=det_conflicts)
+
+    # Author-written RAI metadata from the croissant JSON-LD fills still-empty ethics
+    # and annotation fields, fill-only, with its own provenance token. Currently HF
+    # emits no RAI values through the API, so this is forward-looking wiring.
+    rai_filled = []
+    for path, text in ((croissant_facts or {}).get("rai") or {}).items():
+        sec, _, key = path.partition(".")
+        section = benchmark_card_dict.get(sec)
+        if not isinstance(section, dict) or not isinstance(text, str) or not text.strip():
+            continue
+        existing = section.get(key)
+        if existing is None or is_not_specified(existing):
+            section[key] = text
+            all_provenance.setdefault(sec, {})[key] = {
+                "source": "croissant_rai", "evidence": text[:300],
+                "status": "stated", "verified": True, "evidence_ids": [],
+            }
+            rai_filled.append(path)
+    if rai_filled:
+        logger.info("RAI fill: %s", rai_filled)
     for c in det_conflicts:
         key = c["field"].rsplit(".", 1)[-1]
         benchmark_card_dict.setdefault("flagged_fields", {})[key] = (
