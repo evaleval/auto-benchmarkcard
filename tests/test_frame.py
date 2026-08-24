@@ -211,6 +211,21 @@ def test_bare_split_verbs_do_not_count():
     assert [n for n in fr["nodes"] if n["type"] == "split"] == []
 
 
+def test_version_and_split_found_beyond_the_llm_prompt_window():
+    """The deterministic scans read the whole paper, not the first HEAD_CHARS.
+
+    Capping them cost real nodes: over the 11 papered phase 2 gate cards, widening
+    took splits 8 -> 21 and versions 0 -> 2. HEAD_CHARS now bounds only the LLM
+    sibling prompt, where the window is a token-cost decision.
+    """
+    filler = "Prior work on evaluation has explored many directions. " * 200
+    assert len(filler) > F.HEAD_CHARS
+    paper = filler + "We release FibbleBench v2.0, a revision. The test set is held out."
+    fr = F.build_frame("fibblebench", make_eee(), None, paper_text=paper)
+    assert get_node(fr, "version:2.0")["name"] == "v2.0"
+    assert get_node(fr, "split:test")["name"] == "test"
+
+
 def test_split_nodes_from_hf_frontmatter():
     fr = F.build_frame("fibblebench", None, make_hf())
     splits = sorted(n["id"] for n in fr["nodes"] if n["type"] == "split")

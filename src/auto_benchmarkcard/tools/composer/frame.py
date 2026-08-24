@@ -27,7 +27,13 @@ NODE_TYPES = (
 METRIC_ROLES = ("primary", "secondary", "meta_eval", "unknown")
 
 # paper head window for version/split harvesting and the LLM sibling prompt
-HEAD_CHARS = 4000
+HEAD_CHARS = 4000  # window for the LLM sibling prompt only (token cost)
+# The deterministic version/split scans read the WHOLE paper. Capping them at
+# HEAD_CHARS cost real nodes: over the 11 papered phase 2 gate cards, widening
+# takes splits 8 -> 21 and versions 0 -> 2, all clean. Their own context guards
+# (release cue or target alias within +/-200 chars, URL and model-word exclusion
+# for versions; a set/split/partition noun immediately after for splits) are what
+# keep them precise, not the window.
 MAX_LLM_SIBLINGS = 12
 MIN_ALIAS_CHARS = 3  # single very-short aliases are ignored by match_mention
 
@@ -299,9 +305,9 @@ def _metric_nodes(eee_metadata: Optional[Dict[str, Any]]) -> List[Dict[str, Any]
 
 
 def _version_nodes(paper_text: str, target_aliases: List[str]) -> List[Dict[str, Any]]:
-    """Standalone version tokens in the paper head, near the benchmark name or a
+    """Standalone version tokens anywhere in the paper, near the benchmark name or a
     release context; URL/DOI/path chunks and model-name versions are excluded."""
-    head = paper_text[:HEAD_CHARS]
+    head = paper_text
     if not head:
         return []
     anchors = [a for a in target_aliases if len(a) >= MIN_ALIAS_CHARS]
@@ -341,7 +347,7 @@ def _split_nodes(paper_text: str, hf_json: Optional[Dict[str, Any]]) -> List[Dic
         canon = _SPLIT_CANON.get(raw.lower(), raw.lower())
         words.setdefault(canon, set()).add(raw.lower())
 
-    head = paper_text[:HEAD_CHARS]
+    head = paper_text
     for m in _SPLIT_CONTEXT_RE.finditer(head):
         record(m.group(1))
     if isinstance(hf_json, dict):
