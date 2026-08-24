@@ -16,6 +16,12 @@ native: data.size is a leading-count string ("17,584 examples"), size_breakdown 
 through raw, and hosting formats go through _label_hosting_format. Everything is
 fail-soft: an endpoint that errors, times out, or returns a malformed body contributes
 nothing, and fetch_croissant_facts never raises.
+
+The croissant body may additionally carry Croissant-RAI extension properties
+(rai: namespace, docs.mlcommons.org/croissant/docs/croissant-rai-spec.html). These are
+author-written ethics prose, not structural facts, so they are returned separately under
+a top-level "rai" key ({card_field_path: text}) plus "_rai_meta" telemetry, for the
+wiring layer to hand to the composer as evidence-like material rather than overrides.
 """
 
 from __future__ import annotations
@@ -56,6 +62,83 @@ _MIME_FORMAT = {
     "application/x-arrow": "arrow",
     "application/vnd.apache.arrow.file": "arrow",
 }
+
+
+# Croissant-RAI extension vocabulary. Canonical property names come from the formal
+# vocabulary (docs/croissant_rai.ttl in mlcommons/croissant); the namespace is
+# http://mlcommons.org/croissant/RAI/. Card field -> the RAI properties that feed it,
+# in join order. Values are author-written prose offered to the composer as evidence,
+# never overrides, so the conservative subset below is deliberate.
+_RAI_FIELD_SOURCES = {
+    "ethical_and_legal_considerations.privacy_and_anonymity": ("personalSensitiveInformation",),
+    "data.source": ("dataCollection", "dataCollectionType"),
+    "purpose_and_intended_users.limitations": ("dataBiases", "dataLimitations"),
+    "purpose_and_intended_users.goal": ("dataUseCases",),
+    "data.annotation": (
+        "dataAnnotationProtocol",
+        "dataAnnotationPlatform",
+        "dataAnnotationAnalysis",
+        "annotationsPerItem",
+        "annotatorDemographics",
+        "machineAnnotationTools",
+    ),
+}
+
+# The rest of the 20-property vocabulary: recognized for telemetry, mapped to nothing.
+_RAI_UNMAPPED = (
+    "dataCollectionMissingData",
+    "dataCollectionRawData",
+    "dataCollectionTimeframe",
+    "dataImputationProtocol",
+    "dataPreprocessingProtocol",
+    "dataManipulationProtocol",
+    "dataReleaseMaintenancePlan",
+    "dataSocialImpact",
+)
+
+# Spellings the spec's own prose/examples and the mlcroissant serializer use instead of
+# the TTL names (rai:useCases in the overview table, RAI.dataDataManipulationProtocol
+# and RAI.dataCollectionTimeFrame in mlcroissant constants.py, etc.).
+_RAI_ALIASES = {
+    "useCases": "dataUseCases",
+    "annotationProtocol": "dataAnnotationProtocol",
+    "annotationPlatform": "dataAnnotationPlatform",
+    "annotatorsDemographics": "annotatorDemographics",
+    "dataReleaseMaintenance": "dataReleaseMaintenancePlan",
+    "dataCollectionTimeFrame": "dataCollectionTimeframe",
+    "dataDataManipulationProtocol": "dataManipulationProtocol",
+}
+
+# Properties that predate the RAI split out of croissant core. The HF croissant
+# @context still aliases these three as bare keys into the cr: namespace
+# (http://mlcommons.org/croissant/), so accept the bare, cr:-prefixed, and core-URL
+# forms for exactly them.
+_RAI_LEGACY_CORE = frozenset({"dataCollection", "dataBiases", "personalSensitiveInformation"})
+
+_RAI_NS_MARKER = "mlcommons.org/croissant/RAI/"
+_CR_NS_MARKER = "mlcommons.org/croissant/"
+
+# Deterministic order for _rai_meta.properties_found: mapped properties in table order,
+# then the unmapped tail.
+_RAI_ORDER = tuple(
+    p for props in _RAI_FIELD_SOURCES.values() for p in props
+) + _RAI_UNMAPPED
+
+# Segment labels used when several RAI properties join into one card field.
+_RAI_LABELS = {
+    "dataCollection": "Collection",
+    "dataCollectionType": "Collection type",
+    "dataBiases": "Biases",
+    "dataLimitations": "Limitations",
+    "dataAnnotationProtocol": "Annotation protocol",
+    "dataAnnotationPlatform": "Annotation platform",
+    "dataAnnotationAnalysis": "Annotation analysis",
+    "annotationsPerItem": "Annotations per item",
+    "annotatorDemographics": "Annotator demographics",
+    "machineAnnotationTools": "Machine annotation tools",
+}
+
+_RAI_MAX_CHARS = 1000
 
 
 def _get_json(
@@ -204,6 +287,79 @@ def _format_from_croissant(body: Dict[str, Any]) -> Optional[str]:
     return _label_hosting_format(counts.most_common(1)[0][0]) if counts else None
 
 
+def _rai_property_name(key: Any) -> Optional[str]:
+    """The canonical RAI property name for a JSON-LD key, or None. Accepts the compact
+    rai: prefix and full RAI-namespace URL keys for the whole vocabulary, and the bare,
+    cr:-prefixed, and core-namespace-URL forms for the three legacy properties. Variant
+    spellings normalize through _RAI_ALIASES."""
+    if not isinstance(key, str):
+        return None
+    if key.startswith("rai:"):
+        name = key[4:]
+    elif _RAI_NS_MARKER in key:
+        name = key.rsplit("/", 1)[-1]
+    else:
+        bare = key[3:] if key.startswith("cr:") else key
+        if _CR_NS_MARKER in bare:
+            bare = bare.rsplit("/", 1)[-1]
+        if bare not in _RAI_LEGACY_CORE:
+            return None
+        name = bare
+    name = _RAI_ALIASES.get(name, name)
+    return name if name in _RAI_ORDER else None
+
+
+def _rai_text(value: Any) -> Optional[str]:
+    """Author-written text from a JSON-LD value: a string, a number, a {"@value": ...}
+    node, or a list of those joined with "; ". None when nothing usable (bools are
+    flags, not prose)."""
+    if isinstance(value, list):
+        parts = [t for t in (_rai_text(v) for v in value) if t]
+        return "; ".join(parts) or None
+    if isinstance(value, dict):
+        return _rai_text(value.get("@value"))
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    return None
+
+
+def _rai_truncate(text: str) -> str:
+    return text if len(text) <= _RAI_MAX_CHARS else text[: _RAI_MAX_CHARS - 3] + "..."
+
+
+def _rai_facts_from_croissant(body: Dict[str, Any]) -> Tuple[Dict[str, str], list]:
+    """({card_field_path: text}, [canonical properties found]) from the RAI extension
+    keys of a croissant JSON-LD body. A field fed by one property carries its text as
+    is; one fed by several gets labelled newline-joined segments so the composer can
+    attribute them. Every value is capped at _RAI_MAX_CHARS."""
+    values: Dict[str, str] = {}
+    for key, raw in body.items():
+        name = _rai_property_name(key)
+        if name and name not in values:
+            text = _rai_text(raw)
+            if text:
+                values[name] = text
+    if not values:
+        return {}, []
+    found = [name for name in _RAI_ORDER if name in values]
+    fields: Dict[str, str] = {}
+    for path, props in _RAI_FIELD_SOURCES.items():
+        present = [p for p in props if p in values]
+        if not present:
+            continue
+        if len(present) == 1:
+            text = values[present[0]]
+        else:
+            text = "\n".join(f"{_RAI_LABELS[p]}: {values[p]}" for p in present)
+        fields[path] = _rai_truncate(text)
+    return fields, found
+
+
 def fetch_croissant_facts(repo_id: str, timeout: int = 20) -> Dict[str, Any]:
     """Deterministic structural facts for a bound HF dataset repo from the hosted
     dataset-viewer API.
@@ -211,7 +367,11 @@ def fetch_croissant_facts(repo_id: str, timeout: int = 20) -> Dict[str, Any]:
     Returns a dict with any of data.size, data.size_breakdown, data.format,
     ethical_and_legal_considerations.data_licensing, plus a _croissant_meta entry
     recording which endpoints answered (name -> HTTP status or error tag) and when.
-    Fail-soft: never raises; an entirely failed fetch returns the meta alone."""
+    When the croissant body carries Croissant-RAI extension properties, adds "rai"
+    ({card_field_path: author-written text}, distinct from the structural keys so the
+    wiring layer never treats it as an override) and "_rai_meta" ({"properties_found":
+    [canonical names]}). Fail-soft: never raises; an entirely failed fetch returns the
+    meta alone."""
     endpoints: Dict[str, Any] = {}
     meta: Dict[str, Any] = {
         "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -232,6 +392,14 @@ def fetch_croissant_facts(repo_id: str, timeout: int = 20) -> Dict[str, Any]:
                 facts["data.format"] = fmt
         except Exception:
             logger.debug("croissant body parse failed for %s", repo_id, exc_info=True)
+        try:
+            rai_fields, rai_found = _rai_facts_from_croissant(croissant)
+            if rai_fields:
+                facts["rai"] = rai_fields
+            if rai_found:
+                facts["_rai_meta"] = {"properties_found": rai_found}
+        except Exception:
+            logger.debug("croissant RAI parse failed for %s", repo_id, exc_info=True)
 
     total: Optional[int] = None
     breakdown: Optional[Dict[str, int]] = None

@@ -6,6 +6,11 @@ the live 2026-08-24 responses for openai/gsm8k (multi-config) and yahma/alpaca-c
 fallback, license mapping and passthrough, total-size formatting, hosting-format
 labelling, per-endpoint failure isolation, the /info fallback, partial-response
 abstention, and the full-failure shape.
+
+The RAI tests use fixtures built from the Croissant-RAI spec's own examples
+(docs.mlcommons.org/croissant/docs/croissant-rai-spec.html, HLS Burn Scars and DICES):
+mapping into card field paths under the "rai" key, absence, list joining, truncation,
+multi-property labelled joins, and the rai:/full-URL/legacy-bare namespace variants.
 """
 
 import requests
@@ -246,6 +251,153 @@ def test_full_failure_returns_meta_only(monkeypatch):
         "info": "error: ConnectionError",
     }
     assert "fetched_at" in facts["_croissant_meta"]
+
+
+# Values trimmed from the spec's HLS Burn Scars and DICES-350 examples.
+RAI_CROISSANT = dict(
+    GSM8K_CROISSANT,
+    **{
+        "rai:dataCollection": "After co-locating the shapefile and HLS scene, the 512x512 chip was formed by taking a window with the burn scar in the center.",
+        "rai:dataCollectionType": "The dataset comprises 804 512x512 scenes.",
+        "rai:personalSensitiveInformation": "We used a rule-based approach leveraging regular expressions. The elements redacted were instances of KEY, EMAIL, USER and IP_ADDRESS.",
+        "rai:dataUseCases": ["The dataset can be used for training, validation, testing and fine-tuning."],
+        "rai:dataLimitations": "The preprocessing removes some categories of PII but is still far from exhaustive.",
+        "rai:annotatorDemographics": "DICES-350 was annotated by a pool of 104 raters.",
+        "rai:annotationsPerItem": "104 unique ratings per conversation.",
+        "rai:dataSocialImpact": "The workshop was conceived as a collaborative and value-driven endeavor.",
+    },
+)
+
+
+def test_rai_properties_map_to_card_fields(monkeypatch):
+    _route(monkeypatch, croissant_r=_Resp(body=RAI_CROISSANT))
+    facts = croissant.fetch_croissant_facts("x/y")
+    rai = facts["rai"]
+    assert rai["ethical_and_legal_considerations.privacy_and_anonymity"].startswith(
+        "We used a rule-based approach"
+    )
+    assert rai["data.source"] == (
+        "Collection: After co-locating the shapefile and HLS scene, the 512x512 chip "
+        "was formed by taking a window with the burn scar in the center.\n"
+        "Collection type: The dataset comprises 804 512x512 scenes."
+    )
+    # single contributing property stays unlabelled
+    assert rai["purpose_and_intended_users.limitations"] == (
+        "The preprocessing removes some categories of PII but is still far from exhaustive."
+    )
+    assert rai["purpose_and_intended_users.goal"] == (
+        "The dataset can be used for training, validation, testing and fine-tuning."
+    )
+    assert rai["data.annotation"] == (
+        "Annotations per item: 104 unique ratings per conversation.\n"
+        "Annotator demographics: DICES-350 was annotated by a pool of 104 raters."
+    )
+    # dataSocialImpact is recognized but unmapped: telemetry only
+    assert facts["_rai_meta"]["properties_found"] == [
+        "personalSensitiveInformation",
+        "dataCollection",
+        "dataCollectionType",
+        "dataLimitations",
+        "dataUseCases",
+        "annotationsPerItem",
+        "annotatorDemographics",
+        "dataSocialImpact",
+    ]
+    # structural facts are untouched by the RAI harvest
+    assert facts["ethical_and_legal_considerations.data_licensing"] == "MIT License"
+
+
+def test_no_rai_keys_yield_no_rai_entry(monkeypatch):
+    _route(monkeypatch, croissant_r=_Resp(body=GSM8K_CROISSANT))
+    facts = croissant.fetch_croissant_facts("openai/gsm8k")
+    assert "rai" not in facts and "_rai_meta" not in facts
+
+
+def test_rai_list_values_are_joined(monkeypatch):
+    body = dict(GSM8K_CROISSANT)
+    body["rai:dataLimitations"] = [
+        "Crawled content over-represents pornographic text across languages.",
+        "The reliance on digitized content over-represents privileged voices.",
+    ]
+    _route(monkeypatch, croissant_r=_Resp(body=body))
+    facts = croissant.fetch_croissant_facts("x/y")
+    assert facts["rai"]["purpose_and_intended_users.limitations"] == (
+        "Crawled content over-represents pornographic text across languages.; "
+        "The reliance on digitized content over-represents privileged voices."
+    )
+
+
+def test_rai_values_truncated_at_1000_chars(monkeypatch):
+    body = dict(GSM8K_CROISSANT)
+    body["rai:personalSensitiveInformation"] = "x" * 1500
+    _route(monkeypatch, croissant_r=_Resp(body=body))
+    facts = croissant.fetch_croissant_facts("x/y")
+    value = facts["rai"]["ethical_and_legal_considerations.privacy_and_anonymity"]
+    assert len(value) == 1000 and value.endswith("...")
+
+
+def test_rai_namespace_variants(monkeypatch):
+    body = dict(GSM8K_CROISSANT)
+    # full RAI-namespace URL key
+    body["http://mlcommons.org/croissant/RAI/dataLimitations"] = "Constrained coverage."
+    # legacy bare key, still aliased into cr: by the live HF @context
+    body["personalSensitiveInformation"] = "Contains social media handles."
+    # spec-prose alias for dataUseCases
+    body["rai:useCases"] = "Safety evaluation of conversational AI systems."
+    _route(monkeypatch, croissant_r=_Resp(body=body))
+    facts = croissant.fetch_croissant_facts("x/y")
+    rai = facts["rai"]
+    assert rai["purpose_and_intended_users.limitations"] == "Constrained coverage."
+    assert rai["ethical_and_legal_considerations.privacy_and_anonymity"] == (
+        "Contains social media handles."
+    )
+    assert rai["purpose_and_intended_users.goal"] == (
+        "Safety evaluation of conversational AI systems."
+    )
+    assert facts["_rai_meta"]["properties_found"] == [
+        "personalSensitiveInformation",
+        "dataLimitations",
+        "dataUseCases",
+    ]
+
+
+def test_rai_legacy_bare_keys_limited_to_the_three_core_properties(monkeypatch):
+    body = dict(GSM8K_CROISSANT)
+    # bare "dataLimitations" never shipped in croissant core: not recognized bare
+    body["dataLimitations"] = "Should be ignored."
+    body["dataBiases"] = "Gender imbalance in the rater pool."
+    _route(monkeypatch, croissant_r=_Resp(body=body))
+    facts = croissant.fetch_croissant_facts("x/y")
+    assert facts["rai"]["purpose_and_intended_users.limitations"] == (
+        "Gender imbalance in the rater pool."
+    )
+    assert facts["_rai_meta"]["properties_found"] == ["dataBiases"]
+
+
+def test_rai_jsonld_value_nodes_and_unusable_values(monkeypatch):
+    body = dict(GSM8K_CROISSANT)
+    body["rai:dataBiases"] = {"@value": "Skewed toward English sources."}
+    body["rai:dataCollection"] = ""  # empty string contributes nothing
+    body["rai:dataUseCases"] = True  # bools are flags, not prose
+    body["rai:annotationsPerItem"] = 3  # numbers are kept as text
+    _route(monkeypatch, croissant_r=_Resp(body=body))
+    facts = croissant.fetch_croissant_facts("x/y")
+    assert facts["rai"]["purpose_and_intended_users.limitations"] == (
+        "Skewed toward English sources."
+    )
+    assert facts["rai"]["data.annotation"] == "3"
+    assert "data.source" not in facts["rai"]
+    assert "purpose_and_intended_users.goal" not in facts["rai"]
+    assert facts["_rai_meta"]["properties_found"] == ["dataBiases", "annotationsPerItem"]
+
+
+def test_rai_unmapped_property_alone_yields_meta_but_no_rai(monkeypatch):
+    body = dict(GSM8K_CROISSANT)
+    body["rai:dataSocialImpact"] = "Value-driven collaborative endeavor."
+    _route(monkeypatch, croissant_r=_Resp(body=body))
+    facts = croissant.fetch_croissant_facts("x/y")
+    assert "rai" not in facts
+    assert facts["_rai_meta"]["properties_found"] == ["dataSocialImpact"]
 
 
 def test_compose_flow_wires_croissant_and_referent_emission():
