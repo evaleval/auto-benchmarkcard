@@ -490,24 +490,43 @@ def empty_call_telemetry(doc: str) -> Dict:
 def _resolve_referent(claimed: str, quote: str, frame) -> Tuple[str, str]:
     """Resolve the model's referent claim against the frame. Returns (node_id, how).
 
-    Never trusts an unknown id: an exact node id wins; else the claimed string is matched
-    against node names/aliases; else the QUOTE text is scanned, and only when exactly one
-    non-target node matches while the target does not, that node wins (a quote naming a
-    single sibling/subset is about it); everything else defaults to the target."""
+    A claimed target is corroborated against the quote, not obeyed. The declaration comes
+    from the same extraction call that wrote the quote, so it is not evidence independent
+    of it; when the quote itself names exactly one non-target node and never names the
+    target, the quote wins. That is the splice signature, and trusting the declaration
+    there routed every spliced item to the target and left the sibling/subset gates and
+    the EAV audit with no input.
+
+    Otherwise: an unknown id is never trusted; an exact node id wins; else the claimed
+    string is matched against node names/aliases; else the QUOTE text is scanned under the
+    same single-non-target rule; everything else defaults to the target."""
     from auto_benchmarkcard.tools.composer import frame as frame_mod
     ids = {n["id"] for n in frame.get("nodes", [])}
+    target_id = frame.get("target_id", "target")
     claimed = (claimed or "").strip()
+
+    def sole_non_target(text: str) -> Optional[str]:
+        hits = frame_mod.match_mention(frame, text)
+        non_target = [h for h in hits if h != target_id]
+        if len(non_target) == 1 and target_id not in hits:
+            return non_target[0]
+        return None
+
     if claimed in ids:
+        # only the target claim is contestable: a claimed sibling/subset is already the
+        # specific answer, and overriding it would just relabel one non-target as another.
+        if claimed == target_id:
+            override = sole_non_target(quote)
+            if override is not None:
+                return override, "quote_override"
         return claimed, "claimed_id"
     if claimed:
         hits = frame_mod.match_mention(frame, claimed)
         if len(hits) == 1:
             return hits[0], "claimed_name"
-    quote_hits = frame_mod.match_mention(frame, quote)
-    target_id = frame.get("target_id", "target")
-    non_target = [h for h in quote_hits if h != target_id]
-    if len(non_target) == 1 and target_id not in quote_hits:
-        return non_target[0], "quote_mention"
+    override = sole_non_target(quote)
+    if override is not None:
+        return override, "quote_mention"
     return target_id, "default_target"
 
 
@@ -534,6 +553,7 @@ def verify_items(raw_items, source_text: str, doc: str,
     if frame is not None:
         telem["referent_resolution"] = {
             "claimed_id": 0, "claimed_name": 0, "quote_mention": 0, "default_target": 0,
+            "quote_override": 0,
         }
     norm_source = normalize_ws(source_text or "")
     norm_shown = normalize_ws(shown_text or "")

@@ -465,6 +465,44 @@ def test_v2_keys_attached_with_index_and_frame():
     assert telem["referent_resolution"]["claimed_id"] == 1
 
 
+def test_claimed_target_is_overridden_when_the_quote_names_only_a_sibling():
+    """The splice signature: the model writes a sibling's sentence and labels it target.
+
+    The label comes from the same call that wrote the quote, so it is not independent
+    evidence. Before this check every spliced item resolved to target and the sibling
+    gate and the EAV audit never saw a referent decision.
+    """
+    full = "Fibble contains 2,294 task instances drawn from real issues."
+    items = [{"field": "data.size", "quote": "Fibble contains 2,294 task instances",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "sibling:fibble"
+    assert telem["referent_resolution"]["quote_override"] == 1
+    assert telem["referent_resolution"]["claimed_id"] == 0
+
+
+def test_claimed_target_survives_when_the_quote_also_names_the_target():
+    """A comparison sentence names both, so the target claim is not contested."""
+    full = "mybench scores higher than Fibble on repository tasks."
+    items = [{"field": "methodology.baseline_results",
+              "quote": "mybench scores higher than Fibble", "kind": "stated",
+              "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "target"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+    assert telem["referent_resolution"]["quote_override"] == 0
+
+
+def test_claimed_non_target_id_is_never_overridden_by_the_quote():
+    """Only the target claim is contestable; a claimed subset is already specific."""
+    full = "mybench ships 500 items in the Hard subset."
+    items = [{"field": "data.size", "quote": "mybench ships 500 items", "kind": "stated",
+              "referent": "subset:hard"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "subset:hard"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+
+
 def test_referent_unknown_id_falls_back_to_quote_mention():
     full = "Fibble uses a rotating answer wordlist."
     items = [{"field": "methodology.calculation", "quote": "Fibble uses a rotating answer wordlist",
