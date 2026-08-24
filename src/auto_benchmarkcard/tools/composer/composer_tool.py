@@ -3981,6 +3981,9 @@ def compose_benchmark_card(
             "model_used": get_llm_handler().model_name,
             "confidence": confidence,
             "quote_verify": quote_telem,
+            "degraded_zero_emission": bool(
+                quote_telem.get("emitted", 0) == 0
+                and (has_paper or has_hf_readme or has_html or has_github)),
             "frame": {
                 "nodes": len((card_frame or {}).get("nodes", [])),
                 "telemetry": (card_frame or {}).get("telemetry", {}),

@@ -22,7 +22,10 @@ VENV=/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.venv/bin/python
 # misbehaves: AkashML. FactReasoner and everything else stay on RITS.
 MODEL=deepseek-ai/DeepSeek-V4-Flash
 OR_MODEL_ID=deepseek/deepseek-v4-flash
-OR_PROVIDERS="${OR_PROVIDERS:-Baidu,GMICloud,Novita}"
+# Baidu-only by default: silent failover to a misbehaving provider returns empty
+# 200s that gut extraction without any error (2026-08-24 incident). A loud 429 is
+# recoverable; a quiet empty parse is not. Override OR_PROVIDERS deliberately.
+OR_PROVIDERS="${OR_PROVIDERS:-Baidu}"
 OR_QUANT=fp8
 
 # Load API keys (OPENALEX/S2/GITHUB) from the main-repo .env into every child process.
