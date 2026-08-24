@@ -481,6 +481,47 @@ def test_claimed_target_is_overridden_when_the_quote_names_only_a_sibling():
     assert telem["referent_resolution"]["claimed_id"] == 0
 
 
+def test_override_is_refused_when_the_span_names_the_target_by_description():
+    """"our benchmark" is not an alias, so the bare matcher saw only the sibling.
+
+    Measured on hand-adjudicated spans, precision when the override fired was 0.611.
+    """
+    full = "Unlike Fibble, our benchmark includes visual elements."
+    items = [{"field": "benchmark_details.overview",
+              "quote": "Unlike Fibble, our benchmark includes visual elements",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "target"
+    assert telem["referent_resolution"]["quote_override"] == 0
+
+
+def test_override_is_refused_on_a_word_collision_with_a_node_name():
+    """A split node named "test" must not swallow "a verification test was run"."""
+    frame = {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "mybench", "aliases": []},
+        {"id": "split:test", "type": "split", "name": "test", "aliases": []},
+    ]}
+    full = "A verification test was run on every instance."
+    items = [{"field": "methodology.validation", "quote": "A verification test was run",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=frame)
+    assert records[0]["referent"] == "target"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+
+
+def test_override_still_fires_on_a_genuine_split_reference():
+    frame = {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "mybench", "aliases": []},
+        {"id": "split:test", "type": "split", "name": "test", "aliases": []},
+    ]}
+    full = "Models are scored on the test set of 510 instances."
+    items = [{"field": "data.size", "quote": "scored on the test set of 510 instances",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=frame)
+    assert records[0]["referent"] == "split:test"
+    assert telem["referent_resolution"]["quote_override"] == 1
+
+
 def test_claimed_target_survives_when_the_quote_also_names_the_target():
     """A comparison sentence names both, so the target claim is not contested."""
     full = "mybench scores higher than Fibble on repository tasks."

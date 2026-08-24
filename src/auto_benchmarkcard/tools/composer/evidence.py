@@ -512,11 +512,32 @@ def _resolve_referent(claimed: str, quote: str, frame) -> Tuple[str, str]:
             return non_target[0]
         return None
 
+    def contests_target(text: str) -> Optional[str]:
+        """The one non-target node this span really refers to, if any.
+
+        match_mention is a bare name lookup, so on its own it re-binds word collisions:
+        measured on hand-adjudicated spans, precision when the override fired was 0.611,
+        and the dominant errors were common-word node names ("verification test" ->
+        split:test, "Matplotlib version 3.3.2" -> version:3.3.2, "ensure accuracy" ->
+        metric:accuracy). Two guards: the span must not name the target by description
+        instead of by name, and the matched node must pass the same context test its own
+        frame builder applied when it created that node.
+        """
+        if frame_mod.names_target_implicitly(text):
+            return None
+        node_id = sole_non_target(text)
+        if node_id is None:
+            return None
+        node = next((n for n in frame.get("nodes", []) if n.get("id") == node_id), None)
+        if node is None or not frame_mod.mention_is_referential(node, text):
+            return None
+        return node_id
+
     if claimed in ids:
         # only the target claim is contestable: a claimed sibling/subset is already the
         # specific answer, and overriding it would just relabel one non-target as another.
         if claimed == target_id:
-            override = sole_non_target(quote)
+            override = contests_target(quote)
             if override is not None:
                 return override, "quote_override"
         return claimed, "claimed_id"

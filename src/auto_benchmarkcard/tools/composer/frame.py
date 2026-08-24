@@ -530,6 +530,60 @@ def node_lookup(frame: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return {node["id"]: node for node in frame.get("nodes", [])}
 
 
+# Metric names that are ordinary nouns. A span saying "ensure accuracy" is not a
+# claim about the metric node, and re-binding it there is over-binding, not a catch.
+_COMMON_METRIC_NAMES = frozenset({
+    "accuracy", "score", "precision", "recall", "f1", "f1 score", "em", "exact match",
+    "bleu", "rouge", "error rate", "loss", "perplexity", "pass rate", "success rate",
+})
+
+# The target under a description rather than its name. match_mention only knows
+# aliases, so without this "Unlike SWE-bench, our benchmark adds images" reads as a
+# span naming only the sibling and gets re-bound to it.
+_TARGET_DEICTIC_RE = re.compile(
+    r"\b(our|this|the present|the proposed)\s+"
+    r"(benchmark|dataset|suite|corpus|work|paper|evaluation|task set)\b"
+    r"|\bwe (introduce|present|propose|release|construct|build|collect)\b"
+    r"|\bours\b", re.IGNORECASE)
+
+
+def names_target_implicitly(text: str) -> bool:
+    """True when the span refers to the target by description instead of by name."""
+    return bool(_TARGET_DEICTIC_RE.search(text or ""))
+
+
+def mention_is_referential(node: Dict[str, Any], text: str) -> bool:
+    """Does `text` really refer to `node`, or does it just contain its name?
+
+    match_mention is a bare name lookup with no context, but the builders that
+    CREATED these nodes each applied a context test. Re-applying that test is what
+    separates a genuine reference from a word collision: "verification test" is not
+    the test split, "Matplotlib version 3.3.2" is not a release of the benchmark.
+    Siblings and subsets are exempt; their names are specific enough to stand alone.
+    """
+    ntype = node.get("type")
+    name = (node.get("name") or "").strip()
+    if not text or not name:
+        return False
+    if ntype == "split":
+        return any(_SPLIT_CANON.get(m.group(1).lower(), m.group(1).lower()) == _norm(name)
+                   or m.group(1).lower() == name.lower()
+                   for m in _SPLIT_CONTEXT_RE.finditer(text))
+    if ntype == "version":
+        for hit in _iter_token_hits(text, name):
+            start, end = hit
+            if _in_url_chunk(text, start, end):
+                continue
+            if _MODEL_WORD_RE.search(text, max(0, start - 12), start):
+                continue
+            if _RELEASE_CUE_RE.search(text[max(0, start - 200):end + 200]):
+                return True
+        return False
+    if ntype == "metric":
+        return _norm(name) not in {_norm(n) for n in _COMMON_METRIC_NAMES}
+    return True
+
+
 def match_mention(frame: Dict[str, Any], text: str) -> List[str]:
     """Frame node ids whose name or alias occurs in text (whole-token,
     case-insensitive, longest-alias-first). Deterministic; used by the
