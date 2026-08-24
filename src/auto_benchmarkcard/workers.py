@@ -1366,13 +1366,26 @@ def run_risk_identification(state):
 
     try:
         benchmark_card = state["composed_card"]
+        frame = None
+        if isinstance(benchmark_card, dict):
+            # composer sidecar: the referent frame conditions risk selection
+            frame = benchmark_card.get("frame")
         if "benchmark_card" in benchmark_card:
             benchmark_card = benchmark_card["benchmark_card"]
 
-        risk_enhanced_card = identify_and_integrate_risks(benchmark_card)
+        risk_telemetry = {}
+        risk_enhanced_card = identify_and_integrate_risks(
+            benchmark_card, frame=frame, telemetry_out=risk_telemetry
+        )
         risk_enhanced_card = apply_single_judge_bias_rule(risk_enhanced_card)
         # A5 presentation hygiene: drop empty url keys (e.g. the synthetic single-judge risk).
         risk_enhanced_card = omit_empty_risk_urls(risk_enhanced_card)
+
+        if risk_telemetry:
+            telemetry_filename = f"risk_telemetry_{sanitize_benchmark_name(state['query'])}.json"
+            state["output_manager"].save_tool_output(
+                risk_telemetry, "ai_atlas_nexus", telemetry_filename
+            )
 
         filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
         output_file = state["output_manager"].save_tool_output(
