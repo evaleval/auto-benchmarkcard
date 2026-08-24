@@ -3,6 +3,14 @@
 Input  eval/probes/referent_probes.jsonl (scripts/generate_referent_probes.py)
 Output eval/probes/probe_scores.json + a human summary on stdout
 
+--splice switches to the VERBATIM-span splice probes
+(eval/probes/splice_probes.jsonl, scripts/generate_splice_probes.py) and scores them
+through the real path: evidence.verify_items with the frame and doc index, then
+aboutness.apply_assignment_gates. It reports detection AND false-positive rate together,
+plus a pre-fix/post-fix comparison of evidence._resolve_referent (--pre-fix scores only
+the old behaviour, via a monkeypatched local copy; src/ is never modified). See the
+SPLICE MODE section at the bottom of this file.
+
 Every probe carries two spans: original_text (a genuine, correctly bound span of the
 cached source) and perturbed_text (the same span with ONE same-type referent token
 swapped, so the claim is bound to the wrong referent). Both spans are pushed through
@@ -688,14 +696,36 @@ def print_summary(s, results):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--probes", default=os.path.join(REPO, "eval", "probes",
-                                                     "referent_probes.jsonl"))
-    ap.add_argument("--out", default=os.path.join(REPO, "eval", "probes",
-                                                  "probe_scores.json"))
+    ap.add_argument("--probes", default=None,
+                    help="probe file; defaults to referent_probes.jsonl, or "
+                         "splice_probes.jsonl under --splice")
+    ap.add_argument("--out", default=None,
+                    help="output json; defaults to probe_scores.json, or "
+                         "splice_scores.json under --splice")
+    ap.add_argument("--splice", action="store_true",
+                    help="score the VERBATIM-span splice probes "
+                         "(scripts/generate_splice_probes.py) through the real "
+                         "verify_items + assignment-gate path instead of the swap probes")
+    ap.add_argument("--pre-fix", dest="pre_fix_only", action="store_true",
+                    help="--splice only: score ONLY against the pre-a9b5177 resolver "
+                         "(monkeypatched local copy; src/ is not modified)")
     ap.add_argument("--with-eav", action="store_true",
                     help="ALSO run the model-based EAV audit (eav.run_eav). This makes "
                          "paid LLM calls; the default path is offline and deterministic.")
     args = ap.parse_args()
+
+    if args.splice:
+        args.probes = args.probes or os.path.join(REPO, "eval", "probes",
+                                                  "splice_probes.jsonl")
+        args.out = args.out or os.path.join(REPO, "eval", "probes", "splice_scores.json")
+        if args.with_eav:
+            raise SystemExit("--with-eav is not wired for splice mode; this path is offline.")
+        run_splice_mode(args)
+        return
+
+    args.probes = args.probes or os.path.join(REPO, "eval", "probes",
+                                              "referent_probes.jsonl")
+    args.out = args.out or os.path.join(REPO, "eval", "probes", "probe_scores.json")
 
     probes = [json.loads(line) for line in open(args.probes) if line.strip()]
     PROBE_INPUTS.extend(probes)
@@ -727,6 +757,834 @@ def main():
     with open(args.out, "w") as f:
         json.dump({"summary": summary, "probes": results}, f, indent=2)
     print_summary(summary, results)
+    print("")
+    print("wrote %s" % args.out)
+
+
+
+# =====================================================================================
+# SPLICE MODE  (eval/probes/splice_probes.jsonl, scripts/generate_splice_probes.py)
+# =====================================================================================
+#
+# The swap probes above edit the source text, so Stage A stops them and the referent
+# layer never gets to speak. The splice probes are VERBATIM spans: Stage A is silent by
+# construction and the referent layer is the only thing that can adjudicate them. This
+# mode runs them through the REAL path (evidence.verify_items with the frame and doc
+# index, then aboutness.apply_assignment_gates) and reports, per probe, which layer
+# decided and how.
+#
+# WHAT MAY BE READ AS A MEASUREMENT, AND WHAT MAY NOT
+# ---------------------------------------------------------------------------------
+# An audit of the first version of this instrument showed that its headline was
+# analytically forced: the probe generator selected positives with frame.match_mention,
+# which is the same predicate evidence._resolve_referent decides with, so "detection
+# 1.0" and "FPR 0.0" were both re-derivable in closed form without ever calling the
+# resolver. That is a spec-conformance test printed in the shape of a measurement.
+#
+# The probe file now carries a "channel" per probe, and this scorer keeps the three
+# apart and labels each with what it can support:
+#
+#   mention  circular by construction. Reported as CONFORMANCE, never as detection.
+#            Its value is 1.0 for positives and 0.0 for negatives before the run.
+#            It is still worth running: it is the regression test that the override
+#            rule and its comparison exemption are wired the way the spec says.
+#   section  independent. Selection reads only the enclosing section heading; the
+#            resolver only ever sees the quote. Both misses and false positives are
+#            possible, and both occur. THIS is the measurement.
+#   claim    branch coverage. claimed_referent is varied away from "target", which is
+#            the only branch a9b5177 touched. claim_wrong is a class BOTH resolvers
+#            fail by design.
+#
+# Every probe carries expected_referent; scoring is one comparison (resolved ==
+# expected) and the channel decides how the resulting number may be quoted.
+
+_SPLICE_NODE_TYPES = ("sibling", "subset", "version", "split", "metric")
+_MENTION_NEGATIVES = ("target_only", "comparison", "collision", "bare")
+_MENTION_BLINDSPOT = ("multi_nontarget",)
+_CLAIM_KINDS = ("claim_correct", "claim_name", "claim_unknown", "claim_wrong")
+
+ADJUDICATION_PATH = os.path.join(REPO, "eval", "probes", "splice_adjudication.jsonl")
+
+
+def _pre_fix_resolve_referent(claimed, quote, frame):
+    """PRE-FIX copy of evidence._resolve_referent (the version before commit a9b5177).
+
+    Verbatim reconstruction from `git show a9b5177`: an exact node id always wins with
+    no corroboration, so a claimed "target" (always a valid node id) returned target and
+    the quote scan below was unreachable. Installed by monkeypatch under --pre-fix; src/
+    is never modified and no old commit is checked out.
+    """
+    from auto_benchmarkcard.tools.composer import frame as frame_mod
+    ids = {n["id"] for n in frame.get("nodes", [])}
+    claimed = (claimed or "").strip()
+    if claimed in ids:
+        return claimed, "claimed_id"
+    if claimed:
+        hits = frame_mod.match_mention(frame, claimed)
+        if len(hits) == 1:
+            return hits[0], "claimed_name"
+    quote_hits = frame_mod.match_mention(frame, quote)
+    target_id = frame.get("target_id", "target")
+    non_target = [h for h in quote_hits if h != target_id]
+    if len(non_target) == 1 and target_id not in quote_hits:
+        return non_target[0], "quote_mention"
+    return target_id, "default_target"
+
+
+def load_adjudication():
+    """Hand labels for a sample of probes: {(card, span): {label, note, ...}}.
+
+    label is one of target / non_target / undecidable and answers the only question the
+    machine labels beg: is this span, read in its paper, actually a claim about the
+    target? The file is written by a human reader (see the report), NOT by
+    frame.match_mention, which is the point."""
+    rows = {}
+    if not os.path.exists(ADJUDICATION_PATH):
+        return rows
+    for line in open(ADJUDICATION_PATH):
+        line = line.strip()
+        if not line:
+            continue
+        r = json.loads(line)
+        rows[(r["card"], r["span"])] = r
+    return rows
+
+
+def score_splice_probe(ctx, probe):
+    """One splice probe through the production path. Returns the per-probe record."""
+    target_id = ctx.target_id
+    item = {
+        "field": probe["field"],
+        "quote": probe["span"],
+        "kind": "stated",
+        "claim_role": probe.get("claim_role", "primary_result"),
+        "referent": probe.get("claimed_referent", "target"),
+        "note": "",
+    }
+    res = {
+        "card": probe["card"],
+        "channel": probe.get("channel", "mention"),
+        "class_label": probe.get("class_label", ""),
+        "kind": probe["kind"],
+        "node_type": probe.get("node_type", ""),
+        "sibling_relation": probe.get("sibling_relation", ""),
+        "referential_check": probe.get("referential_check", "n/a"),
+        "referential_reason": probe.get("referential_reason", ""),
+        "field": probe["field"],
+        "region": probe.get("region", ""),
+        "section_heading": probe.get("section_heading", ""),
+        "span": probe["span"],
+        "true_referent": probe["true_referent"],
+        "expected_referent": probe.get("expected_referent", probe["true_referent"]),
+        "claimed_referent": probe.get("claimed_referent", "target"),
+        "target_id": target_id,
+        "stage_a_ok": False,
+        "stage_a_reject": "",
+        "resolved_referent": "",
+        "resolved_how": "",
+        "gate_actions": [],
+        "gate_survived": None,
+        "adjudicated_by": "",
+    }
+    if ctx.frame is None:
+        # A card whose frame failed resolves every referent to "" and would read as a
+        # move off target, i.e. as a detection. That is a broken probe, not a result.
+        res["stage_a_reject"] = "frame_build_failed"
+        res["adjudicated_by"] = "BROKEN_PROBE_no_frame"
+        return res
+
+    records, telem = evidence.verify_items(
+        [item], ctx.verify_source, ctx.doc_token,
+        shown_text="", doc_index=ctx.verify_index, frame=ctx.frame,
+    )
+    res["stage_a_ok"] = bool(records)
+    if not records:
+        # An unverifiable span is a BROKEN PROBE, not a detection: the generator
+        # guarantees verbatim spans, so this can only mean source drift.
+        reasons = [k for k, v in telem["reject_reasons"].items() if v]
+        res["stage_a_reject"] = reasons[0] if reasons else "unknown"
+        res["adjudicated_by"] = "BROKEN_PROBE_stage_a_reject"
+        return res
+
+    rec = records[0]
+    how = (telem.get("referent_resolution") or {})
+    res["resolved_referent"] = rec.get("referent", "")
+    res["resolved_how"] = next((k for k, v in how.items() if v), "")
+
+    gate_telem = {}
+    kept = aboutness.apply_assignment_gates([copy.deepcopy(rec)], ctx.frame, gate_telem)
+    res["gate_actions"] = ["%s:%s" % (a["gate"], a["action"])
+                           for a in gate_telem.get("actions", [])]
+    res["gate_survived"] = bool(kept)
+    res["gate_effective"] = [a for a in res["gate_actions"]
+                             if a.split(":")[1] in ("drop", "drop_duplicate", "refile")]
+    # The region gate is referent-INDEPENDENT (it keys off docstructure alone), so it
+    # fires identically pre- and post-fix. Only the "sibling" gate family acts on the
+    # resolved referent, so it alone measures what the referent layer CHANGES about the
+    # card.
+    res["gate_referent_driven"] = [a for a in res["gate_effective"]
+                                   if a.startswith("sibling:")]
+
+    off_target = res["resolved_referent"] != target_id
+    res["off_target"] = off_target
+    res["correct"] = res["resolved_referent"] == res["expected_referent"]
+    if off_target:
+        res["adjudicated_by"] = res["resolved_how"] or "referent"
+    elif res["gate_effective"]:
+        res["adjudicated_by"] = "deterministic_gate:" + res["gate_effective"][0]
+    else:
+        res["adjudicated_by"] = "none"
+    return res
+
+
+def _bucket(rows):
+    return {"n": len(rows), "distinct_spans": len({r["span"] for r in rows}),
+            "cards": len({r["card"] for r in rows})}
+
+
+def summarize_splice(results, label, adjudication):
+    """Per-channel summary. No channel's number is reported without its label."""
+    live = [r for r in results if r["stage_a_ok"]]
+    broken = [r for r in results if not r["stage_a_ok"]]
+
+    def sel(cls):
+        return [r for r in live if r["class_label"] == cls]
+
+    # ------------------------------------------------------------------ mention
+    mpos = sel("m_positive")
+    m_moved = [r for r in mpos if r["off_target"]]
+    by_type = {}
+    for t in _SPLICE_NODE_TYPES:
+        rows = [r for r in mpos if r["node_type"] == t]
+        d = [r for r in rows if r["off_target"]]
+        by_type[t] = dict(_bucket(rows), moved_off_target=len(d),
+                          rate=_rate(len(d), len(rows)),
+                          contained=sum(1 for r in rows if r.get("gate_referent_driven")),
+                          adjudicated_by=dict(Counter(r["adjudicated_by"] for r in rows)))
+    mneg = {}
+    for k in _MENTION_NEGATIVES + _MENTION_BLINDSPOT:
+        rows = sel(k)
+        f = [r for r in rows if r["off_target"]]
+        mneg[k] = dict(_bucket(rows), moved_off_target=len(f),
+                       rate=_rate(len(f), len(rows)),
+                       moved_to=dict(Counter(r["resolved_referent"] for r in f)))
+    clean = [r for r in live if r["class_label"] in _MENTION_NEGATIVES]
+    clean_fp = [r for r in clean if r["off_target"]]
+    strict = [r for r in mpos if r["referential_check"] == "ok"]
+    weak = [r for r in mpos if r["referential_check"] != "ok"]
+
+    sib = [r for r in mpos if r["node_type"] == "sibling"]
+    sib_rel = dict(Counter(r["sibling_relation"] for r in sib))
+
+    mention = {
+        "READ_THIS_FIRST": (
+            "CIRCULAR BY CONSTRUCTION. The generator selects these probes with "
+            "frame.match_mention, the predicate evidence._resolve_referent decides "
+            "with, so every number below is derivable in closed form from the probe "
+            "labels without running the resolver: positives move off target, clean "
+            "negatives do not. Quote this as a CONFORMANCE test (the override rule and "
+            "its comparison exemption are wired as specified), never as a detection "
+            "rate or a false-positive rate. The measured numbers are in the 'section' "
+            "channel."),
+        "positives_conformance": dict(
+            _bucket(mpos), moved_off_target=len(m_moved),
+            conformance_rate=_rate(len(m_moved), len(mpos)),
+            by_node_type=by_type,
+            adjudicated_by=dict(Counter(r["adjudicated_by"] for r in mpos)),
+            sibling_relation=sib_rel,
+            sibling_relation_note=(
+                "'contains' siblings are COMPONENTS of the target (EEE 'contains': "
+                "HELM's scenarios, a suite's member benchmarks); 'appears_in' siblings "
+                "are parent suites. aboutness's sibling gate drops both from headline "
+                "fields, but only the second is a rival entity. A quote about a "
+                "component being dropped is a different, milder event than a rival "
+                "benchmark's claim being caught."),
+        ),
+        "positives_strict": dict(
+            _bucket(strict),
+            moved_off_target=sum(1 for r in strict if r["off_target"]),
+            rate=_rate(sum(1 for r in strict if r["off_target"]), len(strict)),
+            definition=("positives whose span passes the frame's OWN node-creation "
+                        "context guard, re-applied to the span. Machine-adjudicated, "
+                        "not ground truth: see the adjudication block."),
+        ),
+        "positives_weak_or_unguarded": dict(
+            _bucket(weak),
+            moved_off_target=sum(1 for r in weak if r["off_target"]),
+            rate=_rate(sum(1 for r in weak if r["off_target"]), len(weak)),
+            reasons=dict(Counter(r["referential_reason"] for r in weak)),
+            warning=("These spans only CONTAIN a node's name in a context production's "
+                     "own node builder would have rejected. Every one that moves is the "
+                     "resolver OVER-BINDING. Read as a false-positive channel."),
+        ),
+        "negatives": dict(
+            _bucket(clean), moved_off_target=len(clean_fp),
+            rate=_rate(len(clean_fp), len(clean)),
+            by_kind={k: mneg[k] for k in _MENTION_NEGATIVES},
+            note=("0 by construction, same circularity. 'comparison' now means the span "
+                  "names the target AND one distinctively-named sibling/subset (a real "
+                  "two-entity sentence); the common-word collisions that used to be "
+                  "counted as comparisons are split out as 'collision'."),
+        ),
+        "negatives_blindspot": {
+            "by_kind": {k: mneg[k] for k in _MENTION_BLINDSPOT},
+            "note": ("multi_nontarget: 2+ non-target nodes and no target, so the "
+                     "'sole non-target' rule leaves it on target. Not decidable from a "
+                     "mention list, so a blind spot, not a control."),
+        },
+    }
+
+    # ------------------------------------------------------------------ section
+    spos, sneg = sel("s_positive"), sel("s_negative")
+    s_caught = [r for r in spos if r["off_target"]]
+    s_exact = [r for r in spos if r["correct"]]
+    s_fp = [r for r in sneg if r["off_target"]]
+    section = {
+        "READ_THIS_FIRST": (
+            "INDEPENDENT SELECTION. A span is chosen by the section heading that "
+            "encloses it (docstructure.DocIndex.locate(char_start).path); the span's "
+            "own text is never read during selection and the resolver never sees the "
+            "heading. Both numbers below can come out anywhere in [0,1]. The section "
+            "signal is a HYPOTHESIS about aboutness, not certainty: a sentence under a "
+            "heading naming benchmark X is usually but not always about X, which is "
+            "what the hand adjudication in this file bounds."),
+        "positives": dict(
+            _bucket(spos), moved_off_target=len(s_caught),
+            detection_rate=_rate(len(s_caught), len(spos)),
+            resolved_to_the_section_node=len(s_exact),
+            exact_rate=_rate(len(s_exact), len(spos)),
+            contained=sum(1 for r in spos if r.get("gate_referent_driven")),
+            adjudicated_by=dict(Counter(r["adjudicated_by"] for r in spos)),
+            note=("A miss here means the section heading names a non-target node and "
+                  "the sentence inside it does not, so the quote-only resolver leaves "
+                  "the claim on the target. That is the recall the mention channel "
+                  "cannot see."),
+        ),
+        "negatives": dict(
+            _bucket(sneg), moved_off_target=len(s_fp),
+            false_positive_rate=_rate(len(s_fp), len(sneg)),
+            moved_to=dict(Counter(r["resolved_referent"] for r in s_fp)),
+            moved_to_node_type=dict(Counter(r["resolved_referent"].split(":")[0]
+                                            for r in s_fp)),
+            contained=sum(1 for r in sneg if r.get("gate_referent_driven")),
+            note=("MEASURED false positives: the enclosing heading names the target and "
+                  "no other node, yet the resolver moved the claim off the target "
+                  "because the sentence happens to contain some node's name."),
+            examples=[{"card": r["card"], "heading": r["section_heading"],
+                       "moved_to": r["resolved_referent"],
+                       "span": r["span"][:150]} for r in s_fp[:12]],
+        ),
+    }
+
+    # ------------------------------------------------------------------ claim
+    claim = {"READ_THIS_FIRST": (
+        "BRANCH COVERAGE. Every probe in the other channels claims 'target', which is "
+        "exactly and only the branch a9b5177 changed, so their pre/post delta is forced "
+        "and carries no information about the rest of the resolver. Here "
+        "claimed_referent is varied. claim_wrong is the other production splice shape: "
+        "a target sentence attributed to another node. Both resolvers obey it "
+        "unchecked, by design (evidence.py: 'a claimed sibling/subset is already the "
+        "specific answer'), so it is a class this layer provably does not catch.")}
+    for k in _CLAIM_KINDS:
+        rows = sel(k)
+        ok = [r for r in rows if r["correct"]]
+        claim[k] = dict(_bucket(rows), correct=len(ok),
+                        rate=_rate(len(ok), len(rows)),
+                        resolved_how=dict(Counter(r["resolved_how"] for r in rows)),
+                        resolved_to=dict(Counter(r["resolved_referent"].split(":")[0]
+                                                 for r in rows)))
+
+    # ------------------------------------------------------------------ containment
+    cont_rows = [r for r in live if r.get("gate_referent_driven")]
+    cells = Counter((r["node_type"] or "-", r["field"], a)
+                    for r in cont_rows for a in r["gate_referent_driven"])
+    containment = {
+        "WHAT_THIS_IS": (
+            "NOT a rate. Only two cells of aboutness.apply_assignment_gates consume a "
+            "resolved referent: a sibling referent drops a quote from a headline field, "
+            "and a subset referent re-files a data.size quote to data.size_breakdown. "
+            "version / split / metric referents have NO deterministic consumer, so a "
+            "detected item keeps flowing with a non-target referent stamped on it and "
+            "only the model-based EAV audit and the Stage-B digest ever see it. A "
+            "containment 'rate' over a probe set is therefore a property of the probe "
+            "mix (node types chosen by the generator's quota, fields chosen by its "
+            "stand-in router) rather than of the system, and is not reported here."),
+        "gate_table_coverage": "2 of the 5 node types the frame can produce have a "
+                               "deterministic consumer; the subset consumer fires only "
+                               "on data.size",
+        "events": len(cont_rows),
+        "by_node_type_field_action": {" | ".join(k): v for k, v in sorted(cells.items())},
+        "all_gate_actions": dict(Counter(a for r in live for a in r["gate_actions"])),
+    }
+
+    # ------------------------------------------------------------------ adjudication
+    adj = {"WHAT_THIS_IS": (
+        "Hand labels for a sample of probes, read against the paper with surrounding "
+        "context by a single annotator (the author of this instrument, LLM-assisted). "
+        "Not independent of the instrument and not a substitute for a second rater; it "
+        "is here because every other label in this file is machine-derived and the one "
+        "question that decides whether a 'detection' is a detection at all -- is this "
+        "span about the target? -- cannot be answered by the matcher under test.")}
+    if adjudication:
+        labelled = [r for r in live if (r["card"], r["span"]) in adjudication]
+        by_class = defaultdict(lambda: Counter())
+        cm = Counter()
+        harmful = []
+        for r in labelled:
+            a = adjudication[(r["card"], r["span"])]
+            lab = a["label"]
+            by_class[r["class_label"]][lab] += 1
+            if lab == "undecidable":
+                continue
+            moved = r["off_target"]
+            cm[("about_target" if lab == "target" else "about_non_target",
+                "moved" if moved else "stayed")] += 1
+            if lab == "target" and r.get("gate_referent_driven"):
+                harmful.append({"card": r["card"], "field": r["field"],
+                                "action": r["gate_referent_driven"],
+                                "moved_to": r["resolved_referent"],
+                                "span": r["span"][:140]})
+        tp = cm[("about_non_target", "moved")]
+        fn = cm[("about_non_target", "stayed")]
+        fp = cm[("about_target", "moved")]
+        tn = cm[("about_target", "stayed")]
+        # A move counts as a STRICT hit only when the annotator also agreed the node the
+        # resolver picked is the entity the span is about. Several spans are not about
+        # the target and still get bound to the wrong node (a split word collision), and
+        # crediting those as detections would repeat the mistake this instrument exists
+        # to avoid.
+        strict_tp = sum(
+            1 for r in labelled
+            if adjudication[(r["card"], r["span"])]["label"] == "non_target"
+            and r["off_target"]
+            and adjudication[(r["card"], r["span"])].get("resolved_node_ok") == "yes")
+        # section positives: every mover was adjudicated, the non-movers were sampled,
+        # so recall has to be re-weighted onto the full class.
+        spos_all = [r for r in live if r["class_label"] == "s_positive"]
+        spos_moved = [r for r in spos_all if r["off_target"]]
+        spos_stayed = [r for r in spos_all if not r["off_target"]]
+        lab_stayed = [adjudication[(r["card"], r["span"])] for r in spos_stayed
+                      if (r["card"], r["span"]) in adjudication]
+        stayed_nt = sum(1 for a in lab_stayed if a["label"] == "non_target")
+        stayed_dec = sum(1 for a in lab_stayed if a["label"] != "undecidable")
+        moved_nt = sum(1 for r in spos_moved
+                       if (r["card"], r["span"]) in adjudication
+                       and adjudication[(r["card"], r["span"])]["label"] == "non_target")
+        est_fn = (stayed_nt / len(lab_stayed) * len(spos_stayed)) if lab_stayed else 0.0
+        adj.update({
+            "n_labelled": len(labelled),
+            "labels": dict(Counter(adjudication[(r["card"], r["span"])]["label"]
+                                   for r in labelled)),
+            "labels_by_class": {k: dict(v) for k, v in sorted(by_class.items())},
+            "confusion_matrix_on_decidable": {
+                "true_positive_moved_and_about_non_target": tp,
+                "false_negative_stayed_but_about_non_target": fn,
+                "false_positive_moved_but_about_target": fp,
+                "true_negative_stayed_and_about_target": tn,
+            },
+            "precision": _rate(tp, tp + fp),
+            "recall_unweighted_do_not_quote": _rate(tp, tp + fn),
+            "strict_true_positives_right_node_too": strict_tp,
+            "strict_precision": _rate(strict_tp, tp + fp),
+            "section_positive_recall_reweighted": {
+                "note": ("Every s_positive that MOVED was adjudicated; the ones that "
+                         "stayed were sampled, so the raw recall above over-counts. This "
+                         "row re-weights the sampled non-movers onto the whole class."),
+                "moved_and_about_non_target": moved_nt,
+                "sampled_non_movers": len(lab_stayed),
+                "of_them_about_non_target": stayed_nt,
+                "non_movers_total": len(spos_stayed),
+                "estimated_missed_off_target_claims": round(est_fn, 1),
+                "estimated_recall": _rate(moved_nt, moved_nt + est_fn)
+                if (moved_nt + est_fn) else "n/a",
+                "sampled_non_movers_decidable": stayed_dec,
+            },
+            "by_stratum": {},
+            "harmful_containment": harmful,
+            "harmful_containment_note": (
+                "gate actions that dropped or re-filed a span a human read as a claim "
+                "ABOUT THE TARGET. These are cards being damaged by the referent layer, "
+                "and they are counted inside the raw containment event total."),
+            "section_channel_only_confusion": {},
+            "mention_strict_bucket_check": {},
+            "sampling_design": (
+                "Strata: every section-channel false positive (all movers among the "
+                "s_negatives), every section-channel positive that moved, a random "
+                "sample of section positives that stayed, a random sample of "
+                "section negatives that stayed, every referent-driven containment "
+                "event, and a random sample of the mention channel's 'strict' "
+                "positives. Rates computed over this file are stratum-weighted where "
+                "the row says so and raw counts otherwise."),
+        })
+        strata = defaultdict(Counter)
+        for r in labelled:
+            a = adjudication[(r["card"], r["span"])]
+            strata[a.get("stratum", "?")][a["label"]] += 1
+        adj["by_stratum"] = {k: dict(v) for k, v in sorted(strata.items())}
+
+        sec_rows = [r for r in labelled
+                    if r["class_label"] in ("s_positive", "s_negative")]
+        scm = Counter()
+        for r in sec_rows:
+            a = adjudication[(r["card"], r["span"])]
+            if a["label"] == "undecidable":
+                continue
+            scm[(a["label"], "moved" if r["off_target"] else "stayed")] += 1
+        adj["section_channel_only_confusion"] = {
+            "true_positive": scm[("non_target", "moved")],
+            "false_negative": scm[("non_target", "stayed")],
+            "false_positive": scm[("target", "moved")],
+            "true_negative": scm[("target", "stayed")],
+            "precision": _rate(scm[("non_target", "moved")],
+                               scm[("non_target", "moved")] + scm[("target", "moved")]),
+            "note": ("The section channel alone, which is the only channel whose "
+                     "selection is independent of the resolver. Movers were sampled "
+                     "exhaustively and non-movers by random sample, so precision is "
+                     "unbiased but the raw recall is not: use the re-weighted row."),
+        }
+        mstrict = [r for r in labelled if r["class_label"] == "m_positive"
+                   and r["referential_check"] == "ok"]
+        adj["mention_strict_bucket_check"] = {
+            "n_labelled": len(mstrict),
+            "really_about_the_target": sum(
+                1 for r in mstrict
+                if adjudication[(r["card"], r["span"])]["label"] == "target"),
+            "really_about_a_non_target_and_bound_to_the_right_node": sum(
+                1 for r in mstrict
+                if adjudication[(r["card"], r["span"])]["label"] == "non_target"
+                and adjudication[(r["card"], r["span"])].get("resolved_node_ok") == "yes"),
+            "note": ("The 'strict' bucket is machine-adjudicated by re-applying the "
+                     "frame's own context guards to the span. This row is the check on "
+                     "that label: a strict positive that a reader calls a claim about "
+                     "the TARGET is a false positive the machine label calls a "
+                     "detection."),
+        }
+    else:
+        adj["n_labelled"] = 0
+
+    headline = (
+        "SECTION channel (independent): detection %s on %d section-bound positives, "
+        "FPR %s on %d section-bound negatives. MENTION channel is conformance-only." % (
+            section["positives"]["detection_rate"], section["positives"]["n"],
+            section["negatives"]["false_positive_rate"], section["negatives"]["n"]))
+
+    return {
+        "label": label,
+        "broken_probes": len(broken),
+        "broken_probe_reasons": dict(Counter(r["stage_a_reject"] for r in broken)),
+        "headline": headline,
+        "mention_channel_conformance_only": mention,
+        "section_channel_measured": section,
+        "claim_channel_branch_coverage": claim,
+        "containment": containment,
+        "hand_adjudication": adj,
+    }
+
+
+def print_splice_summary(s):
+    P = print
+    P("-" * 78)
+    P("%s" % s["label"].upper())
+    P("-" * 78)
+    if s["broken_probes"]:
+        P("  !! %d BROKEN PROBE(S): %s" % (s["broken_probes"], s["broken_probe_reasons"]))
+    sec = s["section_channel_measured"]
+    men = s["mention_channel_conformance_only"]
+    cl = s["claim_channel_branch_coverage"]
+
+    P("")
+    P("SECTION CHANNEL  (independent selection -- this is the measurement)")
+    p, n = sec["positives"], sec["negatives"]
+    P("  positives  n=%3d (%d cards)  moved off target=%3d  DETECTION RATE=%s" % (
+        p["n"], p["cards"], p["moved_off_target"], p["detection_rate"]))
+    P("             resolved to the section-bound node itself: %d (%s)" % (
+        p["resolved_to_the_section_node"], p["exact_rate"]))
+    P("  negatives  n=%3d (%d cards)  moved off target=%3d  FALSE-POSITIVE RATE=%s" % (
+        n["n"], n["cards"], n["moved_off_target"], n["false_positive_rate"]))
+    if n["moved_to_node_type"]:
+        P("             over-bound to: %s" % ", ".join(
+            "%s=%d" % kv for kv in sorted(n["moved_to_node_type"].items())))
+    for ex in n["examples"][:6]:
+        P("               - %-16s [%s] -> %s | %s" % (
+            ex["card"], ex["heading"][:34], ex["moved_to"], ex["span"][:70]))
+
+    P("")
+    P("MENTION CHANNEL  (CONFORMANCE ONLY, circular by construction)")
+    mp = men["positives_conformance"]
+    P("  positives  n=%3d (%d distinct spans, %d cards)  moved off target=%3d  rate=%s"
+      % (mp["n"], mp["distinct_spans"], mp["cards"], mp["moved_off_target"],
+         mp["conformance_rate"]))
+    P("  %-10s %4s %5s %8s %6s  %s" % ("node type", "n", "moved", "rate", "contd",
+                                       "distinct spans / cards"))
+    for t in _SPLICE_NODE_TYPES:
+        r = mp["by_node_type"][t]
+        P("  %-10s %4d %5d %8s %6d  %d / %d" % (
+            t, r["n"], r["moved_off_target"], r["rate"], r["contained"],
+            r["distinct_spans"], r["cards"]))
+    if mp["sibling_relation"]:
+        P("  sibling nodes by EEE relation: %s" % ", ".join(
+            "%s=%d" % kv for kv in sorted(mp["sibling_relation"].items())))
+    st, wk = men["positives_strict"], men["positives_weak_or_unguarded"]
+    P("  strict (passes the frame's own context guard)  n=%3d moved=%3d (%s)"
+      % (st["n"], st["moved_off_target"], st["rate"]))
+    P("  weak/unguarded (name match only)               n=%3d moved=%3d (%s)"
+      % (wk["n"], wk["moved_off_target"], wk["rate"]))
+    for reason, cnt in sorted(wk["reasons"].items(), key=lambda kv: -kv[1]):
+        P("     %-52s %d" % (reason, cnt))
+    mn = men["negatives"]
+    P("  negatives  n=%3d  moved off target=%d (%s)" % (
+        mn["n"], mn["moved_off_target"], mn["rate"]))
+    for k in _MENTION_NEGATIVES:
+        r = mn["by_kind"][k]
+        P("     %-16s n=%3d  moved=%d (%s)" % (k, r["n"], r["moved_off_target"],
+                                               r["rate"]))
+    for k in _MENTION_BLINDSPOT:
+        r = men["negatives_blindspot"]["by_kind"][k]
+        P("     %-16s n=%3d  moved=%d (%s)   [blind spot, not in any rate]" % (
+            k, r["n"], r["moved_off_target"], r["rate"]))
+
+    P("")
+    P("CLAIM CHANNEL  (branch coverage of _resolve_referent)")
+    P("  %-16s %4s %8s %8s  %s" % ("kind", "n", "correct", "rate", "resolved via"))
+    for k in _CLAIM_KINDS:
+        r = cl[k]
+        P("  %-16s %4d %8d %8s  %s" % (
+            k, r["n"], r["correct"], r["rate"],
+            ", ".join("%s=%d" % kv for kv in sorted(r["resolved_how"].items()))))
+
+    c = s["containment"]
+    P("")
+    P("CONTAINMENT (what the referent layer CHANGES about a card) -- %d events" % c["events"])
+    for cell, n in sorted(c["by_node_type_field_action"].items()):
+        P("  %-58s %d" % (cell, n))
+    P("  gate actions over all probes: %s" % ", ".join(
+        "%s=%d" % kv for kv in sorted(c["all_gate_actions"].items())))
+
+    a = s["hand_adjudication"]
+    if a.get("n_labelled"):
+        P("")
+        P("HAND ADJUDICATION  (%d spans labelled by a human reader)" % a["n_labelled"])
+        cm = a["confusion_matrix_on_decidable"]
+        P("                          moved off target   stayed on target")
+        P("  really about non-target %12d %18d" % (
+            cm["true_positive_moved_and_about_non_target"],
+            cm["false_negative_stayed_but_about_non_target"]))
+        P("  really about the target %12d %18d" % (
+            cm["false_positive_moved_but_about_target"],
+            cm["true_negative_stayed_and_about_target"]))
+        P("  precision=%s (strict, right node too: %s)" % (
+            a["precision"], a["strict_precision"]))
+        rw = a["section_positive_recall_reweighted"]
+        P("  section-positive recall, re-weighted: %s  (%d moved and really off-target;"
+          " %d of %d sampled non-movers were off-target claims -> ~%s missed of %d)" % (
+              rw["estimated_recall"], rw["moved_and_about_non_target"],
+              rw["of_them_about_non_target"], rw["sampled_non_movers"],
+              rw["estimated_missed_off_target_claims"], rw["non_movers_total"]))
+        P("  label mix: %s" % ", ".join("%s=%d" % kv for kv in sorted(a["labels"].items())))
+        P("  NOTE: the matrix above pools strata (section channel, containment events, a")
+        P("  sample of mention 'strict' positives), so it is a diagnostic, not a rate.")
+        sc = a["section_channel_only_confusion"]
+        if sc:
+            P("  SECTION CHANNEL ONLY  tp=%d fn=%d fp=%d tn=%d  precision=%s" % (
+                sc["true_positive"], sc["false_negative"], sc["false_positive"],
+                sc["true_negative"], sc["precision"]))
+        mb = a["mention_strict_bucket_check"]
+        if mb.get("n_labelled"):
+            P("  MENTION 'strict' bucket check: %d labelled, %d are really about the "
+              "TARGET" % (mb["n_labelled"], mb["really_about_the_target"]))
+            P("     (%d are about a non-target AND bound to the right node)"
+              % mb["really_about_a_non_target_and_bound_to_the_right_node"])
+        P("  HARMFUL containment (a target claim dropped/refiled): %d" % len(
+            a["harmful_containment"]))
+        for h in a["harmful_containment"][:8]:
+            P("     - %-16s %-28s %s | %s" % (h["card"], h["field"], h["action"],
+                                              h["span"][:60]))
+    P("")
+
+
+SPLICE_LIMITATIONS = [
+    "CIRCULARITY, the finding that decides what this instrument is worth: the mention "
+    "channel selects positives with frame.match_mention, the predicate the resolver "
+    "decides with, so its numbers are analytically forced and are reported as "
+    "CONFORMANCE, never as detection or false-positive rates. The measured numbers come "
+    "from the section channel, whose selection signal (the enclosing heading) the "
+    "resolver never sees.",
+    "The section channel's ground truth is a HYPOTHESIS, not certainty: a sentence "
+    "under a heading that names benchmark X is usually about X, but not always. The "
+    "hand-adjudicated sample is what bounds that error, and it is one annotator.",
+    "The hand adjudication is by the author of the instrument, LLM-assisted, with no "
+    "second rater and no inter-rater agreement. It is evidence, not ground truth.",
+    "Section-bound positives are concentrated in few papers (a paper only has sections "
+    "named after other benchmarks if it is a suite/meta paper), so that class has a "
+    "small effective sample even when its row count is not small. Read the distinct-"
+    "span and card counts printed next to every n.",
+    "The pre/post delta is confined to claimed_referent == 'target', which is the only "
+    "branch a9b5177 changed. The share of production traffic that claims 'target' is "
+    "NOT measured here (composition_metadata persists the resolution counts but not the "
+    "claimed value per record), so the delta cannot be scaled to production as it "
+    "stands.",
+    "claim_wrong shows a class both resolvers fail: a claimed non-target id is obeyed "
+    "unchecked by design. If the extractor ever mis-attributes in that direction, "
+    "nothing downstream of this layer contests it.",
+    "frame.build_frame ran with llm_handler=None, so the production LLM sibling pass is "
+    "absent. Sibling nodes come only from EEE contains/appears_in, and most of those "
+    "are 'contains' (components of the target), not rival benchmarks.",
+    "The probes are SYNTHETIC splices: a real span of the paper, relabelled. No model "
+    "produced them, so they say nothing about how often the extractor actually splices.",
+    "verify_items ran with shown_text='' (the outside_shown check is skipped). "
+    "Production passes a RAG/budget-selected slice of the paper, which is not "
+    "reproducible offline; some spans would have been rejected there regardless.",
+    "Paper (docling) source only. HF-readme items take a different path (15K cap, no "
+    "doc_index, no region gates) and are not exercised.",
+    "The field on each probe comes from a stand-in router in the generator, not from "
+    "the LLM extractor that assigns fields in production. Any number whose denominator "
+    "depends on the field mix (containment above all) is therefore not a production "
+    "rate, and containment is reported as an event count and a gate-table coverage "
+    "statement instead.",
+    "Cached docling sources: a large share of the cards come from archive run trees "
+    "that may predate the current docling version, so the Stage-A string is not "
+    "guaranteed to be byte-identical to what a fresh run would produce. The probe file "
+    "records the lane per probe.",
+    "The wrong-paper screen removes cards whose cached paper is a different document "
+    "entirely (six such cards were in the previous probe set). It cannot catch a "
+    "HOMONYM: a card whose slug matches an unrelated paper's own name still passes.",
+    "eav.run_eav (the model-based attribution audit) was NOT run: this path makes zero "
+    "LLM calls.",
+]
+
+
+def run_splice_mode(args):
+    probes = [json.loads(line) for line in open(args.probes) if line.strip()]
+    adjudication = load_adjudication()
+    contexts = {}
+
+    def ctx_for(probe):
+        key = probe["card"] + "::" + probe["doc"]
+        if key not in contexts:
+            contexts[key] = CardContext(probe["card"], probe["doc"])
+        return contexts[key]
+
+    def score_all():
+        return [score_splice_probe(ctx_for(p), p) for p in probes]
+
+    def dist(rows):
+        return {"n": len(rows), "distinct_spans": len({r["span"] for r in rows}),
+                "cards": len({r["card"] for r in rows})}
+
+    out = {
+        "probe_set": {
+            "file": os.path.relpath(args.probes, REPO),
+            "n": len(probes),
+            "cards": len({p["card"] for p in probes}),
+            "by_channel": {ch: dist([p for p in probes if p.get("channel") == ch])
+                           for ch in ("mention", "section", "claim")},
+            "by_class": {c: dist([p for p in probes if p.get("class_label") == c])
+                         for c in sorted({p.get("class_label", "") for p in probes})},
+            "fields": dict(Counter(p["field"] for p in probes)),
+            "source_lane": dict(Counter(p.get("doc_lane", "") for p in probes)),
+            "claimed_referent_kinds": dict(Counter(
+                "target" if p["claimed_referent"] == "target" else "non_target_or_other"
+                for p in probes)),
+        },
+        "adjudication_file": os.path.relpath(ADJUDICATION_PATH, REPO)
+        if adjudication else None,
+        "limitations": SPLICE_LIMITATIONS,
+    }
+
+    print("=" * 78)
+    print("SPLICE PROBE SCORES  (verbatim spans; real verify_items + assignment gates)")
+    print("=" * 78)
+    print("probes %d over %d cards" % (out["probe_set"]["n"], out["probe_set"]["cards"]))
+    for ch, d in out["probe_set"]["by_channel"].items():
+        print("  %-9s n=%-4d distinct spans=%-4d cards=%d" % (
+            ch, d["n"], d["distinct_spans"], d["cards"]))
+    print("  hand-adjudicated labels available: %d" % len(adjudication))
+    print("")
+
+    if not args.pre_fix_only:
+        post = score_all()
+        out["post_fix"] = summarize_splice(post, "current resolver (post-fix, a9b5177)",
+                                           adjudication)
+        out["probes_post_fix"] = post
+        print_splice_summary(out["post_fix"])
+
+    # --- pre-fix comparison: monkeypatch a local copy of the old resolver.
+    saved = evidence._resolve_referent
+    try:
+        evidence._resolve_referent = _pre_fix_resolve_referent
+        pre = score_all()
+    finally:
+        evidence._resolve_referent = saved
+    out["pre_fix"] = summarize_splice(pre, "pre-fix resolver (before a9b5177)",
+                                      adjudication)
+    if args.pre_fix_only:
+        out["probes_pre_fix"] = pre
+    print_splice_summary(out["pre_fix"])
+
+    if "post_fix" in out:
+        a, b = out["pre_fix"], out["post_fix"]
+
+        def g(s, *path):
+            cur = s
+            for k in path:
+                cur = cur[k]
+            return cur
+
+        rows = [
+            ("SECTION detection (measured)", "section_channel_measured", "positives",
+             "detection_rate"),
+            ("SECTION FPR (measured)", "section_channel_measured", "negatives",
+             "false_positive_rate"),
+            ("mention conformance (forced)", "mention_channel_conformance_only",
+             "positives_conformance", "conformance_rate"),
+            ("mention negatives (forced)", "mention_channel_conformance_only",
+             "negatives", "rate"),
+            ("claim_correct correct", "claim_channel_branch_coverage",
+             "claim_correct", "rate"),
+            ("claim_wrong correct", "claim_channel_branch_coverage",
+             "claim_wrong", "rate"),
+            ("claim_name correct", "claim_channel_branch_coverage",
+             "claim_name", "rate"),
+            ("claim_unknown correct", "claim_channel_branch_coverage",
+             "claim_unknown", "rate"),
+        ]
+        out["delta"] = {name: [g(a, *path), g(b, *path)] for name, *path in
+                        [(r[0], *r[1:]) for r in rows]}
+        out["delta_note"] = (
+            "Every probe outside the claim channel claims referent 'target', which is "
+            "exactly and only the branch a9b5177 changed. The claim-channel rows are "
+            "identical pre and post by construction: they exercise branches the commit "
+            "did not touch. Read the delta as a wiring regression test on one branch, "
+            "not as a system-level improvement estimate.")
+        print("=" * 78)
+        print("BEFORE / AFTER")
+        print("=" * 78)
+        print("  %-34s %-12s %-12s" % ("", "pre-fix", "post-fix"))
+        for name, *path in rows:
+            print("  %-34s %-12s %-12s" % (name, g(a, *path), g(b, *path)))
+        print("")
+        print("  %s" % out["delta_note"])
+        pre_moved = a["mention_channel_conformance_only"][
+            "positives_conformance"]["moved_off_target"]
+        if pre_moved:
+            print("  WARNING: the pre-fix resolver moved %d mention positive(s) off "
+                  "target. The diagnosis predicts 0" % pre_moved)
+            print("  by construction (a claimed 'target' is always a valid node id and "
+                  "was returned unchecked).")
+        else:
+            print("  pre-fix movement is 0 on every probe claiming 'target', as the "
+                  "diagnosis predicts: the old")
+            print("  resolver returned the claimed id unchecked and its quote scan was "
+                  "dead code.")
+        print("")
+
+    print("LIMITATIONS")
+    for lim in SPLICE_LIMITATIONS:
+        print("  - %s" % lim)
+
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    with open(args.out, "w") as f:
+        json.dump(out, f, indent=2)
     print("")
     print("wrote %s" % args.out)
 
