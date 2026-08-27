@@ -504,3 +504,5 @@ def test_tier1_keep_fetches_authors_for_display(monkeypatch):
     assert ids["paper_authors"] == ["Zirui Wang", "Mengzhou Xia"]
     assert ids["paper_title"] == "already set"           # fill-only
     assert ids["paper_year"] == 2024
+    # the abstract (the composer's PDF-failure fallback) is filled from the same URL
+    assert ids["paper_abstract"].startswith("charts realistic chart understanding")

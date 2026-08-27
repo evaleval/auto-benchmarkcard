@@ -68,6 +68,8 @@ def no_live(monkeypatch):
     monkeypatch.setattr(W, "_verify_paper_binding_gate", boom)
     monkeypatch.setattr(W, "_fetch_paper_authors",
                         lambda url: {"authors": ["A. Author"], "title": "T", "year": 2025})
+    monkeypatch.setattr(W, "_fetch_paper_meta_for_verify",
+                        lambda url: {"title": "T", "abstract": "An abstract.", "fetch_error": False})
 
 
 def test_helpers_inactive_without_env(monkeypatch):

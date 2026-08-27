@@ -489,19 +489,30 @@ def _with_paper_meta(ids, paper_url):
     'Not specified' (swe-bench-multimodal in the phase 3 gate, 13 authors lost). The
     fetch is the resolver's own arXiv/OpenAlex metadata lookup, fail-soft."""
     ids = dict(ids or {})
-    if ids.get("paper_authors") and ids.get("paper_title"):
-        return ids
-    try:
-        meta = _fetch_paper_authors(paper_url) or {}
-    except Exception as e:
-        logger.warning("Paper metadata fetch failed for %s: %s", paper_url, e)
-        return ids
-    if meta.get("authors") and not ids.get("paper_authors"):
-        ids["paper_authors"] = list(meta["authors"])
-    if meta.get("title") and not ids.get("paper_title"):
-        ids["paper_title"] = meta["title"]
-    if meta.get("year") and not ids.get("paper_year"):
-        ids["paper_year"] = meta["year"]
+    if not (ids.get("paper_authors") and ids.get("paper_title")):
+        try:
+            meta = _fetch_paper_authors(paper_url) or {}
+        except Exception as e:
+            logger.warning("Paper metadata fetch failed for %s: %s", paper_url, e)
+            meta = {}
+        if meta.get("authors") and not ids.get("paper_authors"):
+            ids["paper_authors"] = list(meta["authors"])
+        if meta.get("title") and not ids.get("paper_title"):
+            ids["paper_title"] = meta["title"]
+        if meta.get("year") and not ids.get("paper_year"):
+            ids["paper_year"] = meta["year"]
+    if not ids.get("paper_abstract"):
+        # the abstract is the composer's fallback source when the PDF cannot be converted;
+        # the search path carries it, a URL-only binding did not
+        try:
+            verify_meta = _fetch_paper_meta_for_verify(paper_url) or {}
+        except Exception as e:
+            logger.warning("Paper abstract fetch failed for %s: %s", paper_url, e)
+            verify_meta = {}
+        if verify_meta.get("abstract"):
+            ids["paper_abstract"] = verify_meta["abstract"]
+        if verify_meta.get("title") and not ids.get("paper_title"):
+            ids["paper_title"] = verify_meta["title"]
     return ids
 
 
