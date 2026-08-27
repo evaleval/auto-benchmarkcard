@@ -294,6 +294,9 @@ class CardSchema:
     extraction_system: str = ""
     not_applicable: Optional[str] = None
     section_models: Optional[Dict[str, Any]] = None
+    # short value fields (a name, a date, a license id): a sentence there is a
+    # validation error the repair loop must fix, never a value
+    value_fields: Set[str] = field(default_factory=set)
 
     @property
     def composed_sections(self) -> List[str]:

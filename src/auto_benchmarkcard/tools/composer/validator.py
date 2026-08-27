@@ -387,6 +387,20 @@ def _typecheck(model_cls, secdict: dict) -> Tuple[Optional[dict], List[VErr]]:
         return None, errs
 
 
+_SENTENCE_VERB_RE = re.compile(r"\b(is|was|are|were|has|have|had|includes|contains)\b", re.IGNORECASE)
+
+
+def looks_like_sentence(val: Any) -> bool:
+    """A string that reads as a sentence rather than a bare value: it carries a finite
+    verb, or it ends with a period and runs past four words."""
+    if not isinstance(val, str):
+        return False
+    text = val.strip()
+    if _SENTENCE_VERB_RE.search(text):
+        return True
+    return text.endswith(".") and len(text.split()) > 4
+
+
 def validate_sections(parsed: dict, section_names: List[str],
                       section_models: Dict[str, Any], digest_ids: set,
                       exempt_extra: set,
@@ -423,6 +437,13 @@ def validate_sections(parsed: dict, section_names: List[str],
                 stats["ns_normalized"] += 1
             secdict[fld] = val
             if is_not_specified(val) or (sch.not_applicable and val == sch.not_applicable):
+                continue
+
+            # A value field (name, date, license id) must hold the bare value. "The model
+            # was released in November 2024." is a sentence about the value, not the value.
+            if path in sch.value_fields and looks_like_sentence(val):
+                errors.append(VErr(path, "sentence_in_value_field",
+                                   "value field holds a sentence; give the bare value only"))
                 continue
 
             # Evidence-id leakage. A field whose substantive content is an evidence-id citation

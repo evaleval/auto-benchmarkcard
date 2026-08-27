@@ -138,6 +138,27 @@ def test_widget_schema_drives_stage_b_prompt_and_validator():
     assert errors[0].path == "identity.stage"
 
 
+def test_value_fields_reject_sentences_and_the_benchmark_schema_has_none():
+    # failure class: Stage B writes a sentence about the value into a bare-value field
+    # ("The official display name is OLMo-2-1124-7B-Instruct." as a name, seen on the
+    # model-card smoke); the validator must flag it so the repair loop replaces it
+    assert fs.resolve_schema(None).value_fields == set()
+    sch = widget_schema()
+    sch.value_fields = {"identity.name"}
+    out = {"identity": {"name": "The widget's official name is Zorb.", "stage": "production",
+                        "provenance": {"stage": {"evidence_ids": ["E1"]}}},
+           "specs": {"colors": "Not specified", "weight": "Not specified", "provenance": {}}}
+    _, errors, _ = V.validate_sections(out, ["identity", "specs"], sch.section_models, {"E1"}, set(), schema=sch)
+    assert [(e.path, e.type) for e in errors] == [("identity.name", "sentence_in_value_field")]
+    out["identity"]["name"] = "Zorb Mk. II"
+    _, errors, _ = V.validate_sections(out, ["identity", "specs"], sch.section_models, {"E1"}, set(), schema=sch)
+    assert errors == []
+    assert V.looks_like_sentence("The model was released in November 2024.")
+    assert not V.looks_like_sentence("November 2024")
+    assert not V.looks_like_sentence("7,298,617,344 parameters (safetensors metadata)")
+    assert not V.looks_like_sentence("Dec. 2023")
+
+
 def test_widget_schema_group_loop_ships_with_its_ns_shape():
     sch = widget_schema()
     good = {"identity": {"name": "Zorb", "stage": "production",
