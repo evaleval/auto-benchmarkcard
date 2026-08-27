@@ -1912,12 +1912,41 @@ def _apply_hf_corroboration_gate(state, card, provenance):
         )
 
 
+def _rits_reachable(timeout=30.0):
+    """Can RITS serve the FactReasoner model right now? One 16-token inference call with a
+    short timeout; a plain HTTP GET is not enough (on 2026-08-27 a slow gateway answered
+    GETs after 16s while every inference request timed out at 420s). Never raises."""
+    if not (os.getenv("RITS_API_URL") and os.getenv("RITS_API_KEY")):
+        return False
+    try:
+        import httpx
+        from auto_benchmarkcard.llm_handler import LLMHandler
+        handler = LLMHandler(engine_type="rits", model_name=Config.FACTREASONER_MODEL,
+                             parameters={"temperature": 0.0, "max_completion_tokens": 16})
+        client = getattr(handler.engine, "client", None)
+        if client is not None and hasattr(client, "with_options"):
+            handler.engine.client = client.with_options(
+                timeout=httpx.Timeout(timeout, connect=10.0), max_retries=0)
+        return isinstance(handler.generate("Say OK."), str)
+    except Exception as exc:
+        logger.warning("RITS inference probe failed: %s", str(exc)[:160])
+        return False
+
+
 def run_factreasoner(state):
     """Evaluate factuality of card claims and produce the final flagged card."""
     logger.info("Starting factuality evaluation")
 
     if not state.get("rag_results"):
         return record_skip("No RAG results available", "FactReasoner evaluation", state)
+
+    # FactReasoner is pinned to RITS Llama-3.3-70B. When RITS cannot be reached the
+    # outcome is the same either way (no factuality flags on the card), but a blind
+    # attempt burns the 420s read timeout per call first; on 2026-08-27 that was ~7 min
+    # of dead time per card. Fail fast and say why.
+    if Config.LLM_ENGINE_TYPE.lower() == "rits" and not _rits_reachable():
+        return record_skip("RITS endpoint unreachable; factuality skipped",
+                           "FactReasoner evaluation", state)
 
     try:
         benchmark_name = sanitize_benchmark_name(state["query"])
