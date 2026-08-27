@@ -662,3 +662,58 @@ def test_g2_1_ns_baseline_untouched():
     C._drop_ungrounded_baselines(card, [], _REAL_DET)
     assert card["methodology"]["baseline_results"] == "Not specified"
     assert "flagged_fields" not in card or "methodology.baseline_results" not in card["flagged_fields"]
+
+
+# ---------------------------------------------------------------------------------------------
+# WP1.3 -- deterministic size vs paper-stated count: surface the conflict, withdraw the det size
+
+def _size_items(quote, doc="docling", referent="target", role="primary_result"):
+    return [{"field": "data.size", "quote": quote, "doc": doc, "referent": referent,
+             "claim_role": role}]
+
+
+def test_size_conflict_withdraws_det_size_and_split_breakdown():
+    # swe-bench-multimodal: croissant row count 580 (dev 100 / test 480) vs the paper's 619.
+    det = {"data.size": "580 examples", "data.size_breakdown": {"dev": 100, "test": 480},
+           "data.format": "parquet"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a final total of 619 task instances"), conflicts)
+    assert "data.size" not in det and "data.size_breakdown" not in det
+    assert det["data.format"] == "parquet"
+    assert conflicts == [{"field": "data.size", "deterministic": "580 examples",
+                          "composed": "619 (paper-stated count)",
+                          "note": "hf/croissant row count vs paper-stated count"}]
+
+
+def test_size_conflict_agreeing_count_is_silent():
+    det = {"data.size": "617 examples", "data.size_breakdown": {"dev": 102, "test": 515}}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("we release 619 task instances"), conflicts)
+    assert det["data.size"] == "617 examples" and conflicts == []      # within 1%
+
+
+def test_size_conflict_ignores_subset_and_secondary_quotes():
+    det = {"data.size": "580 examples"}
+    conflicts = []
+    items = (_size_items("the Hard subset has 2,000 problems", referent="subset:hard")
+             + _size_items("SWE-bench has 2,294 task instances", role="secondary")
+             + _size_items("the HF card lists 1,000 rows", doc="hf_readme"))
+    C._surface_size_conflicts(det, items, conflicts)
+    assert det["data.size"] == "580 examples" and conflicts == []
+
+
+def test_size_conflict_keeps_non_split_breakdown():
+    # a per-subject breakdown is not the artifact row count; only a split partition summing
+    # to the withdrawn size goes with it
+    det = {"data.size": "580 examples", "data.size_breakdown": {"algebra": 300, "geometry": 280}}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a total of 619 problems"), conflicts)
+    assert "data.size" not in det
+    assert det["data.size_breakdown"] == {"algebra": 300, "geometry": 280}
+
+
+def test_size_conflict_bucket_size_is_not_compared():
+    det = {"data.size": "Less than 1K examples"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a total of 619 problems"), conflicts)
+    assert det["data.size"] == "Less than 1K examples" and conflicts == []

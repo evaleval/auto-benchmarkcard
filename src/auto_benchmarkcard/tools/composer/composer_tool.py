@@ -1475,6 +1475,58 @@ def _enforce_numeric_consistency(
         data["size_breakdown"] = "Not specified"
 
 
+def _surface_size_conflicts(det_facts: Dict[str, Any],
+                            evidence_items: Optional[List[Dict[str, Any]]],
+                            conflicts: List[Dict[str, Any]]) -> None:
+    """A paper-stated example count that disagrees with the deterministic (HF tag or
+    croissant row-count) size is a source conflict, not a silent priority.
+
+    swe-bench-multimodal: the HF parquet held 580 rows (dev 100 / test 480) while the
+    paper states 619 task instances; the croissant channel won by construction, Stage B
+    echoed 580 as 'already established', and the paper-cited annotation field then
+    contradicted the card's own size. The schema description for data.size prefers the
+    paper's count, so on a material disagreement the deterministic size (and a split
+    breakdown that sums to it, i.e. the same artifact count) is withdrawn from
+    det_facts: Stage B composes the size from the cited paper evidence and the conflict
+    lands in flagged_fields with the HF number. Only target-referent, primary-result
+    paper quotes tagged data.size count; the largest such count is the benchmark total.
+    Mutates det_facts and appends to conflicts in place."""
+    det_size = det_facts.get("data.size")
+    det_count = _size_count(det_size)
+    if det_count is None:
+        return
+    paper_docs = {evidence.DOC_PAPER, evidence.DOC_ABSTRACT}
+    counts: List[int] = []
+    for it in evidence_items or []:
+        if not isinstance(it, dict) or it.get("field") != "data.size":
+            continue
+        if it.get("doc") not in paper_docs:
+            continue
+        if it.get("referent") not in ("", "target", None):
+            continue
+        if it.get("claim_role") not in ("", "primary_result", None):
+            continue
+        n = _prose_example_count(it.get("quote", ""))
+        if n:
+            counts.append(n)
+    if not counts:
+        return
+    paper_count = max(counts)
+    if abs(paper_count - det_count) <= max(1, det_count // 100):
+        return
+    conflicts.append({
+        "field": "data.size", "deterministic": det_size,
+        "composed": f"{paper_count} (paper-stated count)",
+        "note": "hf/croissant row count vs paper-stated count",
+    })
+    del det_facts["data.size"]
+    sb = det_facts.get("data.size_breakdown")
+    if isinstance(sb, dict) and sb and all(_is_split_name(k) for k in sb):
+        total = sum(v for v in sb.values() if isinstance(v, int) and not isinstance(v, bool))
+        if abs(total - det_count) <= max(1, det_count // 100):
+            del det_facts["data.size_breakdown"]
+
+
 # A meta-statement about missing documentation is not a benchmark description: do not surface it
 # as an overview (the card stays honestly thin instead).
 _NO_DOC_META_RE = re.compile(
@@ -3770,6 +3822,13 @@ def compose_benchmark_card(
     if gate_telem.get("summary"):
         logger.info("Assignment gates: %s", gate_telem["summary"])
 
+    # A deterministic size the paper contradicts is withdrawn before Stage B can echo it
+    # as established; the disagreement ships as a flag (surfaced at Phase 7).
+    size_conflicts: List[Dict[str, Any]] = []
+    _surface_size_conflicts(det_facts, evidence_items, size_conflicts)
+    if size_conflicts:
+        logger.info("Size conflict surfaced: %s", size_conflicts)
+
     # EAV: one grouped audit call over the risky slice of the digest, demoting
     # items whose quote is not about the claimed referent or field. Runs before
     # digest_ids so Stage B can never cite a demoted item.
@@ -3883,7 +3942,7 @@ def compose_benchmark_card(
 
     # Phase 7: Deterministic overrides, with source conflicts surfaced instead of
     # silently resolved (the tag stays authoritative; the reader sees the disagreement).
-    det_conflicts: List[Dict[str, Any]] = list(croissant_conflicts)
+    det_conflicts: List[Dict[str, Any]] = list(croissant_conflicts) + size_conflicts
     benchmark_card_dict = apply_deterministic_overrides(
         benchmark_card_dict, det_facts, conflicts=det_conflicts)
 

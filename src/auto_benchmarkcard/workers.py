@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import glob
+import json
 import os
 import re
 from datetime import datetime
@@ -38,7 +40,8 @@ from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import (
 )
 from auto_benchmarkcard.tools.eee.paper_resolver import (
     resolve_paper, _repo_corroboration, _token_is_namelike, verify_hf_match,
-    verify_paper_binding, _fetch_paper_meta_for_verify, _introduces_other_benchmark,
+    verify_paper_binding, _fetch_paper_meta_for_verify, _fetch_paper_authors,
+    _introduces_other_benchmark,
     _parent_only_binding, _distinctive_base, _title_bears_name, NAME_TOKEN_FLOOR_LEN)
 from auto_benchmarkcard.tools.hf.hf_tool import hf_dataset_metadata
 from auto_benchmarkcard.tools.rag.atomizer import atomize_benchmark_card
@@ -422,6 +425,68 @@ def _verify_paper_binding_gate(state, paper_url, binding_source, ctx):
                     "reason": f"{detail}; pre-set binding kept (degraded)"}
 
 
+def _bundle_dir():
+    """The source-bundle root when a replay is active (SOURCE_BUNDLE_DIR), else None.
+
+    A bundle is simply a prior run's output directory: <root>/<slug>_<stamp>/tool_output/
+    <tool>/<file>. Replaying from it makes paper binding, docling text, HF metadata, HTML,
+    GitHub README and croissant facts byte-identical across two conditions, which is the
+    source-parity mechanism for a paired read (the phase 2 gate was unattributable because
+    live resolution attached a paper in one condition and not the other)."""
+    root = os.environ.get("SOURCE_BUNDLE_DIR")
+    return root or None
+
+
+def _bundle_tool_output(state, tool, filename):
+    """This card's cached <tool>/<filename> from the bundle, or None. The newest run dir
+    that carries the file wins (a failed later attempt without it does not mask an
+    earlier complete one). Read-only; never raises."""
+    root = _bundle_dir()
+    if not root:
+        return None
+    slug = sanitize_benchmark_name(state["query"])
+    for d in sorted(glob.glob(os.path.join(root, f"{slug}_*")), reverse=True):
+        path = os.path.join(d, "tool_output", tool, filename)
+        if os.path.isfile(path):
+            try:
+                with open(path) as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning("Bundle file unreadable, treating as absent: %s (%s)", path, e)
+                return None
+    return None
+
+
+def _bundle_croissant_facts(state):
+    """The bundle run's cached croissant facts for this card, or None."""
+    return _bundle_tool_output(
+        state, "hf", f"croissant_{sanitize_benchmark_name(state['query'])}.json")
+
+
+def _with_paper_meta(ids, paper_url):
+    """Authors, title and year for a URL-only paper binding, fill-only.
+
+    The Tier-2/3 search path sources these from the record it found, but a pre-set or
+    HF arxiv-tag binding carried only the URL, so every Tier-1 card shipped authors
+    'Not specified' (swe-bench-multimodal in the phase 3 gate, 13 authors lost). The
+    fetch is the resolver's own arXiv/OpenAlex metadata lookup, fail-soft."""
+    ids = dict(ids or {})
+    if ids.get("paper_authors") and ids.get("paper_title"):
+        return ids
+    try:
+        meta = _fetch_paper_authors(paper_url) or {}
+    except Exception as e:
+        logger.warning("Paper metadata fetch failed for %s: %s", paper_url, e)
+        return ids
+    if meta.get("authors") and not ids.get("paper_authors"):
+        ids["paper_authors"] = list(meta["authors"])
+    if meta.get("title") and not ids.get("paper_title"):
+        ids["paper_title"] = meta["title"]
+    if meta.get("year") and not ids.get("paper_year"):
+        ids["paper_year"] = meta["year"]
+    return ids
+
+
 def _write_paper_binding_sidecar(state, ctx, record):
     """Write a paper-verification.json carrying the binding decision, so a pre-set/extracted paper
     binding is never silent (mirror of the HF _write_hf_verification_sidecar). Used on the KEEP paths;
@@ -457,6 +522,36 @@ def run_paper_resolver(state) -> Dict[str, Any]:
     try:
         extracted_ids = state.get("extracted_ids") or {}
         hf_json = state.get("hf_json") or {}
+
+        if _bundle_dir():
+            # Replay the bundle run's binding decision exactly: its resolved_url or nothing.
+            # A card that attached no paper there attaches none here (attachment parity),
+            # and no search runs. Authors/title/year are metadata for the same URL, fetched
+            # fill-only (display channel, not a source of card content).
+            sidecar = _bundle_tool_output(state, "paper_resolver", "paper-verification.json")
+            url = (sidecar or {}).get("resolved_url")
+            ids = {k: v for k, v in extracted_ids.items()
+                   if k not in ("paper_url", "paper_url_from_hf")}
+            om = state.get("output_manager")
+            if sidecar is not None and om is not None:
+                om.save_tool_output({**sidecar, "replayed_from_bundle": True},
+                                    "paper_resolver", "paper-verification.json")
+            if url:
+                ids["paper_url"] = url
+                ids = _with_paper_meta(ids, url)
+                return {
+                    "extracted_ids": ids,
+                    "paper_resolver_attempted": True,
+                    "paper_verified": True,
+                    "completed": [f"paper_resolver replayed from bundle url={url}"],
+                }
+            return {
+                "extracted_ids": ids,
+                "paper_resolver_attempted": True,
+                "paper_verified": True,
+                "completed": ["paper_resolver replayed from bundle: no paper"],
+            }
+
         ctx = _paper_identity_context(state)
         output_manager = state.get("output_manager")
         output_dir = output_manager.get_tool_output_path("paper_resolver") if output_manager else None
@@ -480,7 +575,7 @@ def run_paper_resolver(state) -> Dict[str, Any]:
             if action == "keep":
                 _write_paper_binding_sidecar(state, ctx, record)
                 return {
-                    "extracted_ids": extracted_ids,
+                    "extracted_ids": _with_paper_meta(extracted_ids, preset_url),
                     "paper_resolver_attempted": True,
                     "paper_verified": True,
                     "completed": [f"paper_resolver binding {record['verdict']} url={preset_url}"],
@@ -500,6 +595,7 @@ def run_paper_resolver(state) -> Dict[str, Any]:
                 if action == "keep":
                     updated = extracted_ids.copy()
                     updated["paper_url"] = readme_url
+                    updated = _with_paper_meta(updated, readme_url)
                     _write_paper_binding_sidecar(state, ctx, record)
                     logger.info("Paper URL from HF README (verified): %s", readme_url)
                     return {
@@ -682,6 +778,26 @@ def run_docling(state):
             "completed": ["docling skipped (no paper_url)"],
         }
 
+    if _bundle_dir():
+        # Replay: the bundle's docling text or nothing. Converting live here would let the
+        # two conditions read different paper bytes.
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "docling", filename)
+        if cached and cached.get("success"):
+            state["output_manager"].save_tool_output(cached, "docling", filename)
+            full_text = bool((cached.get("filtered_text") or "").strip())
+            return {
+                "docling_output": cached,
+                "docling_telemetry": _docling_telemetry(
+                    True, full_text, "ok" if full_text else "empty_body", None, paper_url),
+                "completed": ["docling replayed from bundle"],
+            }
+        return {
+            "docling_output": None,
+            "docling_telemetry": _docling_telemetry(True, False, "bundle_no_docling", None, paper_url),
+            "completed": ["docling extraction failed"],
+        }
+
     # Normalize URL and check accessibility before Docling
     normalized = _normalize_paper_url(paper_url)
     if not normalized:
@@ -806,6 +922,17 @@ def _rank_html_url(url: str) -> int:
 
 def run_html_extractor(state):
     """Extract content from web pages using trafilatura."""
+    if _bundle_dir():
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "html", filename)
+        if cached and cached.get("success"):
+            state["output_manager"].save_tool_output(cached, "html", filename)
+            return {"html_content": cached, "completed": ["html replayed from bundle"]}
+        return {
+            "html_content": {"success": False, "text": "", "url": "", "title": ""},
+            "completed": ["html skipped (not in source bundle)"],
+        }
+
     try:
         urls = []
 
@@ -871,6 +998,23 @@ def run_github_readme(state):
     the html page), since some benchmarks name their repo only in prose. Fail-loud
     telemetry mirrors docling; the fetch is bounded by a hard timeout.
     """
+    if _bundle_dir():
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "github", filename)
+        if cached and cached.get("success"):
+            state["output_manager"].save_tool_output(cached, "github", filename)
+            url = cached.get("url", "")
+            return {
+                "github_readme": cached,
+                "github_telemetry": _github_telemetry(True, True, "ok", None, url),
+                "completed": ["github replayed from bundle"],
+            }
+        return {
+            "github_readme": {"success": False, "text": "", "url": ""},
+            "github_telemetry": _github_telemetry(False, False, "not_in_source_bundle"),
+            "completed": ["github skipped (not in source bundle)"],
+        }
+
     try:
         ids = state.get("extracted_ids") or {}
         eee_meta = state.get("eee_metadata") or {}
@@ -1148,6 +1292,23 @@ def run_hf(state):
     if not state["hf_repo"]:
         return record_skip("No hf_repo available", "HuggingFace lookup", state)
 
+    if _bundle_dir():
+        # Replay the bundle run's HF metadata and its verifier decision; no Hub call.
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "hf", filename)
+        if not cached:
+            return record_skip("No HF metadata in the source bundle", "HuggingFace lookup", state)
+        state["output_manager"].save_tool_output(cached, "hf", filename)
+        verdict = _bundle_tool_output(state, "hf_verifier", f"hf-verification{Config.JSON_EXTENSION}")
+        if verdict is not None:
+            _write_hf_verification_sidecar(state, {**verdict, "replayed_from_bundle": True})
+        if verdict and str(verdict.get("final_action", "")).startswith("rejected"):
+            cleared_ids = dict(state.get("extracted_ids") or {})
+            cleared_ids["hf_repo"] = None
+            return {"hf_repo": None, "hf_rejected": True, "extracted_ids": cleared_ids,
+                    "completed": ["hf replayed from bundle: rejected"]}
+        return {"hf_json": cached, "completed": ["hf replayed from bundle"]}
+
     try:
         hf_data = hf_dataset_metadata.func(repo_id=state["hf_repo"])
 
@@ -1281,7 +1442,13 @@ def run_composer(state):
         croissant_facts = None
         hf_json_pre = state.get("hf_json") or {}
         repo_id_pre = hf_json_pre.get("id")
-        if repo_id_pre:
+        croissant_filename = f"croissant_{sanitize_benchmark_name(state['query'])}.json"
+        if _bundle_dir():
+            # Replay: the bundle run's croissant facts or none. The live datasets-server
+            # row counts drift (swe-bench-multimodal moved 580 -> 612 rows within days), so
+            # a paired read must not refetch them.
+            croissant_facts = _bundle_croissant_facts(state)
+        elif repo_id_pre:
             try:
                 paper_url_pre = (state.get("extracted_ids") or {}).get("paper_url") or ""
                 pm_pre = _ARXIV_URL_RE.search(paper_url_pre)
@@ -1294,6 +1461,9 @@ def run_composer(state):
                     croissant_facts = fetch_croissant_facts(repo_id_pre)
             except Exception as e:
                 logger.warning("Croissant fetch failed (continuing without): %s", e)
+        if croissant_facts:
+            # Cached so a later replay from this run dir sees the same structural facts.
+            state["output_manager"].save_tool_output(croissant_facts, "hf", croissant_filename)
 
         result = compose_benchmark_card.func(
             unitxt_metadata=unitxt_for_composer,

@@ -265,6 +265,7 @@ def run_batch(
     backlog_file: Optional[str] = None,
     eee_path: Optional[str] = None,
     no_download: bool = False,
+    source_bundle: Optional[str] = None,
 ) -> None:
     """Run the full batch generation pipeline."""
     setup_file_logging(output_dir, debug)
@@ -273,6 +274,14 @@ def run_batch(
     logger.info("=" * 60)
     logger.info("BATCH GENERATE - Starting")
     logger.info("=" * 60)
+
+    if source_bundle:
+        bundle = Path(source_bundle).resolve()
+        if not bundle.is_dir():
+            raise SystemExit(f"--source-bundle is not a directory: {bundle}")
+        # The worker nodes read SOURCE_BUNDLE_DIR per call, so setting it here is enough.
+        os.environ["SOURCE_BUNDLE_DIR"] = str(bundle)
+        logger.info("SOURCE BUNDLE REPLAY: %s (no live paper/HF/HTML/GitHub fetches)", bundle)
 
     # Download data
     readme_names = parse_missing_benchmarks(backlog_file=backlog_file)
@@ -444,6 +453,12 @@ def main():
     parser.add_argument("--backlog", type=str, default=None, help="Path to backlog file (one benchmark per line)")
     parser.add_argument("--eee-path", type=str, default=None, help="Path to local EEE data dir (skips HF download entirely)")
     parser.add_argument("--no-download", action="store_true", help="Use HF cache only, skip ETag checks (much faster on repeat runs)")
+    parser.add_argument(
+        "--source-bundle", type=str, default=None,
+        help="Replay sources from a prior run's output dir (its <slug>_*/tool_output/): paper "
+             "binding, docling text, HF metadata, HTML, GitHub README and croissant facts are "
+             "read from there instead of fetched live, so two conditions compose from "
+             "byte-identical inputs. Cards whose bundle has no paper get no paper.")
 
     args = parser.parse_args()
     output_dir = Path(args.output).resolve()
@@ -457,6 +472,7 @@ def main():
             backlog_file=args.backlog,
             eee_path=args.eee_path,
             no_download=args.no_download,
+            source_bundle=args.source_bundle,
         )
     except KeyboardInterrupt:
         logger.info("Interrupted by user — partial results saved")
