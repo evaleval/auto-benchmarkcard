@@ -539,8 +539,9 @@ def run_paper_resolver(state) -> Dict[str, Any]:
                    if k not in ("paper_url", "paper_url_from_hf")}
             om = state.get("output_manager")
             if sidecar is not None and om is not None:
-                om.save_tool_output({**sidecar, "replayed_from_bundle": True},
-                                    "paper_resolver", "paper-verification.json")
+                # written verbatim: the screen inlines this sidecar, so it must carry no
+                # marker that could tell a condition apart (the run log records the replay)
+                om.save_tool_output(sidecar, "paper_resolver", "paper-verification.json")
             if url:
                 ids["paper_url"] = url
                 ids = _with_paper_meta(ids, url)
@@ -1306,7 +1307,7 @@ def run_hf(state):
         state["output_manager"].save_tool_output(cached, "hf", filename)
         verdict = _bundle_tool_output(state, "hf_verifier", f"hf-verification{Config.JSON_EXTENSION}")
         if verdict is not None:
-            _write_hf_verification_sidecar(state, {**verdict, "replayed_from_bundle": True})
+            _write_hf_verification_sidecar(state, verdict)   # verbatim, see run_paper_resolver
         if verdict and str(verdict.get("final_action", "")).startswith("rejected"):
             cleared_ids = dict(state.get("extracted_ids") or {})
             cleared_ids["hf_repo"] = None
