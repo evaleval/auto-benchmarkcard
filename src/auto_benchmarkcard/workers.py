@@ -445,7 +445,12 @@ def _bundle_tool_output(state, tool, filename):
     if not root:
         return None
     slug = sanitize_benchmark_name(state["query"])
-    for d in sorted(glob.glob(os.path.join(root, f"{slug}_*")), reverse=True):
+    # stamped run dirs (<slug>_<date>_<time>) newest first, then the exact <slug> layout the
+    # frozen S150 rundirs use (eval/s150/rundirs/<slug>/tool_output/...)
+    candidates = sorted(glob.glob(os.path.join(root, f"{slug}_*")), reverse=True)
+    if os.path.isdir(os.path.join(root, slug)):
+        candidates.append(os.path.join(root, slug))
+    for d in candidates:
         path = os.path.join(d, "tool_output", tool, filename)
         if os.path.isfile(path):
             try:

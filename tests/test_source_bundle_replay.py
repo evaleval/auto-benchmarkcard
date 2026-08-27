@@ -163,3 +163,15 @@ def test_croissant_replay_helper(bundle):
     _write(bundle, "x", "2026-01-01_00-00", "hf", "croissant_x.json", {"data.size": "10 examples"})
     assert W._bundle_croissant_facts(_state("x")) == {"data.size": "10 examples"}
     assert W._bundle_croissant_facts(_state("nope")) is None
+
+
+def test_exact_slug_dir_layout_is_a_bundle(bundle):
+    # eval/s150/rundirs/<slug>/tool_output/... has no run stamp; it is the frozen corpus's
+    # own source set and the natural bundle for the paired read.
+    d = bundle / "x" / "tool_output" / "docling"
+    d.mkdir(parents=True)
+    (d / "x.json").write_text(json.dumps({"v": "frozen"}))
+    assert W._bundle_tool_output(_state("x"), "docling", "x.json") == {"v": "frozen"}
+    # a stamped dir still wins over the bare one
+    _write(bundle, "x", "2026-05-05_00-00", "docling", "x.json", {"v": "stamped"})
+    assert W._bundle_tool_output(_state("x"), "docling", "x.json") == {"v": "stamped"}
