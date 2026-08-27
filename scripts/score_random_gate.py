@@ -10,9 +10,15 @@ over-read), the split by paper attachment (a card whose paper did not resolve ca
 the grounding path, which is what made the phase 2 gate unattributable), and the regression
 question that matters most: did cards with ZERO frozen defects get worse?
 
+When --draw is given, the scored card set must equal the draw's selection exactly; a
+partial screen (a card that never regenerated or was never screened) fails the run loudly
+instead of silently scoring a smaller n. Per-category paired deltas carry their own
+bootstrap interval so a class movement (splice, fabricated-fact) is never reported as a
+bare count difference.
+
 Usage:
-  python scripts/score_random_gate.py --new-screen eval/random20_screen/screen/verdicts \
-      --run-dir output/random20/output [--draw eval/random20_draw.json]
+  python scripts/score_random_gate.py --new-screen eval/random40_screen/screen/verdicts \
+      --run-dir output/random40/output --draw eval/random40_draw.json
 """
 
 import argparse
@@ -67,6 +73,28 @@ def sign_test(pairs):
     return better, worse, same
 
 
+def check_draw(scored_cards, draw):
+    """The scored set must be exactly the drawn set. Returns the draw's card list.
+
+    Failure class: partial-screen undercount. A regen or screen that silently dropped
+    cards would otherwise score a smaller, self-selected n and bias the paired read."""
+    drawn = draw.get("selection_order") or []
+    if not drawn:
+        raise SystemExit("draw file carries no selection_order")
+    missing = sorted(set(drawn) - set(scored_cards))
+    extra = sorted(set(scored_cards) - set(drawn))
+    if missing or extra:
+        raise SystemExit(
+            f"scored cards do not match the draw (n={len(drawn)}): "
+            f"missing={missing} extra={extra}")
+    return drawn
+
+
+def class_pairs(rows, cat):
+    """Per-card (frozen, new) counts for one finding category."""
+    return [(r["frozen_cats"].get(cat, 0), r["new_cats"].get(cat, 0)) for r in rows]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--new-screen", required=True)
@@ -78,6 +106,10 @@ def main():
     new = load_dir(args.new_screen)
     frozen = load_dir(FROZEN_SCREEN)
     cards = sorted(new)
+    draw = None
+    if args.draw:
+        draw = json.load(open(args.draw))
+        cards = sorted(check_draw(cards, draw))
     missing = [c for c in cards if c not in frozen]
     if missing:
         raise SystemExit(f"no frozen verdict for: {missing}")
@@ -95,9 +127,10 @@ def main():
         })
 
     print(f"PAIRED READ over {len(rows)} randomly drawn cards")
-    if args.draw and os.path.exists(args.draw):
-        d = json.load(open(args.draw))
-        print(f"  draw: seed {d.get('seed')} from {d.get('population')}")
+    if draw is not None:
+        pop = draw.get("population")
+        pop_label = pop.get("path", pop) if isinstance(pop, dict) else pop
+        print(f"  draw: seed {draw.get('seed')} from {pop_label} (n={draw.get('n')})")
     print()
     print(f"  {'card':32} {'frozen':>6} {'new':>5} {'delta':>6} {'paper':>7}")
     for r in rows:
@@ -140,16 +173,26 @@ def main():
     fc, nc = collections.Counter(), collections.Counter()
     for r in rows:
         fc.update(r["frozen_cats"]); nc.update(r["new_cats"])
-    print("\n  BY CATEGORY")
+    print("\n  BY CATEGORY (paired bootstrap per class; a bare count delta over-reads)")
+    by_class = {}
     for cat in sorted(set(fc) | set(nc)):
-        print(f"    {cat:24} {fc.get(cat,0):>3} -> {nc.get(cat,0):<3}")
+        cp = class_pairs(rows, cat)
+        clo, chi = bootstrap_ci(cp)
+        cmean = sum(n - f for f, n in cp) / len(cp)
+        verdict = "spans zero" if clo < 0 < chi else (
+            "BELOW zero" if chi <= 0 else "ABOVE zero")
+        by_class[cat] = {"frozen": fc.get(cat, 0), "new": nc.get(cat, 0),
+                         "mean_delta": cmean, "ci95": [clo, chi]}
+        print(f"    {cat:24} {fc.get(cat,0):>3} -> {nc.get(cat,0):<3} "
+              f"mean {cmean:+.2f}/card CI [{clo:+.2f}, {chi:+.2f}]  ({verdict})")
 
     if args.out:
         json.dump({"rows": [{k: (dict(v) if isinstance(v, collections.Counter) else v)
                              for k, v in r.items()} for r in rows],
                    "total_frozen": tf, "total_new": tn,
                    "mean_delta": (tn - tf)/len(pairs), "ci95": [lo, hi],
-                   "better": better, "worse": worse, "same": same},
+                   "better": better, "worse": worse, "same": same,
+                   "by_class": by_class},
                   open(args.out, "w"), indent=1)
         print(f"\n  wrote {args.out}")
 
