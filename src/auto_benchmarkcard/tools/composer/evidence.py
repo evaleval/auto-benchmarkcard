@@ -297,21 +297,30 @@ class CuratorExtraction(BaseModel):
     evidence: List[EvidenceItemIn] = Field(default_factory=list)
 
 
-def fields_for_source(source: str) -> List[str]:
+def _curator_table(schema) -> Dict[str, Dict]:
+    """The curator field table of the schema in force (benchmark by default)."""
+    if schema is None:
+        return CURATOR_FIELDS
+    return schema.curator_fields or CURATOR_FIELDS
+
+
+def fields_for_source(source: str, schema=None) -> List[str]:
     """Dotted paths the given extraction call (paper/html/hf) should ask for."""
-    return [p for p, spec in CURATOR_FIELDS.items() if source in spec["sources"]]
+    return [p for p, spec in _curator_table(schema).items() if source in spec["sources"]]
 
 
-def gap_fields() -> Dict[str, str]:
+def gap_fields(schema=None) -> Dict[str, str]:
     """Paper gap-fill targets: dotted path -> retrieval query."""
-    return {p: spec["gap_query"] for p, spec in CURATOR_FIELDS.items() if spec["gap_query"]}
+    return {p: spec["gap_query"] for p, spec in _curator_table(schema).items()
+            if spec.get("gap_query")}
 
 
-def render_field_list(paths: List[str]) -> str:
+def render_field_list(paths: List[str], schema=None) -> str:
     """Render allowed fields as prompt bullets with their hints."""
+    table = _curator_table(schema)
     lines = []
     for p in paths:
-        hint = CURATOR_FIELDS.get(p, {}).get("hint", "")
+        hint = table.get(p, {}).get("hint", "")
         lines.append(f"- {p}: {hint}" if hint else f"- {p}")
     return "\n".join(lines)
 
@@ -343,16 +352,23 @@ def build_extraction_prompt(
     source_text: str = "",
     name_alias_line: str = "",
     frame: Optional[Dict] = None,
+    schema=None,
 ) -> str:
     """Assemble the full extraction prompt (system + body) for one source call.
 
     Built by concatenation rather than str.format so the JSON example braces need no
     escaping. The model is asked for verbatim quotes only; Python verifies them. When a
     referent frame is given, each item also carries the referent id and a claim role, both
-    validated in Python afterwards.
+    validated in Python afterwards. schema (a field_spec.CardSchema) supplies the entity
+    wording and the field table; None means the benchmark schema, byte-identical to the
+    text this prompt always produced.
     """
+    entity = schema.entity_noun if schema is not None else "benchmark"
+    others = schema.other_entities_phrase if schema is not None else "benchmarks or datasets"
+    system_text = (schema.extraction_system or EXTRACTION_SYSTEM) if schema is not None \
+        else EXTRACTION_SYSTEM
     header = (
-        f'Read this {source_label} about the benchmark "{benchmark_name}" and extract '
+        f'Read this {source_label} about the {entity} "{benchmark_name}" and extract '
         f"verbatim supporting quotes."
     )
     with_frame = bool(frame and frame.get("nodes"))
@@ -394,7 +410,7 @@ def build_extraction_prompt(
     rules += (
         "\n"
         "Rules:\n"
-        f"- Only extract facts about \"{benchmark_name}\". Ignore other benchmarks or datasets "
+        f"- Only extract facts about \"{benchmark_name}\". Ignore other {others} "
         "discussed in the source.\n"
         "- If there is no verbatim supporting sentence for a field, emit NO item for it. "
         "Never invent a quote.\n"
@@ -410,10 +426,10 @@ def build_extraction_prompt(
     parts.append(rules)
     if with_frame:
         parts.append(render_frame_block(frame))
-    parts.extend(["Allowed fields:", render_field_list(fields),
+    parts.extend(["Allowed fields:", render_field_list(fields, schema),
                   f"\nSOURCE TEXT ({source_label}):", source_text])
     body = "\n".join(parts)
-    return f"{EXTRACTION_SYSTEM}\n\n{body}"
+    return f"{system_text}\n\n{body}"
 
 
 _WS_RE = re.compile(r"\s+")
@@ -553,7 +569,7 @@ def _resolve_referent(claimed: str, quote: str, frame) -> Tuple[str, str]:
 
 def verify_items(raw_items, source_text: str, doc: str,
                  shown_text: str = "", doc_index=None,
-                 frame: Optional[Dict] = None) -> Tuple[List[Dict], Dict]:
+                 frame: Optional[Dict] = None, schema=None) -> Tuple[List[Dict], Dict]:
     """Verify candidate items against the source. Returns (id-less records, call telemetry).
 
     Records carry the v2 keys; evidence_id is assigned later across all calls. Fail-closed:
@@ -579,13 +595,14 @@ def verify_items(raw_items, source_text: str, doc: str,
     norm_source = normalize_ws(source_text or "")
     norm_shown = normalize_ws(shown_text or "")
     records: List[Dict] = []
+    whitelist = EVIDENCE_FIELD_WHITELIST if schema is None else frozenset(_curator_table(schema))
 
     for raw in raw_items or []:
         telem["emitted"] += 1
         d = raw.model_dump() if isinstance(raw, BaseModel) else dict(raw)
 
         field = str(d.get("field", "") or "").strip()
-        if field not in EVIDENCE_FIELD_WHITELIST:
+        if field not in whitelist:
             telem["rejected"] += 1
             telem["reject_reasons"]["bad_field"] += 1
             continue
@@ -759,6 +776,7 @@ def finalize_evidence(
     paper: List[Dict], gap: List[Dict], html: List[Dict], hf: List[Dict],
     github: Optional[List[Dict]] = None,
     frame: Optional[Dict] = None, gate_telemetry: Optional[Dict] = None,
+    schema=None,
 ) -> Tuple[List[EvidenceItem], Dict[str, List[EvidenceItem]]]:
     """Route by topic, assign ids in canonical order (paper, gap, html, github, hf), build the digest.
 
@@ -766,11 +784,14 @@ def finalize_evidence(
     derived re-filed records get their own ids at the tail, matching the digest exactly. The
     assignment gates (aboutness.apply_assignment_gates) then check each routed record's
     referent/region/claim_role against its field tag; they are a no-op without a frame, so
-    legacy callers are unchanged. Gate actions land in gate_telemetry when given.
+    legacy callers are unchanged. Gate actions land in gate_telemetry when given. The topic
+    router is benchmark-specific (its regexes know the benchmark field paths) and is skipped
+    for any other schema.
     """
     from auto_benchmarkcard.tools.composer import aboutness
 
-    routed = route_evidence([*paper, *gap, *html, *(github or []), *hf])
+    merged = [*paper, *gap, *html, *(github or []), *hf]
+    routed = route_evidence(merged) if (schema is None or schema.name == "benchmark") else list(merged)
     routed = aboutness.apply_assignment_gates(routed, frame, gate_telemetry)
     items = assign_evidence_ids([routed])
     return items, build_digest(items)

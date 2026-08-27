@@ -13,7 +13,8 @@ extract_hf_tags uses, so [0]'s _ALWAYS_OVERRIDE pass stays a byte-identical
 no-op against what the validator considers valid.
 """
 
-from typing import Optional, Set
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from auto_benchmarkcard.card_utils import _LANG_CODE_MAP, _LICENSE_MAP
 
@@ -250,6 +251,120 @@ ALL_SECTIONS = [
 ]
 
 
+@dataclass
+class CardSchema:
+    """Everything the composer needs to know about ONE card schema, in one object.
+
+    The benchmark schema is the default and is built from this module's constants, so
+    every consumer that takes a schema parameter behaves byte-identically when none is
+    given. A second schema (the model card) supplies its own tables; the composer's
+    machinery (extraction prompts, digest, Stage-B prompts, validator loop) reads only
+    through this object and never through a benchmark-specific constant.
+
+    curator_fields: dotted path -> {"sources": frozenset, "gap_query": str|None,
+    "hint": str}, the Stage-A whitelist and per-source field lists.
+    section_models: dotted section -> Pydantic model; attached by the module that
+    defines them (composer_tool for the benchmark schema).
+    groups: the Stage-B call split over the COMPOSED sections; sections outside the
+    groups are deterministic-only (filled after composition, never authored by B).
+    """
+    name: str
+    entity_noun: str
+    card_noun: str
+    other_entities_phrase: str
+    sections: List[str]
+    curator_fields: Dict[str, Dict[str, Any]]
+    field_caps: Dict[str, str]
+    enum_registry: Dict[str, Callable[[], Set[str]]]
+    enum_multi: Set[str]
+    enum_comma_joined: Set[str]
+    b_authored_enums: Set[str]
+    established_enums: Set[str]
+    display_fields: Set[str]
+    established_fields: Set[str]
+    collapse_fields: Set[str]
+    structured_fields: Set[str]
+    evidence_exempt: Set[str]
+    list_fields: Set[str]
+    list_caps: Dict[str, int]
+    groups: List[Tuple[str, List[str]]]
+    special_buckets: Dict[str, List[str]] = field(default_factory=dict)
+    det_only_sections: Set[str] = field(default_factory=set)
+    stage_b_rules: str = ""
+    extraction_system: str = ""
+    not_applicable: Optional[str] = None
+    section_models: Optional[Dict[str, Any]] = None
+
+    @property
+    def composed_sections(self) -> List[str]:
+        return [s for s in self.sections if s not in self.det_only_sections]
+
+    def enum_vocab(self, path: str) -> Optional[Set[str]]:
+        provider = self.enum_registry.get(path)
+        return provider() if provider else None
+
+    def field_class(self, path: str) -> str:
+        if path in self.display_fields:
+            return "display"
+        if path in self.enum_registry:
+            return "enum"
+        if path in self.established_fields:
+            return "established"
+        if path in self.collapse_fields or path in self.structured_fields:
+            return "structured"
+        return "prose"
+
+    def assert_groups_cover(self, groups=None) -> None:
+        groups = self.groups if groups is None else groups
+        seen: List[str] = []
+        for _, secs in groups:
+            seen.extend(secs)
+        expected = self.composed_sections if groups is self.groups else sorted(self.sections)
+        if groups is not self.groups:
+            expected = self.sections
+        assert sorted(seen) == sorted(expected), (
+            f"group definitions must cover the composed sections exactly once, got {seen}"
+        )
+
+
+# The benchmark schema, assembled from the constants above so the defaults stay the
+# single source of truth. section_models is attached by composer_tool at import.
+BENCHMARK_SCHEMA = CardSchema(
+    name="benchmark",
+    entity_noun="benchmark",
+    card_noun="benchmark card",
+    other_entities_phrase="benchmarks or datasets",
+    sections=list(ALL_SECTIONS),
+    curator_fields={},  # filled below from evidence.CURATOR_FIELDS (lazy, avoids a cycle)
+    field_caps=FIELD_CAPS,
+    enum_registry=ENUM_REGISTRY,
+    enum_multi=ENUM_MULTI,
+    enum_comma_joined=ENUM_COMMA_JOINED,
+    b_authored_enums=B_AUTHORED_ENUMS,
+    established_enums=ESTABLISHED_ENUMS,
+    display_fields=DISPLAY_FIELDS,
+    established_fields=ESTABLISHED_FIELDS,
+    collapse_fields=COLLAPSE_FIELDS,
+    structured_fields={"data.size_breakdown"},
+    evidence_exempt=EVIDENCE_EXEMPT,
+    list_fields=LIST_FIELDS,
+    list_caps=LIST_CAPS,
+    groups=ACTIVE_GROUPS,
+    special_buckets={JUDGE_SETUP_BUCKET: list(JUDGE_FLAT_FIELDS)},
+)
+
+
+def resolve_schema(schema: Optional[CardSchema]) -> CardSchema:
+    """The given schema, or the benchmark default with its curator table attached."""
+    if schema is not None:
+        return schema
+    if not BENCHMARK_SCHEMA.curator_fields:
+        from auto_benchmarkcard.tools.composer import evidence as _ev
+        BENCHMARK_SCHEMA.curator_fields = _ev.CURATOR_FIELDS
+        BENCHMARK_SCHEMA.extraction_system = _ev.EXTRACTION_SYSTEM
+    return BENCHMARK_SCHEMA
+
+
 def assert_groups_cover(groups=ACTIVE_GROUPS) -> None:
     """Every section appears in exactly one group, and the union is the five sections."""
     seen = []
@@ -260,20 +375,11 @@ def assert_groups_cover(groups=ACTIVE_GROUPS) -> None:
     )
 
 
-def enum_vocab(path: str) -> Optional[Set[str]]:
+def enum_vocab(path: str, schema: Optional[CardSchema] = None) -> Optional[Set[str]]:
     """The allowed vocabulary for an enum path, or None if the path is not enum-controlled."""
-    provider = ENUM_REGISTRY.get(path)
-    return provider() if provider else None
+    return resolve_schema(schema).enum_vocab(path)
 
 
-def field_class(path: str) -> str:
+def field_class(path: str, schema: Optional[CardSchema] = None) -> str:
     """Coarse class used by the prompt field-spec block."""
-    if path in DISPLAY_FIELDS:
-        return "display"
-    if path in ENUM_REGISTRY:
-        return "enum"
-    if path in ESTABLISHED_FIELDS:
-        return "established"
-    if path in COLLAPSE_FIELDS or path == "data.size_breakdown":
-        return "structured"
-    return "prose"
+    return resolve_schema(schema).field_class(path)

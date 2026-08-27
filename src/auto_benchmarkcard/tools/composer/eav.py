@@ -80,11 +80,14 @@ EAV_INSTRUCTIONS = (
 )
 
 
-def _is_high_stakes(field: str) -> bool:
+def _is_high_stakes(field: str, high_stakes=None) -> bool:
+    if high_stakes is not None:
+        return field in high_stakes
     return field in HIGH_STAKES_FIELDS or field.startswith(_JUDGE_PREFIX)
 
 
-def _select_items(evidence_digest: Dict[str, List[dict]], target_id: str) -> List[dict]:
+def _select_items(evidence_digest: Dict[str, List[dict]], target_id: str,
+                  high_stakes=None) -> List[dict]:
     """Items worth checking, priority-ordered: high-stakes field first, then
     non-target referent, then risky region; digest order within each bucket.
     An item is taken once, at its highest-priority reason. An empty referent is
@@ -92,7 +95,7 @@ def _select_items(evidence_digest: Dict[str, List[dict]], target_id: str) -> Lis
     a claim about another entity)."""
     buckets: Tuple[List[dict], List[dict], List[dict]] = ([], [], [])
     for field, items in evidence_digest.items():
-        high = _is_high_stakes(field)
+        high = _is_high_stakes(field, high_stakes)
         for it in items or []:
             if not it.get("evidence_id"):
                 continue  # verdicts are keyed by id; an id-less item cannot be audited
@@ -115,12 +118,16 @@ def _item_line(it: dict) -> str:
             f'| referent={referent} | section={section} | quote="{it.get("quote", "")}"')
 
 
-def build_eav_prompt(batch: List[dict], frame: Dict) -> str:
+def build_eav_prompt(batch: List[dict], frame: Dict, card_noun: str = "benchmark documentation card",
+                     sibling_phrase: str = "a sibling benchmark, a subset, a version, a split, a metric") -> str:
     """Assemble the grouped verdict prompt for one batch of evidence items."""
+    system = EAV_SYSTEM.replace("benchmark documentation card", card_noun)
+    instructions = EAV_INSTRUCTIONS.replace(
+        "a sibling benchmark, a subset, a version, a split, a metric", sibling_phrase)
     return "\n\n".join([
-        EAV_SYSTEM,
+        system,
         evidence.render_frame_block(frame),
-        EAV_INSTRUCTIONS,
+        instructions,
         "Items:\n" + "\n".join(_item_line(it) for it in batch),
     ])
 
@@ -200,7 +207,10 @@ def _parse_verdicts(raw) -> List[dict]:
 
 
 def run_eav(evidence_digest: Dict[str, List[dict]], frame: Optional[Dict], llm_handler,
-            max_items: int = 60, batch_size: int = 25) -> Tuple[Dict[str, List[dict]], Dict]:
+            max_items: int = 60, batch_size: int = 25, high_stakes=None,
+            card_noun: str = "benchmark documentation card",
+            sibling_phrase: str = "a sibling benchmark, a subset, a version, a split, a metric",
+            ) -> Tuple[Dict[str, List[dict]], Dict]:
     """Audit evidence assignments; return (updated_digest, telemetry).
 
     Selects the items worth checking (see _select_items), caps at max_items
@@ -220,7 +230,7 @@ def run_eav(evidence_digest: Dict[str, List[dict]], frame: Optional[Dict], llm_h
     target_id = frame.get("target_id", "target")
     frame_ids = {n["id"] for n in frame.get("nodes", [])}
 
-    selected = _select_items(evidence_digest, target_id)
+    selected = _select_items(evidence_digest, target_id, high_stakes)
     if len(selected) > max_items:
         telemetry["skipped"] = len(selected) - max_items
         selected = selected[:max_items]
@@ -240,7 +250,8 @@ def run_eav(evidence_digest: Dict[str, List[dict]], frame: Optional[Dict], llm_h
         batch = selected[start:start + step]
         batch_ids = {it["evidence_id"] for it in batch}
         try:
-            prompt = build_eav_prompt(batch, frame)
+            prompt = build_eav_prompt(batch, frame, card_noun=card_noun,
+                                      sibling_phrase=sibling_phrase)
             telemetry["calls"] += 1
             verdicts = _parse_verdicts(llm_handler.generate(prompt))
         except Exception as exc:

@@ -3288,6 +3288,10 @@ SECTION_MODELS = {
     "ethical_and_legal_considerations": EthicalAndLegalConsiderations,
 }
 
+# The benchmark CardSchema carries these models from here on; field_spec cannot import
+# them without a cycle.
+fs.BENCHMARK_SCHEMA.section_models = SECTION_MODELS
+
 
 _JUDGE_DETAIL_FIELDS = (
     "methodology.judge_num",
@@ -3408,7 +3412,8 @@ def _field_gloss(model_field) -> str:
     return " ".join(_GLOSS_NOISE_RE.sub("", desc).split())
 
 
-def _field_spec_block(section_models, section_names, det_facts):
+def _field_spec_block(section_models, section_names, det_facts, schema=None):
+    sch = fs.resolve_schema(schema)
     lines = []
     for sec in section_names:
         lines.append(f"## {sec}")
@@ -3416,19 +3421,19 @@ def _field_spec_block(section_models, section_names, det_facts):
             if fname == "provenance":
                 continue
             path = f"{sec}.{fname}"
-            if path in fs.DISPLAY_FIELDS:
+            if path in sch.display_fields:
                 continue
-            entry = f"- {fname} [{fs.field_class(path)}]"
-            vocab = fs.enum_vocab(path)
-            if path in fs.B_AUTHORED_ENUMS and vocab:
+            entry = f"- {fname} [{sch.field_class(path)}]"
+            vocab = sch.enum_vocab(path)
+            if path in sch.b_authored_enums and vocab:
                 entry += ": one or more of {" + ", ".join(sorted(vocab)) + "} or 'other:<text>'"
-            elif path in fs.ESTABLISHED_FIELDS and path in det_facts:
+            elif path in sch.established_fields and path in det_facts:
                 # only claim "already established" when a deterministic value is actually
                 # shown above; otherwise B echoes the literal "already established" as the value
                 entry += ": already established (copy the value shown above verbatim)"
             # A tuned FIELD_CAPS entry wins; otherwise fall back to the field's own
             # description as a generic role gloss.
-            cap = fs.FIELD_CAPS.get(path)
+            cap = sch.field_caps.get(path)
             if cap:
                 entry += f" -- {cap}"
             else:
@@ -3436,7 +3441,7 @@ def _field_spec_block(section_models, section_names, det_facts):
                 if gloss:
                     entry += f" -- {gloss}"
             # Form guidance for any list-valued field: enumerate atomic items.
-            if fname in fs.LIST_FIELDS:
+            if fname in sch.list_fields:
                 entry += (" -- enumerate atomic items, one discrete item per array element; "
                           "do NOT collapse into a summary sentence")
             lines.append(entry)
@@ -3475,18 +3480,21 @@ _STAGE_B_RULES = (
 
 
 def _build_group_prompt(group_name, section_names, section_models, evidence_digest,
-                        det_facts, composite_guidance):
+                        det_facts, composite_guidance, schema=None):
+    sch = fs.resolve_schema(schema)
+    card_noun = sch.card_noun
+    rules = sch.stage_b_rules or _STAGE_B_RULES
     sec_label = ", ".join(section_names)
     system = (
-        f"You are formatting verified evidence into the {sec_label} section(s) of a benchmark card. "
+        f"You are formatting verified evidence into the {sec_label} section(s) of a {card_noun}. "
         f"You are a FORMATTER, not a researcher.\n"
         f"{composite_guidance}\n"
-        f"{_STAGE_B_RULES}\n\n"
+        f"{rules}\n\n"
         f'Return ONE JSON object with a key per section; each section is an object of its fields plus a '
         f'"provenance" object.'
     )
     user = (
-        f"=== FIELD SPECS ===\n{_field_spec_block(section_models, section_names, det_facts)}\n\n"
+        f"=== FIELD SPECS ===\n{_field_spec_block(section_models, section_names, det_facts, schema)}\n\n"
         f"=== ALREADY ESTABLISHED (copy, do not re-author) ===\n"
         f"{_established_block(det_facts, section_names)}\n\n"
         f"=== EVIDENCE ITEMS ===\n{_digest_block(evidence_digest, section_names)}\n\n"

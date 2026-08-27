@@ -133,8 +133,9 @@ def robust_json_loads(raw: Any) -> Tuple[Optional[dict], Optional[str]]:
 # per-field validation helpers
 # ---------------------------------------------------------------------------
 
-def _canonical_ns(field: str):
-    return ["Not specified"] if field in fs.LIST_FIELDS else "Not specified"
+def _canonical_ns(field: str, schema=None):
+    list_fields = fs.LIST_FIELDS if schema is None else schema.list_fields
+    return ["Not specified"] if field in list_fields else "Not specified"
 
 
 def _is_ns_str(x: Any) -> bool:
@@ -172,10 +173,15 @@ def collapse_empty(val: Any):
     return val, False
 
 
-def ns_normalize(field: str, val: Any):
-    """Canonicalize NS and leak-phrasing absences. Returns (value, was_leak_normalized)."""
+def ns_normalize(field: str, val: Any, schema=None):
+    """Canonicalize NS and leak-phrasing absences. Returns (value, was_leak_normalized).
+
+    A schema's not_applicable state ("Not applicable" on model cards) is a value in its
+    own right and passes through untouched."""
+    if schema is not None and schema.not_applicable and val == schema.not_applicable:
+        return val, False
     if is_not_specified(val):
-        return _canonical_ns(field), False
+        return _canonical_ns(field, schema), False
     if isinstance(val, str):
         text = val
     elif isinstance(val, list):
@@ -183,11 +189,11 @@ def ns_normalize(field: str, val: Any):
     else:
         text = None
     if text is not None and _ABSENCE_PLACEHOLDER_RE.search(text):
-        return _canonical_ns(field), True
+        return _canonical_ns(field, schema), True
     return val, False
 
 
-def list_hygiene(path: str, val: Any, truncations: Optional[List[dict]] = None):
+def list_hygiene(path: str, val: Any, truncations: Optional[List[dict]] = None, schema=None):
     """Bare-string coerce, drop NS mixed with reals, dedup, truncate to cap. In-code fix only.
 
     A cap truncation is silent by design (the card ships) but never invisible: when the
@@ -207,7 +213,7 @@ def list_hygiene(path: str, val: Any, truncations: Optional[List[dict]] = None):
             continue
         seen.add(key)
         out.append(x)
-    cap = fs.LIST_CAPS.get(path)
+    cap = (fs.LIST_CAPS if schema is None else schema.list_caps).get(path)
     if cap and len(out) > cap:
         if truncations is not None:
             truncations.append({"field": path, "original": len(out), "kept": cap})
@@ -215,23 +221,25 @@ def list_hygiene(path: str, val: Any, truncations: Optional[List[dict]] = None):
     return out
 
 
-def enum_tokens(path: str, val: Any) -> List[str]:
-    if path in fs.ENUM_COMMA_JOINED:
+def enum_tokens(path: str, val: Any, schema=None) -> List[str]:
+    comma_joined = fs.ENUM_COMMA_JOINED if schema is None else schema.enum_comma_joined
+    multi = fs.ENUM_MULTI if schema is None else schema.enum_multi
+    if path in comma_joined:
         return [t.strip().lower() for t in str(val).split(",") if t.strip()]
-    if path in fs.ENUM_MULTI:
+    if path in multi:
         items = val if isinstance(val, list) else [val]
         return [str(t).strip() for t in items]
     return [str(val).strip()]
 
 
-def enum_check(path: str, val: Any) -> Tuple[List[str], bool]:
+def enum_check(path: str, val: Any, schema=None) -> Tuple[List[str], bool]:
     """Return (out-of-vocab tokens, used_other_escape)."""
-    vocab = fs.enum_vocab(path)
+    vocab = fs.enum_vocab(path, schema)
     if vocab is None:
         return [], False
     misses = []
     used_other = False
-    for t in enum_tokens(path, val):
+    for t in enum_tokens(path, val, schema):
         if t.lower().startswith("other:"):
             used_other = True
             continue
@@ -310,7 +318,7 @@ def evidence_check(path: str, field_prov: Any, digest_ids: set) -> Optional[VErr
 
 
 def evidence_field_agreement(path: str, field_prov: Any,
-                             digest_fields: Dict[str, str]) -> Optional[VErr]:
+                             digest_fields: Dict[str, str], schema=None) -> Optional[VErr]:
     """Cited ids must be tagged for the citing field, not merely exist in the digest.
 
     Exact field-path match for enum/structured/extractive fields; prose-class fields
@@ -320,7 +328,7 @@ def evidence_field_agreement(path: str, field_prov: Any,
     ids = field_prov.get("evidence_ids") if isinstance(field_prov, dict) else None
     if not ids or not isinstance(ids, list):
         return None
-    prose = fs.field_class(path) == "prose"
+    prose = fs.field_class(path, schema) == "prose"
     sec = path.split(".", 1)[0]
     bad = []
     for i in ids:
@@ -383,13 +391,15 @@ def validate_sections(parsed: dict, section_names: List[str],
                       section_models: Dict[str, Any], digest_ids: set,
                       exempt_extra: set,
                       digest_fields: Optional[Dict[str, str]] = None,
+                      schema=None,
                       ) -> Tuple[Dict[str, dict], List[VErr], Dict[str, Any]]:
+    sch = fs.resolve_schema(schema)
     errors: List[VErr] = []
     stats: Dict[str, Any] = {"ns_normalized": 0, "n_other": 0, "n_enum_fields": 0,
                              "established_mismatch": 0, "evidence_demoted": 0,
                              "list_truncations": []}
     norm: Dict[str, dict] = {}
-    evidence_exempt = fs.EVIDENCE_EXEMPT | exempt_extra
+    evidence_exempt = sch.evidence_exempt | exempt_extra
 
     for sec in section_names:
         raw_sec = parsed.get(sec)
@@ -406,51 +416,51 @@ def validate_sections(parsed: dict, section_names: List[str],
             path = f"{sec}.{fld}"
             val = secdict[fld]
 
-            if path in fs.COLLAPSE_FIELDS:
+            if path in sch.collapse_fields:
                 val, _ = collapse_empty(val)
-            val, leaked = ns_normalize(fld, val)
+            val, leaked = ns_normalize(fld, val, schema)
             if leaked:
                 stats["ns_normalized"] += 1
             secdict[fld] = val
-            if is_not_specified(val):
+            if is_not_specified(val) or (sch.not_applicable and val == sch.not_applicable):
                 continue
 
             # Evidence-id leakage. A field whose substantive content is an evidence-id citation
             # is a citation, not a value. For list fields drop only the offending element(s),
             # keeping valid items (-> NS if that empties the list); for scalar fields flag the
             # whole field so the repair loop / finalize replaces it with NS.
-            if fld in fs.LIST_FIELDS:
+            if fld in sch.list_fields:
                 if isinstance(val, list):
                     kept = [x for x in val if not _is_eid_leak_value(x)]
                     if len(kept) != len(val):
-                        val = kept or _canonical_ns(fld)
+                        val = kept or _canonical_ns(fld, schema)
                         secdict[fld] = val
                         if is_not_specified(val):
                             continue
                 elif _is_eid_leak_value(val):
-                    secdict[fld] = _canonical_ns(fld)
+                    secdict[fld] = _canonical_ns(fld, schema)
                     continue
             elif _is_eid_leak_value(val):
                 errors.append(VErr(path, "leaked_evidence_id",
                                    "field value is an evidence-id citation, not a value"))
                 continue
 
-            if fld in fs.LIST_FIELDS:
-                val = list_hygiene(path, val, stats["list_truncations"])
+            if fld in sch.list_fields:
+                val = list_hygiene(path, val, stats["list_truncations"], schema)
                 secdict[fld] = val
                 if is_not_specified(val):
                     continue
 
-            if path in fs.ENUM_REGISTRY:
+            if path in sch.enum_registry:
                 stats["n_enum_fields"] += 1
-                misses, used_other = enum_check(path, val)
+                misses, used_other = enum_check(path, val, schema)
                 if used_other:
                     stats["n_other"] += 1
                 if misses:
-                    if path in fs.B_AUTHORED_ENUMS:
+                    if path in sch.b_authored_enums:
                         errors.append(VErr(path, "enum_not_member",
                                            f"{misses} not allowed",
-                                           allowed=sorted(fs.enum_vocab(path))[:25],
+                                           allowed=sorted(sch.enum_vocab(path))[:25],
                                            observed=val, n_miss=len(misses)))
                     else:
                         stats["established_mismatch"] += 1
@@ -460,17 +470,13 @@ def validate_sections(parsed: dict, section_names: List[str],
                         # remains -- never guess. data_type + data_licensing are scalars (a
                         # comma-joined string / a single token, joined back the same way);
                         # languages is a list, so filter element-wise.
-                        if path in ("benchmark_details.data_type",
-                                    "ethical_and_legal_considerations.data_licensing"):
-                            vocab = fs.enum_vocab(path)
-                            kept = [t for t in enum_tokens(path, val)
-                                    if t in vocab or t.lower().startswith("other:")]
-                            secdict[fld] = ", ".join(kept) if kept else _canonical_ns(fld)
-                        elif path == "benchmark_details.languages":
-                            vocab = fs.enum_vocab(path)
-                            kept = [t for t in enum_tokens(path, val)
-                                    if t in vocab or t.lower().startswith("other:")]
-                            secdict[fld] = kept if kept else _canonical_ns(fld)
+                        vocab = sch.enum_vocab(path)
+                        kept = [t for t in enum_tokens(path, val, schema)
+                                if t in vocab or t.lower().startswith("other:")]
+                        if path in sch.enum_multi:
+                            secdict[fld] = kept if kept else _canonical_ns(fld, schema)
+                        else:
+                            secdict[fld] = ", ".join(kept) if kept else _canonical_ns(fld, schema)
                 elif used_other and path == "benchmark_details.data_type":
                     # C4: the misses path above is skipped when only other: tokens are
                     # present, so a compound / task-format other: in the modality field
@@ -485,7 +491,7 @@ def validate_sections(parsed: dict, section_names: List[str],
                 if ev:
                     errors.append(ev)
                 elif digest_fields is not None:
-                    mm = evidence_field_agreement(path, prov.get(fld), digest_fields)
+                    mm = evidence_field_agreement(path, prov.get(fld), digest_fields, schema)
                     if mm:
                         errors.append(mm)
 
@@ -576,31 +582,31 @@ def keep_best(attempts: List[Attempt]) -> Attempt:
     return min(attempts, key=_attempt_key)
 
 
-def _set_ns(sections: Dict[str, dict], path: str):
+def _set_ns(sections: Dict[str, dict], path: str, schema=None):
     sec, _, fld = path.partition(".")
     if sec in sections and isinstance(sections[sec], dict):
-        sections[sec][fld] = _canonical_ns(fld)
+        sections[sec][fld] = _canonical_ns(fld, schema)
 
 
-def _ensure_required(model_cls, secdict: dict) -> dict:
+def _ensure_required(model_cls, secdict: dict, schema=None) -> dict:
     out = dict(secdict or {})
     for name in _required_fields(model_cls):
         if name not in out or out[name] is None:
-            out[name] = _canonical_ns(name)
+            out[name] = _canonical_ns(name, schema)
     return out
 
 
-def _skeleton(model_cls) -> dict:
-    return {name: _canonical_ns(name) for name in _required_fields(model_cls)}
+def _skeleton(model_cls, schema=None) -> dict:
+    return {name: _canonical_ns(name, schema) for name in _required_fields(model_cls)}
 
 
 def finalize(best: Attempt, section_names: List[str], section_models: Dict[str, Any],
-             telemetry: dict) -> GroupOutcome:
+             telemetry: dict, schema=None) -> GroupOutcome:
     flagged: Dict[str, str] = {}
     evidence_demoted = 0
 
     if best.norm is None:
-        sections = {sec: _skeleton(section_models[sec]) for sec in section_names}
+        sections = {sec: _skeleton(section_models[sec], schema) for sec in section_names}
         for sec in section_names:
             for fld in sections[sec]:
                 flagged[f"{sec}.{fld}"] = "[schema_invalid] unparseable group output"
@@ -610,22 +616,22 @@ def finalize(best: Attempt, section_names: List[str], section_models: Dict[str, 
             if e.type == "enum_not_member":
                 flagged[e.path] = f"[schema_invalid] enum: {e.detail}"  # keep best-effort value
             elif e.type == "evidence_missing":
-                _set_ns(sections, e.path)
+                _set_ns(sections, e.path, schema)
                 flagged[e.path] = f"[schema_invalid] evidence: {e.detail}"
                 evidence_demoted += 1
             elif e.type == "evidence_field_mismatch":
-                _set_ns(sections, e.path)
+                _set_ns(sections, e.path, schema)
                 flagged[e.path] = f"[schema_invalid] evidence_mismatch: {e.detail}"
                 evidence_demoted += 1
             elif e.type == "leaked_evidence_id":
-                _set_ns(sections, e.path)
+                _set_ns(sections, e.path, schema)
                 flagged[e.path] = f"[schema_invalid] leaked_evidence_id: {e.detail}"
             elif e.type == "structural":
-                _set_ns(sections, e.path)
+                _set_ns(sections, e.path, schema)
                 flagged[e.path] = f"[schema_invalid] structural: {e.detail}"
 
     for sec in section_names:
-        sections[sec] = _ensure_required(section_models[sec], sections.get(sec) or {})
+        sections[sec] = _ensure_required(section_models[sec], sections.get(sec) or {}, schema)
 
     telemetry = dict(telemetry)
     telemetry["evidence_demoted"] = telemetry.get("evidence_demoted", 0) + evidence_demoted
@@ -766,7 +772,7 @@ def run_group_with_repair(group_name: str, section_names: List[str],
                           section_models: Dict[str, Any], base_prompt: str,
                           generate_fn: Callable[[str], str], digest_ids,
                           det_filled_paths=None, max_rounds: int = _MAX_ROUNDS,
-                          size_breakdown=None, card_frame=None) -> GroupOutcome:
+                          size_breakdown=None, card_frame=None, schema=None) -> GroupOutcome:
     """Generate -> validate -> source-free repair (capped) -> keep best -> ship.
 
     generate_fn(prompt) -> raw model text. digest_ids: valid evidence ids from [A]'s
@@ -804,14 +810,15 @@ def run_group_with_repair(group_name: str, section_names: List[str],
         else:
             norm, errors, stats = validate_sections(
                 parsed, section_names, section_models, digest_ids, exempt_extra,
-                digest_fields=digest_fields)
+                digest_fields=digest_fields, schema=schema)
             att = Attempt(rnd, parsed, norm, errors, stats)
         attempts.append(att)
 
         if att.norm is not None and not att.errors:
             return _apply_domain_coverage(
                 _finalize_with_telemetry(att, attempts, section_names, section_models,
-                                         converged=True, truncation_retries=truncation_retries),
+                                         converged=True, truncation_retries=truncation_retries,
+                                         schema=schema),
                 section_names, size_breakdown, card_frame)
 
         truncated = stop_reason == "length"
@@ -834,12 +841,14 @@ def run_group_with_repair(group_name: str, section_names: List[str],
     best = keep_best(attempts)
     return _apply_domain_coverage(
         _finalize_with_telemetry(best, attempts, section_names, section_models,
-                                 converged=False, truncation_retries=truncation_retries),
+                                 converged=False, truncation_retries=truncation_retries,
+                                 schema=schema),
         section_names, size_breakdown, card_frame)
 
 
 def _finalize_with_telemetry(best: Attempt, attempts: List[Attempt], section_names,
-                             section_models, converged: bool, truncation_retries: int = 0) -> GroupOutcome:
+                             section_models, converged: bool, truncation_retries: int = 0,
+                             schema=None) -> GroupOutcome:
     stats = best.stats or {}
     n_enum = stats.get("n_enum_fields", 0)
     # Mismatch telemetry over the whole loop: a path counts as found if any attempt raised
@@ -867,4 +876,4 @@ def _finalize_with_telemetry(best: Attempt, attempts: List[Attempt], section_nam
         "list_truncations": stats.get("list_truncations", []),
         "truncation_retries": truncation_retries,
     }
-    return finalize(best, section_names, section_models, telemetry)
+    return finalize(best, section_names, section_models, telemetry, schema)
