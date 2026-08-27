@@ -1488,9 +1488,16 @@ def run_rag(state) -> Dict[str, Any]:
         if "benchmark_card" in benchmark_card:
             benchmark_card = benchmark_card["benchmark_card"]
 
+        # The atomizer runs the COMPOSER model, so it must follow the same serving
+        # substitute get_llm_handler applies (COMPOSER_ENGINE_TYPE). Passing the base
+        # engine here silently killed every atomization call in the phase 3 regen: the
+        # composer checkpoint had left RITS, the engine failed to construct, and the
+        # atomizer fail-softed to zero statements per card.
+        from auto_benchmarkcard.config import composer_serving_engine
+
         statements = atomize_benchmark_card(
             benchmark_card, "all",
-            engine_type=Config.LLM_ENGINE_TYPE,
+            engine_type=composer_serving_engine(),
             model_name=Config.COMPOSER_MODEL,
         )
 

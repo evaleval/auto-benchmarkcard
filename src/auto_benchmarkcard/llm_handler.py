@@ -118,6 +118,16 @@ def _coerce_to_text(obj: Any) -> str:
     return str(obj)
 
 
+# Rate-limit handling for the OpenRouter engine. A 429 storm must degrade the run to
+# SLOW, never to zero-emission cards: the 2026-08-23 night regens shipped cards with 2
+# quotes each because the client's 3 internal retries exhausted within seconds and every
+# extraction call then failed soft to zero items. The outer schedule below waits through
+# a burst (~4.6 min total) before giving up; a storm longer than that is the documented
+# run-abort condition, not something to ride out silently.
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 529})
+_BACKOFF_SCHEDULE = (5, 10, 20, 40, 80, 120)
+
+
 class OpenRouterEngine:
     """Minimal OpenAI-compatible engine for OpenRouter, mirroring the ai-atlas-nexus surface
     the handler uses: generate/chat return a list of outputs with prediction, stop_reason,
@@ -131,6 +141,10 @@ class OpenRouterEngine:
     provider and quantization constant across a run. Every output carries serving, provider,
     quantization (OPENROUTER_QUANTIZATION) and cost for the usage telemetry.
     """
+
+    # Shared within the process so concurrent calls all honor one cooldown after a 429
+    # instead of each burning its own retry budget against a limited upstream.
+    _cooldown_until = 0.0
 
     def __init__(self, model_name: str, parameters: Optional[Dict] = None):
         import httpx
@@ -176,8 +190,25 @@ class OpenRouterEngine:
         # Deliberately NO silent downgrade on schema errors: a provider that rejects or
         # mishandles json_schema must fail loudly (decoding parity with broad_run is part of
         # the generation regime; the pre-authorized response is a manual provider hop).
-        response = self.client.chat.completions.create(
-            model=self.model_id, messages=messages, extra_body=extra_body, **kwargs)
+        response = None
+        for attempt in range(len(_BACKOFF_SCHEDULE) + 1):
+            wait = OpenRouterEngine._cooldown_until - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model_id, messages=messages, extra_body=extra_body, **kwargs)
+                break
+            except Exception as exc:
+                status = getattr(exc, "status_code", None)
+                if status not in _RETRYABLE_STATUS or attempt >= len(_BACKOFF_SCHEDULE):
+                    raise
+                delay = _BACKOFF_SCHEDULE[attempt]
+                OpenRouterEngine._cooldown_until = max(
+                    OpenRouterEngine._cooldown_until, time.monotonic() + delay)
+                logger.warning(
+                    "OpenRouter HTTP %s; backing off %ds (attempt %d/%d)",
+                    status, delay, attempt + 1, len(_BACKOFF_SCHEDULE))
         choice = response.choices[0]
         usage = getattr(response, "usage", None)
         extra = getattr(response, "model_extra", None) or {}
