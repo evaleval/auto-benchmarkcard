@@ -503,7 +503,8 @@ def empty_call_telemetry(doc: str) -> Dict:
     }
 
 
-def _resolve_referent(claimed: str, quote: str, frame) -> Tuple[str, str]:
+def _resolve_referent(claimed: str, quote: str, frame,
+                      default_referent: Optional[str] = None) -> Tuple[str, str]:
     """Resolve the model's referent claim against the frame. Returns (node_id, how).
 
     A claimed target is corroborated against the quote, not obeyed. The declaration comes
@@ -564,12 +565,20 @@ def _resolve_referent(claimed: str, quote: str, frame) -> Tuple[str, str]:
     override = sole_non_target(quote)
     if override is not None:
         return override, "quote_mention"
+    # A source that is not about the target by construction (a model's family paper
+    # describes the family; the target's own README describes the target) supplies its
+    # own default; the benchmark composer never sets one and keeps the target.
+    if default_referent and default_referent in ids:
+        if target_id in frame_mod.match_mention(frame, quote):
+            return target_id, "quote_mention"   # the quote names the target outright
+        return default_referent, "default_target"
     return target_id, "default_target"
 
 
 def verify_items(raw_items, source_text: str, doc: str,
                  shown_text: str = "", doc_index=None,
-                 frame: Optional[Dict] = None, schema=None) -> Tuple[List[Dict], Dict]:
+                 frame: Optional[Dict] = None, schema=None,
+                 default_referent: Optional[str] = None) -> Tuple[List[Dict], Dict]:
     """Verify candidate items against the source. Returns (id-less records, call telemetry).
 
     Records carry the v2 keys; evidence_id is assigned later across all calls. Fail-closed:
@@ -649,7 +658,7 @@ def verify_items(raw_items, source_text: str, doc: str,
         referent = ""
         if frame is not None:
             referent, how = _resolve_referent(str(d.get("referent", "") or ""),
-                                              norm_quote, frame)
+                                              norm_quote, frame, default_referent)
             telem["referent_resolution"][how] += 1
 
         records.append({

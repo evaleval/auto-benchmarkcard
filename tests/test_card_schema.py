@@ -148,3 +148,23 @@ def test_widget_schema_group_loop_ships_with_its_ns_shape():
     assert outcome.sections["specs"]["colors"] == ["Not specified"]   # list-form NS for the widget list field
     assert outcome.sections["identity"]["stage"] == "production"
     assert outcome.flagged == {}
+
+
+def test_verify_items_honors_a_per_source_default_referent():
+    # A model's family paper is not about the target by default; the benchmark composer
+    # never sets a default and keeps the target (the None path is the existing behavior).
+    frame = {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "OLMo-2-1124-7B", "aliases": ["OLMo 2 7B"]},
+        {"id": "family:olmo-2", "type": "family", "name": "OLMo 2", "aliases": []},
+    ]}
+    src = "We pretrain on 4 trillion tokens. OLMo 2 7B reaches 62 on MMLU."
+    items = [{"field": "training_context.training_data", "quote": "We pretrain on 4 trillion tokens."},
+             {"field": "training_context.training_data", "quote": "OLMo 2 7B reaches 62 on MMLU."}]
+    sch = widget_schema()
+    sch.curator_fields = {"training_context.training_data": {"sources": frozenset({"paper"}),
+                                                              "gap_query": None, "hint": "x"}}
+    recs, telem = E.verify_items(items, src, "docling", frame=frame, schema=sch,
+                                 default_referent="family:olmo-2")
+    assert [r["referent"] for r in recs] == ["family:olmo-2", "target"]
+    recs2, _ = E.verify_items(items[:1], src, "docling", frame=frame, schema=sch)
+    assert recs2[0]["referent"] == "target"
