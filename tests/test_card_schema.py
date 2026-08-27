@@ -157,6 +157,13 @@ def test_value_fields_reject_sentences_and_the_benchmark_schema_has_none():
     assert not V.looks_like_sentence("November 2024")
     assert not V.looks_like_sentence("7,298,617,344 parameters (safetensors metadata)")
     assert not V.looks_like_sentence("Dec. 2023")
+    assert not V.looks_like_sentence("Up to 5 trillion tokens.")     # a value with a trailing period
+    # a model that never repairs the sentence ships NS with the flag, never the sentence
+    out["identity"]["name"] = "The widget's official name is Zorb."
+    outcome = V.run_group_with_repair("all", ["identity", "specs"], sch.section_models, "BASE",
+                                      lambda p: json.dumps(out), {"E1"}, schema=sch)
+    assert outcome.sections["identity"]["name"] == "Not specified"
+    assert outcome.flagged["identity.name"].startswith("[schema_invalid] sentence_in_value_field")
 
 
 def test_widget_schema_group_loop_ships_with_its_ns_shape():

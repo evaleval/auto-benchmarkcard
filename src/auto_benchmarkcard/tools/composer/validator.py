@@ -392,13 +392,14 @@ _SENTENCE_VERB_RE = re.compile(r"\b(is|was|are|were|has|have|had|includes|contai
 
 def looks_like_sentence(val: Any) -> bool:
     """A string that reads as a sentence rather than a bare value: it carries a finite
-    verb, or it ends with a period and runs past four words."""
+    verb, or it ends with a period and runs past six words ("Up to 5 trillion tokens."
+    is a value with a trailing period, not a sentence)."""
     if not isinstance(val, str):
         return False
     text = val.strip()
     if _SENTENCE_VERB_RE.search(text):
         return True
-    return text.endswith(".") and len(text.split()) > 4
+    return text.endswith(".") and len(text.split()) > 6
 
 
 def validate_sections(parsed: dict, section_names: List[str],
@@ -647,6 +648,9 @@ def finalize(best: Attempt, section_names: List[str], section_models: Dict[str, 
             elif e.type == "leaked_evidence_id":
                 _set_ns(sections, e.path, schema)
                 flagged[e.path] = f"[schema_invalid] leaked_evidence_id: {e.detail}"
+            elif e.type == "sentence_in_value_field":
+                _set_ns(sections, e.path, schema)
+                flagged[e.path] = f"[schema_invalid] sentence_in_value_field: {e.detail}"
             elif e.type == "structural":
                 _set_ns(sections, e.path, schema)
                 flagged[e.path] = f"[schema_invalid] structural: {e.detail}"
