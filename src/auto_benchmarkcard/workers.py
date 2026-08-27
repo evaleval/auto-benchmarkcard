@@ -462,6 +462,19 @@ def _bundle_tool_output(state, tool, filename):
     return None
 
 
+def bundle_hf_repo(query):
+    """The HF repo the bundle run actually fetched metadata for, or None.
+
+    The repo binding is decided BEFORE the workflow (eee_to_pipeline_inputs runs a live
+    Hub search when EEE carries no repo), so a replay has to take the bundle's own
+    repo id (hf/<slug>.json "id") instead: the frozen run bound mme to lmms-lab/MME
+    by search, and a fresh search might bind something else or nothing."""
+    hf = _bundle_tool_output({"query": query}, "hf",
+                             f"{sanitize_benchmark_name(query)}{Config.JSON_EXTENSION}")
+    repo = (hf or {}).get("id") if isinstance(hf, dict) else None
+    return repo if isinstance(repo, str) and repo.strip() else None
+
+
 def _bundle_croissant_facts(state):
     """The bundle run's cached croissant facts for this card, or None."""
     return _bundle_tool_output(

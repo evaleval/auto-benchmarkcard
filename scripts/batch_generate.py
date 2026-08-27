@@ -355,6 +355,12 @@ def run_batch(
                 bench = scan_result.benchmarks[eee_key]
                 appears_in = appears_in_map.get(eee_key, [])
                 inputs = eee_to_pipeline_inputs(bench, "single", appears_in)
+                if source_bundle:
+                    # The repo binding is made here, before the workflow, by a live Hub
+                    # search when EEE has none; a replay takes the bundle run's repo (or
+                    # none) so both conditions read the same HF metadata.
+                    from auto_benchmarkcard.workers import bundle_hf_repo
+                    inputs["hf_repo"] = bundle_hf_repo(eee_key)
                 gate = gate_benchmark_identity(eee_key, inputs, str(output_dir))
                 if gate and gate.get("action") == "skip":
                     stats["skipped"] += 1

@@ -175,3 +175,11 @@ def test_exact_slug_dir_layout_is_a_bundle(bundle):
     # a stamped dir still wins over the bare one
     _write(bundle, "x", "2026-05-05_00-00", "docling", "x.json", {"v": "stamped"})
     assert W._bundle_tool_output(_state("x"), "docling", "x.json") == {"v": "stamped"}
+
+
+def test_bundle_hf_repo_reads_the_bundle_run_binding(bundle):
+    # Failure class: repo-binding drift. The frozen run bound mme by live search; a replay
+    # must reuse that repo id (or none), never search again.
+    _write(bundle, "mme", "2026-01-01_00-00", "hf", "mme.json", {"id": "lmms-lab/MME", "tags": []})
+    assert W.bundle_hf_repo("mme") == "lmms-lab/MME"
+    assert W.bundle_hf_repo("no-such-card") is None
