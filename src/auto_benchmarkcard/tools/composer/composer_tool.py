@@ -3203,6 +3203,33 @@ def _build_group_model(name, section_names, section_models):
     return create_model(f"Group_{name}", **fields)
 
 
+def _digest_extras(it) -> str:
+    """The structural annotations for one digest line, in a compact fixed order:
+    about, role, reg, sec, tab. All Python-derived (referent resolution, claim-role
+    coercion, docstructure recompute), never model prose. Defaults are omitted so the
+    common case (target / primary_result / no table) stays one short line: about only
+    for a non-target referent, role only for a non-primary claim role, reg for a real
+    region other than the uninformative 'other', sec as the innermost section title,
+    tab when the quote sits inside an indexed table."""
+    extras = ""
+    ref = it.get("referent", "")
+    if ref and ref != "target":
+        extras += f" | about: {ref}"
+    role = it.get("claim_role", "")
+    if role and role != "primary_result":
+        extras += f" | role: {role}"
+    region = it.get("region", "")
+    if region and region != "other":
+        extras += f" | reg: {region}"
+    sec_path = it.get("section_path", "")
+    if sec_path:
+        extras += f" | sec: {sec_path.rsplit(' > ', 1)[-1]}"
+    table_id = it.get("table_id", "")
+    if table_id:
+        extras += f" | tab: {table_id}"
+    return extras
+
+
 def _digest_block(evidence_digest, section_names):
     lines = []
     for sec in section_names:
@@ -3212,19 +3239,10 @@ def _digest_block(evidence_digest, section_names):
             continue
         lines.append(f"## {sec}")
         for it in items:
-            # referent and section give Stage B the binding signal without reopening
-            # free source text; both are Python-derived, never model prose.
-            extras = ""
-            ref = it.get("referent", "")
-            if ref and ref != "target":
-                extras += f" | about: {ref}"
-            sec_path = it.get("section_path", "")
-            if sec_path:
-                extras += f" | sec: {sec_path.rsplit(' > ', 1)[-1]}"
             lines.append(
                 f"- [{it.get('evidence_id', '?')}] "
                 f"({it.get('field', sec)} | {it.get('doc', '?')}/{it.get('kind', 'stated')}"
-                f"{extras}) "
+                f"{_digest_extras(it)}) "
                 f"{it.get('quote', '')}"
             )
     return "\n".join(lines) if lines else "(no evidence items for this group)"
@@ -3295,6 +3313,13 @@ _STAGE_B_RULES = (
     "RULES:\n"
     "1. Use ONLY the evidence items below. No outside knowledge. No source text is shown to you on "
     "purpose; work from the quotes only.\n"
+    "1b. Evidence-line annotations (machine-derived, trustworthy): 'about:' names the entity the "
+    "quote describes; a quote about one subset, version, split, or sibling benchmark supports only "
+    "statements about THAT entity, never the whole benchmark's own numbers. 'role: secondary' marks "
+    "cited or comparison content and 'role: illustration' an example; neither may become the "
+    "benchmark's own headline facts. 'reg:' is the document region the quote sits in "
+    "(related_work, ablation, or appendix content is weak support for headline fields); "
+    "'sec:' and 'tab:' name its section and source table.\n"
     "2. If a field has no supporting evidence and is not already established, output exactly \"Not specified\".\n"
     "3. Controlled (enum) fields: pick from the allowed vocabulary; if nothing fits use \"other:<short text>\".\n"
     "4. Prose (non-list) fields: 2-3 sentences, third person, your own synthesis of the cited "

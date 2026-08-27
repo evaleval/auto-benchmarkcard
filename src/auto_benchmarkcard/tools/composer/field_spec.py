@@ -164,6 +164,11 @@ FIELD_CAPS = {
         "where the data originates and how it was collected; NOT the hosting platform "
         "or datasets used only for comparison"
     ),
+    "data.annotation": (
+        "how THIS benchmark's items were labeled and quality-checked, and by whom; NOT a "
+        "source or parent dataset's annotation process, and NOT how model outputs are "
+        "graded (that is judge_setup)"
+    ),
     "benchmark_details.overview": (
         "2-3 sentences; state the direct measurement criterion -- the literal measured "
         "object (primary metric + item/sample type + count or domain breadth), e.g. "

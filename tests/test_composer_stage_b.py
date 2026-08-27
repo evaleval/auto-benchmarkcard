@@ -367,6 +367,43 @@ def test_judge_setup_bucket_surfaced_and_four_flat_fields_requested():
         assert f in spec
 
 
+def test_digest_line_carries_structural_context_in_fixed_order():
+    # WP1.2: Stage B is deliberately context-blind to source text, so the digest line is
+    # the ONLY channel for the structural signal the referent layer computed. Failure
+    # class: gates annotate region/role/table into records but the digest drops them,
+    # leaving Stage B to splice a secondary ablation-table number into a headline field.
+    digest = {"data.size": [{
+        "evidence_id": "E7", "field": "data.size", "quote": "the Hard subset has 500 items",
+        "doc": "docling", "kind": "stated", "referent": "subset:hard",
+        "claim_role": "secondary", "region": "results",
+        "section_path": "4 Results > 4.1 Main", "table_id": "t3",
+    }]}
+    block = C._digest_block(digest, ["data"])
+    assert ("(data.size | docling/stated | about: subset:hard | role: secondary "
+            "| reg: results | sec: 4.1 Main | tab: t3)") in block
+
+
+def test_digest_line_omits_default_annotations():
+    # target / primary_result / region 'other' / no table stay off the line, so the
+    # common case is compact and an annotation's PRESENCE is itself the signal.
+    digest = {"data.size": [{
+        "evidence_id": "E1", "field": "data.size", "quote": "10,000 examples",
+        "doc": "docling", "kind": "stated", "referent": "target",
+        "claim_role": "primary_result", "region": "other",
+        "section_path": "3 Data", "table_id": "",
+    }]}
+    block = C._digest_block(digest, ["data"])
+    assert "(data.size | docling/stated | sec: 3 Data)" in block
+    for token in ("about:", "role:", "reg:", "tab:"):
+        assert token not in block
+
+
+def test_stage_b_rules_explain_the_annotations():
+    prompt = C._build_group_prompt("data_method", ["data"], SECTION_MODELS, {}, {}, "")
+    assert "'about:'" in prompt and "role: secondary" in prompt
+    assert "related_work, ablation, or appendix" in prompt
+
+
 def test_field_spec_block_excludes_display_and_shows_audience_vocab():
     spec = C._field_spec_block(SECTION_MODELS, ["benchmark_details", "purpose_and_intended_users"], {})
     assert "authors" not in spec and "logo" not in spec   # display fields not authored
@@ -441,12 +478,13 @@ def test_field_gloss_keeps_useful_parenthetical_strips_machinery():
 
 
 def test_uncapped_prose_field_surfaces_description_gloss():
-    # data.annotation has no FIELD_CAPS entry -> its noise-stripped description gloss appears
-    # (witness switched from data.source, which now carries a negative referent cap)
-    assert "data.annotation" not in fs.FIELD_CAPS
-    desc_gloss = C._field_gloss(DataInfo.model_fields["annotation"])
+    # data.format has no FIELD_CAPS entry -> its noise-stripped description gloss appears
+    # (witness switched twice: data.source, then data.annotation, both now carry negative
+    # referent caps)
+    assert "data.format" not in fs.FIELD_CAPS
+    desc_gloss = C._field_gloss(DataInfo.model_fields["format"])
     assert desc_gloss                                  # the model field carries a description
-    assert desc_gloss in _spec_lines("data")["annotation"]
+    assert desc_gloss in _spec_lines("data")["format"]
 
 
 def test_capped_field_shows_cap_not_raw_description():
