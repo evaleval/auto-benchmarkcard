@@ -388,18 +388,23 @@ def _typecheck(model_cls, secdict: dict) -> Tuple[Optional[dict], List[VErr]]:
 
 
 _SENTENCE_VERB_RE = re.compile(r"\b(is|was|are|were|has|have|had|includes|contains)\b", re.IGNORECASE)
+_SENTENCE_SUBJECT_RE = re.compile(r"^(the|this|it|these|those)\b", re.IGNORECASE)
 
 
 def looks_like_sentence(val: Any) -> bool:
     """A string that reads as a sentence rather than a bare value: it carries a finite
-    verb, or it ends with a period and runs past six words ("Up to 5 trillion tokens."
-    is a value with a trailing period, not a sentence)."""
+    verb; or it opens with a subject ("The model performs text generation.") and either
+    ends with a period or runs past four words; or it ends with a period and runs past
+    six words ("Up to 5 trillion tokens." is a value with a trailing period)."""
     if not isinstance(val, str):
         return False
     text = val.strip()
+    words = len(text.split())
     if _SENTENCE_VERB_RE.search(text):
         return True
-    return text.endswith(".") and len(text.split()) > 6
+    if _SENTENCE_SUBJECT_RE.match(text) and (text.endswith(".") or words > 4):
+        return True
+    return text.endswith(".") and words > 6
 
 
 def validate_sections(parsed: dict, section_names: List[str],

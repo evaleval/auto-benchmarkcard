@@ -158,6 +158,9 @@ def test_value_fields_reject_sentences_and_the_benchmark_schema_has_none():
     assert not V.looks_like_sentence("7,298,617,344 parameters (safetensors metadata)")
     assert not V.looks_like_sentence("Dec. 2023")
     assert not V.looks_like_sentence("Up to 5 trillion tokens.")     # a value with a trailing period
+    assert V.looks_like_sentence("The model performs text generation.")   # subject + period, no listed verb
+    assert not V.looks_like_sentence("The MIT License")                    # a short name that opens with "The"
+    assert not V.looks_like_sentence("text-generation")
     # a model that never repairs the sentence ships NS with the flag, never the sentence
     out["identity"]["name"] = "The widget's official name is Zorb."
     outcome = V.run_group_with_repair("all", ["identity", "specs"], sch.section_models, "BASE",
