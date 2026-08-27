@@ -557,6 +557,13 @@ def _resolve_referent(claimed: str, quote: str, frame,
             override = contests_target(quote)
             if override is not None:
                 return override, "quote_override"
+            # a source with its own default (a model's family paper) does not let the
+            # declaration alone bind an unnamed sentence to the target: "this SFT mix
+            # contains 939,104 prompts" in the family paper is the family's statement
+            # unless the sentence names the target
+            if default_referent and default_referent in ids and default_referent != target_id \
+                    and target_id not in frame_mod.match_mention(frame, quote):
+                return default_referent, "default_over_claim"
         return claimed, "claimed_id"
     if claimed:
         hits = frame_mod.match_mention(frame, claimed)
@@ -599,7 +606,7 @@ def verify_items(raw_items, source_text: str, doc: str,
     if frame is not None:
         telem["referent_resolution"] = {
             "claimed_id": 0, "claimed_name": 0, "quote_mention": 0, "default_target": 0,
-            "quote_override": 0,
+            "quote_override": 0, "default_over_claim": 0,
         }
     norm_source = normalize_ws(source_text or "")
     norm_shown = normalize_ws(shown_text or "")

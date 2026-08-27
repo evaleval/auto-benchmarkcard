@@ -196,3 +196,13 @@ def test_verify_items_honors_a_per_source_default_referent():
     assert [r["referent"] for r in recs] == ["family:olmo-2", "target"]
     recs2, _ = E.verify_items(items[:1], src, "docling", frame=frame, schema=sch)
     assert recs2[0]["referent"] == "target"
+    # the model's own "target" declaration does not beat the source default for an
+    # unnamed sentence (seen on the OLMo-2 Instruct smoke: "this SFT mix contains
+    # 939,104 prompts" from the family paper bound as exact_target); a sentence that
+    # names the target keeps it, and without a default the declaration still wins
+    claimed = [dict(it, referent="target") for it in items]
+    recs3, _ = E.verify_items(claimed, src, "docling", frame=frame, schema=sch,
+                              default_referent="family:olmo-2")
+    assert [r["referent"] for r in recs3] == ["family:olmo-2", "target"]
+    recs4, _ = E.verify_items(claimed[:1], src, "docling", frame=frame, schema=sch)
+    assert recs4[0]["referent"] == "target"
