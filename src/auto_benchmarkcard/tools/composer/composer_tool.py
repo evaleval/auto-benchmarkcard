@@ -1493,7 +1493,8 @@ def _surface_size_conflicts(det_facts: Dict[str, Any],
     Mutates det_facts and appends to conflicts in place."""
     det_size = det_facts.get("data.size")
     det_count = _size_count(det_size)
-    if det_count is None:
+    bucket = _size_bucket_range(det_size)
+    if det_count is None and bucket is None:
         return
     paper_docs = {evidence.DOC_PAPER, evidence.DOC_ABSTRACT}
     counts: List[int] = []
@@ -1512,6 +1513,20 @@ def _surface_size_conflicts(det_facts: Dict[str, Any],
     if not counts:
         return
     paper_count = max(counts)
+    if det_count is None:
+        # A coarse HF tag bucket: a precise paper count inside its range simply displaces
+        # it (the schema prefers the paper's number); a count outside it is a conflict.
+        lo, hi = bucket
+        if lo <= paper_count < hi:
+            del det_facts["data.size"]
+            return
+        conflicts.append({
+            "field": "data.size", "deterministic": det_size,
+            "composed": f"{paper_count} (paper-stated count)",
+            "note": "hf size bucket vs paper-stated count",
+        })
+        del det_facts["data.size"]
+        return
     if abs(paper_count - det_count) <= max(1, det_count // 100):
         return
     conflicts.append({

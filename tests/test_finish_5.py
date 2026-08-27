@@ -712,8 +712,25 @@ def test_size_conflict_keeps_non_split_breakdown():
     assert det["data.size_breakdown"] == {"algebra": 300, "geometry": 280}
 
 
-def test_size_conflict_bucket_size_is_not_compared():
+def test_size_conflict_no_paper_count_leaves_bucket_alone():
     det = {"data.size": "Less than 1K examples"}
     conflicts = []
-    C._surface_size_conflicts(det, _size_items("a total of 619 problems"), conflicts)
+    C._surface_size_conflicts(det, _size_items("a corpus of many web documents"), conflicts)
     assert det["data.size"] == "Less than 1K examples" and conflicts == []
+
+
+def test_size_bucket_yields_to_precise_paper_count_inside_range():
+    # swe-bench-multimodal smoke: the HF tag bucket "Less than 1K" was established while the
+    # paper states 619; a precise paper count inside the bucket displaces the bucket silently.
+    det = {"data.size": "Less than 1K examples"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a final total of 619 task instances"), conflicts)
+    assert "data.size" not in det and conflicts == []
+
+
+def test_size_bucket_contradicted_by_paper_count_is_a_conflict():
+    det = {"data.size": "Less than 1K examples"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("consisting of 2,294 software engineering problems"), conflicts)
+    assert "data.size" not in det
+    assert conflicts[0]["field"] == "data.size" and "2294" in conflicts[0]["composed"]
