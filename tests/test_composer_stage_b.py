@@ -565,6 +565,32 @@ def test_full_compose_demotes_ungrounded_value(monkeypatch):
     assert any("overview" in k for k in card.get("flagged_fields", {}))
 
 
+def test_full_compose_drops_ungrounded_baseline_sentence_on_final_card(monkeypatch):
+    # WP1.4: the ungrounded-baseline drop must act on the card that is RETURNED, after the
+    # validator accepted the field on a real citation. One fake response serves every call:
+    # the extraction call reads its "evidence" list (the quote verifies against the HF
+    # README), Stage B reads the section keys, the frame/EAV passes fail-open on it.
+    readme = ("---\npretty_name: TestBench\n---\n# TestBench\n"
+              "The best model scores 88.70% accuracy on TestBench. " * 3)
+    resp = json.loads(_all_ns_response())
+    resp["evidence"] = [{"field": "methodology.baseline_results",
+                         "quote": "The best model scores 88.70% accuracy on TestBench.",
+                         "kind": "stated"}]
+    resp["methodology"]["baseline_results"] = (
+        "The best model scores 88.70% accuracy on TestBench. A mystery model hits 99.90%.")
+    resp["methodology"]["provenance"] = {"baseline_results": {
+        "source": "hf", "evidence": "The best model scores 88.70% accuracy on TestBench.",
+        "evidence_ids": ["E01"]}}
+    monkeypatch.setattr(C, "get_llm_handler", lambda *a, **k: _FakeHandler(json.dumps(resp)))
+    fn = getattr(C.compose_benchmark_card, "func", C.compose_benchmark_card)
+    res = fn(query="TestBench", hf_metadata={"id": "acme/testbench", "tags": [],
+                                              "readme_markdown": readme})
+    card = res["benchmark_card"]
+    assert card["methodology"]["baseline_results"] == \
+        "The best model scores 88.70% accuracy on TestBench."
+    assert card["flagged_fields"]["methodology.baseline_results"].startswith("[Ungrounded baseline]")
+
+
 # ----------------------------------------------------- truncation (BUG 1) ----
 
 # a group output cut off mid-string: unparseable, the way the token cap truncates it

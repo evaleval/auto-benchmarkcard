@@ -741,9 +741,11 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
       - 'Score' means a number with score context (trailing '%' or a decimal); a bare integer or a
         name-glued version digit ('Fable 5', 'GPT-5', 'Gemini 3.1') is NOT a score and never grounds.
       - A sentence with NO stated score is qualitative context -> kept untouched.
-      - A MIXED sentence (some scores grounded, some not) is ambiguous -> KEPT + flagged, never dropped
-        (a real baseline must not be lost to a co-located stray number).
-      - Only a sentence whose every stated score is ungrounded is dropped.
+      - A sentence with ANY ungrounded stated score is dropped, mixed or not. Mixed sentences used
+        to be kept and flagged; the phase 3 screen showed that path ships real fabrications
+        (assistantbench's 22.2% closed-book row, chartqa's 31.96%, math's 'GPT-2 (0.7B)'), and a
+        flag is not a withhold. Losing the grounded half of such a sentence is the price of
+        abstaining, and the grounded number still lives in the cited evidence.
       - Surviving grounded + qualitative sentences are KEPT (whole sentences -> grammatical, no mangled
         remnant); the WHOLE field is set to 'Not specified' only when NO grounded sentence survives a
         real drop (e.g. mmlu-pro's all-fabricated leaderboard -> whole-field NS)."""
@@ -761,23 +763,19 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
 
     kept: List[str] = []
     dropped = False
-    mixed = False
     any_grounded_kept = False
     for s in sentences:
         nums = _stated_score_numbers(s)
         if not nums:
             kept.append(s)                                   # qualitative -> keep (no score to judge)
             continue
-        grounded_hits = [n for n in nums if _score_is_grounded(n, grounded)]
-        if not grounded_hits:
-            dropped = True                                   # every stated score ungrounded -> drop
+        if not all(_score_is_grounded(n, grounded) for n in nums):
+            dropped = True                                   # any ungrounded stated score -> drop
             continue
-        if len(grounded_hits) < len(nums):
-            mixed = True                                     # mixed -> keep, but flag
         any_grounded_kept = True
         kept.append(s)
 
-    if not dropped and not mixed:
+    if not dropped:
         return                                               # nothing to change
 
     flags = card.setdefault("flagged_fields", {})
@@ -785,18 +783,87 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
     # Whole-field NS ONLY when a real drop left no grounded sentence behind (nothing trustworthy to
     # keep). Otherwise keep the surviving whole sentences (grammatical) -- never over-drop a real
     # baseline just because the fabricated sentences were the majority.
-    if dropped and (not any_grounded_kept or not surviving):
+    if not any_grounded_kept or not surviving:
         meth["baseline_results"] = "Not specified"
         flags["methodology.baseline_results"] = (
             "[Ungrounded baseline] all reported scores not traceable to a retrieved source; "
             "field set to Not specified")
-    elif dropped:
+    else:
         meth["baseline_results"] = surviving
         flags["methodology.baseline_results"] = (
             "[Ungrounded baseline] dropped score claim(s) not traceable to a retrieved source")
-    elif mixed:
-        flags["methodology.baseline_results"] = (
-            "[Ungrounded baseline] one or more reported scores not traceable to a retrieved source")
+
+
+_INT_TOKEN_RE = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?![\w.])")
+
+
+def _grounded_int_pool(evidence_items: Optional[List[Dict[str, Any]]],
+                       det_facts: Optional[Dict[str, Any]]) -> set:
+    """Every integer the composer was actually given: bare or thousands-grouped integers in
+    the verified evidence quotes, plus the deterministic counts (split totals, README-table
+    breakdown values, an explicit size count). Over-inclusive on purpose (a year or a page
+    number joins the pool too); the pool only has to be a superset of the honest counts."""
+    pool: set = set()
+    for it in (evidence_items or []):
+        if isinstance(it, dict):
+            for m in _INT_TOKEN_RE.finditer(str(it.get("quote", "") or "")):
+                pool.add(int(m.group(1).replace(",", "")))
+    df = det_facts if isinstance(det_facts, dict) else {}
+    total = df.get("data.total_examples")
+    if isinstance(total, int) and not isinstance(total, bool):
+        pool.add(total)
+    for entry in df.get("data.split_info") or []:
+        for m in _INT_TOKEN_RE.finditer(str(entry)):
+            pool.add(int(m.group(1).replace(",", "")))
+    det_sb = df.get("data.size_breakdown")
+    if isinstance(det_sb, dict):
+        pool.update(v for v in det_sb.values() if isinstance(v, int) and not isinstance(v, bool))
+    size_count = _size_count(df.get("data.size"))
+    if size_count is not None:
+        pool.add(size_count)
+    return pool
+
+
+def _drop_ungrounded_size_breakdown(card: Dict[str, Any],
+                                    evidence_items: Optional[List[Dict[str, Any]]],
+                                    det_facts: Optional[Dict[str, Any]]) -> None:
+    """Withhold size_breakdown counts that no retrieved source carries. Mutates card in place
+    and flags the change. A Stage-B breakdown is a set of per-subset integers; each one must
+    occur literally in a verified quote or a deterministic count, else it was synthesized (the
+    swe-polybench task-type class: round numbers that match no published breakdown). A
+    breakdown that equals the deterministic README-table parse is trusted as-is. Runs BEFORE
+    the numeric-consistency rules so a percentage breakdown, grounded as '40%' in a quote, can
+    still be converted by Rule C afterwards."""
+    data = card.get("data")
+    if not isinstance(data, dict):
+        return
+    sb = data.get("size_breakdown")
+    if not isinstance(sb, dict) or not sb:
+        return
+    det_sb = (det_facts or {}).get("data.size_breakdown") if isinstance(det_facts, dict) else None
+    if isinstance(det_sb, dict) and det_sb == sb:
+        return
+    pool = _grounded_int_pool(evidence_items, det_facts)
+    kept = {}
+    dropped = []
+    for k, v in sb.items():
+        if isinstance(v, int) and not isinstance(v, bool) and v not in pool:
+            dropped.append(k)
+            continue
+        kept[k] = v
+    if not dropped:
+        return
+    flags = card.setdefault("flagged_fields", {})
+    if kept:
+        data["size_breakdown"] = kept
+        flags["data.size_breakdown"] = (
+            f"[Ungrounded breakdown] dropped {len(dropped)} count(s) not traceable to a "
+            f"retrieved source: {', '.join(str(d) for d in dropped[:6])}")
+    else:
+        data["size_breakdown"] = "Not specified"
+        flags["data.size_breakdown"] = (
+            "[Ungrounded breakdown] no count traceable to a retrieved source; "
+            "field set to Not specified")
 
 
 def build_metric_labels(eee_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -3868,6 +3935,10 @@ def compose_benchmark_card(
     if coverage_reason:
         benchmark_card_dict.setdefault("flagged_fields", {})["domains"] = coverage_reason
         logger.info("Domain coverage flag: %s", coverage_reason)
+
+    # Withhold synthesized size_breakdown counts (no retrieved source carries the number)
+    # before the consistency rules see the dict.
+    _drop_ungrounded_size_breakdown(benchmark_card_dict, evidence_items, det_facts)
 
     # C2: drop a size / size_breakdown the card's own prose contradicts (runs before the
     # deterministic-provenance block so a dropped value emits no stale source=deterministic entry).
