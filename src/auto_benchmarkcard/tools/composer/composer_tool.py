@@ -4044,7 +4044,12 @@ def compose_benchmark_card(
         ):
             _calc = _meth.get("calculation") if isinstance(_meth.get("calculation"), str) else ""
             _methods = [_m for _m in (_meth.get("methods") or []) if isinstance(_m, str)]
-            _promoted = _metric_from_prose(_calc) or _metric_from_prose(*_methods)
+            # interpretation names the metric as often as calculation does ("Scores represent
+            # accuracy ..."); reading only calculation/methods left the math smoke card on the
+            # raw other:MATH proxy while its own interpretation said accuracy.
+            _interp = _meth.get("interpretation") if isinstance(_meth.get("interpretation"), str) else ""
+            _promoted = (_metric_from_prose(_calc) or _metric_from_prose(*_methods)
+                         or _metric_from_prose(_interp))
             if _promoted:
                 _meth["metrics"] = _promoted
                 all_provenance.setdefault("methodology", {})["metrics"] = {

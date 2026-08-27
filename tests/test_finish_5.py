@@ -734,3 +734,15 @@ def test_size_bucket_contradicted_by_paper_count_is_a_conflict():
     C._surface_size_conflicts(det, _size_items("consisting of 2,294 software engineering problems"), conflicts)
     assert "data.size" not in det
     assert conflicts[0]["field"] == "data.size" and "2294" in conflicts[0]["composed"]
+
+
+# ---------------------------------------------------------------------------------------------
+# WP1 smoke follow-up -- C4 metric promotion also reads methodology.interpretation
+
+def test_c4_promotion_reads_interpretation_prose():
+    # math smoke card: metrics ['other:MATH'] while interpretation said "Scores represent
+    # accuracy (percentage of problems answered correctly)"; calculation/methods named none.
+    assert C._metric_from_prose("Scores represent accuracy (percentage of problems answered "
+                                "correctly), with higher values indicating better performance.") == ["Accuracy"]
+    # an incidental mention without a definition cue still promotes nothing
+    assert C._metric_from_prose("The accuracy of the transcription was not assessed here.") == []
