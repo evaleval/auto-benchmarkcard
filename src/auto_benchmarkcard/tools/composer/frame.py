@@ -27,15 +27,26 @@ NODE_TYPES = (
 METRIC_ROLES = ("primary", "secondary", "meta_eval", "unknown")
 
 # paper head window for version/split harvesting and the LLM sibling prompt
-HEAD_CHARS = 4000  # window for the LLM sibling prompt only (token cost)
+HEAD_CHARS = 4000  # fallback window for the LLM prompts when no section index exists
 # The deterministic version/split scans read the WHOLE paper. Capping them at
 # HEAD_CHARS cost real nodes: over the 11 papered phase 2 gate cards, widening
 # takes splits 8 -> 21 and versions 0 -> 2, all clean. Their own context guards
 # (release cue or target alias within +/-200 chars, URL and model-word exclusion
 # for versions; a set/split/partition noun immediately after for splits) are what
 # keep them precise, not the window.
+#
+# The LLM prompts read RANKED EXCERPTS over the section index instead of the raw
+# head: intro, related work, data and results sections name the siblings and
+# subsets, and a 4000-char head often ends inside the abstract. The budget bounds
+# token cost; the head-only fallback keeps index-less papers working.
+EXCERPT_BUDGET = 9000
+EXCERPT_HEAD = 2000     # the document head (title/abstract) is always included
+EXCERPT_PER_SECTION = 1500
 MAX_LLM_SIBLINGS = 12
+MAX_LLM_SUBSETS = 16
 MIN_ALIAS_CHARS = 3  # single very-short aliases are ignored by match_mention
+# regions most likely to name siblings and subsets, in preference order
+_EXCERPT_REGION_ORDER = {"intro": 0, "related_work": 1, "data": 2, "results": 3}
 
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 
@@ -154,12 +165,16 @@ def _add_node(nodes: List[Dict[str, Any]], index: Dict[str, Dict[str, Any]],
 
 
 def _target_node(benchmark_name: str, eee_metadata: Optional[Dict[str, Any]],
-                 hf_json: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+                 hf_json: Optional[Dict[str, Any]],
+                 extra_aliases: Optional[List[str]] = None) -> Dict[str, Any]:
     aliases: List[str] = []
 
     def take(value):
         if isinstance(value, str) and value.strip():
             aliases.append(value.strip())
+
+    for alias in extra_aliases or []:
+        take(alias)
 
     if isinstance(eee_metadata, dict):
         take(eee_metadata.get("benchmark_name"))
@@ -340,7 +355,8 @@ def _version_nodes(paper_text: str, target_aliases: List[str]) -> List[Dict[str,
     return list(found.values())
 
 
-def _split_nodes(paper_text: str, hf_json: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _split_nodes(paper_text: str, hf_json: Optional[Dict[str, Any]],
+                 extra_texts: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
     words: Dict[str, set] = {}
 
     def record(raw: str):
@@ -350,6 +366,11 @@ def _split_nodes(paper_text: str, hf_json: Optional[Dict[str, Any]]) -> List[Dic
     head = paper_text
     for m in _SPLIT_CONTEXT_RE.finditer(head):
         record(m.group(1))
+    # the same context guard over the HF README body, GitHub README, and HTML dump
+    for text in (extra_texts or {}).values():
+        if isinstance(text, str):
+            for m in _SPLIT_CONTEXT_RE.finditer(text):
+                record(m.group(1))
     if isinstance(hf_json, dict):
         fm = _readme_frontmatter(hf_json.get("readme_markdown"))
         for m in _SPLIT_YAML_RE.finditer(fm):
@@ -370,6 +391,91 @@ def _split_nodes(paper_text: str, hf_json: Optional[Dict[str, Any]]) -> List[Dic
             "description": "Dataset split mentioned in the paper head or HF metadata.",
         })
     return nodes
+
+
+def _ranked_paper_excerpts(doc_index, paper_text: str) -> Tuple[List[str], str]:
+    """Excerpts for the LLM frame prompts, plus the text presence checks run against.
+
+    With a usable section index: the document head (title/abstract sit before any
+    heading) plus the heads of the sections ranked by region (intro, related work,
+    data, results first, then document order), within EXCERPT_BUDGET. Offsets refer
+    to the index's own normalized text, so slices and the literal-presence guard use
+    that same string. Without an index (or one lacking offsets): the raw head, as
+    before."""
+    fallback = ([paper_text[:HEAD_CHARS]], paper_text)
+    sections = list(getattr(doc_index, "sections", None) or [])
+    text = getattr(doc_index, "normalized_text", "") or ""
+    usable = [s for s in sections
+              if isinstance(getattr(s, "char_start", None), int)
+              and isinstance(getattr(s, "char_end", None), int)
+              and getattr(s, "char_end") > getattr(s, "char_start")]
+    if not text or not usable:
+        return fallback
+
+    head = text[:EXCERPT_HEAD]
+    parts = [head]
+    spans = [(0, len(head))]
+    used = len(head)
+    ranked = sorted(usable, key=lambda s: (
+        _EXCERPT_REGION_ORDER.get(getattr(s, "region", ""), 9), s.char_start))
+    for sec in ranked:
+        remaining = EXCERPT_BUDGET - used
+        if remaining < 200:
+            break  # only budget exhaustion ends the walk; short sections are kept whole
+        take = min(sec.char_end - sec.char_start, EXCERPT_PER_SECTION, remaining)
+        if take <= 0:
+            continue
+        start, end = sec.char_start, sec.char_start + take
+        if any(start < b and a < end for a, b in spans):
+            continue
+        parts.append(text[start:end])
+        spans.append((start, end))
+        used += take
+    return parts, text
+
+
+_EXTRA_HEADING_RE = re.compile(r"^#{1,6}\s+(\S.*?)\s*$", re.MULTILINE)
+
+
+def _extra_alias_candidates(extra_texts: Optional[Dict[str, str]],
+                            benchmark_name: str) -> List[str]:
+    """Target aliases from the extra sources' first markdown heading.
+
+    Guarded: the heading (or its pre-colon head) must share its alnum identity with
+    the benchmark name in one direction or the other, so a foreign title never
+    becomes an alias. HTML dumps carry no markdown headings and contribute nothing."""
+    out: List[str] = []
+    key = _NON_ALNUM_RE.sub("", benchmark_name.lower())
+    if not key:
+        return out
+    for text in (extra_texts or {}).values():
+        if not isinstance(text, str):
+            continue
+        body = _readme_frontmatter_stripped(text)
+        m = _EXTRA_HEADING_RE.search(body[:2000])
+        if not m:
+            continue
+        heading = m.group(1).strip()
+        if ":" in heading:
+            pre = heading.split(":", 1)[0].strip()
+            if pre and len(pre.split()) <= 3:
+                heading = pre
+        hkey = _NON_ALNUM_RE.sub("", heading.lower())
+        if not hkey or len(heading) > 80:
+            continue
+        if key in hkey or hkey in key:
+            out.append(heading)
+    return out
+
+
+def _readme_frontmatter_stripped(text: str) -> str:
+    """The text after a leading YAML frontmatter block, or the text unchanged."""
+    if not text.startswith("---"):
+        return text
+    end = text.find("\n---", 3)
+    if end < 0:
+        return text
+    return text[end + 4:]
 
 
 def _extract_json_list(raw: str) -> Optional[str]:
@@ -402,31 +508,10 @@ def _extract_json_list(raw: str) -> Optional[str]:
     return None
 
 
-def _llm_sibling_names(llm_handler, target_name: str, target_aliases: List[str],
-                       paper_text: str, doc_index) -> List[str]:
-    """One LLM call over the paper head (+ section titles); returns the raw name
-    list. Callers validate against the paper text; this never checks presence."""
-    titles = []
-    for section in (getattr(doc_index, "sections", None) or [])[:40]:
-        title = getattr(section, "title", "")
-        if isinstance(title, str) and title.strip():
-            titles.append(title.strip())
-    known = ", ".join([target_name, *target_aliases][:6])
-    parts = [
-        f'You are indexing a research paper about the benchmark "{target_name}" '
-        f"(also known as: {known}).",
-        "List the names of OTHER benchmarks or datasets mentioned in the material "
-        f'below, i.e. ones that are NOT "{target_name}" itself.',
-        'Answer with ONLY a JSON array of name strings, e.g. ["MMLU", "HellaSwag"]. '
-        "Answer [] if none are mentioned.",
-    ]
-    if titles:
-        parts.append("Section titles:\n" + "\n".join("- " + t for t in titles))
-    parts.append("Paper text (beginning):\n" + paper_text[:HEAD_CHARS])
-    raw = llm_handler.generate("\n\n".join(parts))
+def _parse_name_list(raw) -> List[str]:
+    """Names from an LLM JSON-array response; [] on anything unparseable."""
     if not isinstance(raw, str):
         return []
-
     parsed = None
     for candidate in (raw.strip(), _extract_json_list(raw)):
         if not candidate:
@@ -445,6 +530,57 @@ def _llm_sibling_names(llm_handler, target_name: str, target_aliases: List[str],
     return names
 
 
+def _llm_sibling_names(llm_handler, target_name: str, target_aliases: List[str],
+                       excerpts: List[str], doc_index) -> List[str]:
+    """One LLM call over the ranked paper excerpts (+ section titles); returns the
+    raw name list. Callers validate against the source text; this never checks
+    presence."""
+    titles = []
+    for section in (getattr(doc_index, "sections", None) or [])[:40]:
+        title = getattr(section, "title", "")
+        if isinstance(title, str) and title.strip():
+            titles.append(title.strip())
+    known = ", ".join([target_name, *target_aliases][:6])
+    parts = [
+        f'You are indexing a research paper about the benchmark "{target_name}" '
+        f"(also known as: {known}).",
+        "List the names of OTHER benchmarks or datasets mentioned in the material "
+        f'below, i.e. ones that are NOT "{target_name}" itself.',
+        'Answer with ONLY a JSON array of name strings, e.g. ["MMLU", "HellaSwag"]. '
+        "Answer [] if none are mentioned.",
+    ]
+    if titles:
+        parts.append("Section titles:\n" + "\n".join("- " + t for t in titles))
+    parts.append("Paper text (excerpts):\n" + "\n[...]\n".join(excerpts))
+    return _parse_name_list(llm_handler.generate("\n\n".join(parts)))
+
+
+def _llm_subset_names(llm_handler, target_name: str, target_aliases: List[str],
+                      source_blocks: List[Tuple[str, str]]) -> List[str]:
+    """One LLM call proposing named subsets/configs/tracks OF the target itself.
+
+    healthbench builds 2 nodes from a 46-section paper because subsets living only
+    in prose (its themes, a Hard/Consensus variant) have no deterministic channel.
+    Same trust model as the sibling pass: the model only PROPOSES names, the caller
+    keeps a name only when it occurs literally in a source text."""
+    known = ", ".join([target_name, *target_aliases][:6])
+    parts = [
+        f'You are indexing documentation about the benchmark "{target_name}" '
+        f"(also known as: {known}).",
+        f'List the names of the SUBSETS, configurations, tracks, named variants, or '
+        f'named categories OF "{target_name}" ITSELF that the material below names '
+        f"(e.g. a Hard subset, a Consensus variant, named topic tracks). "
+        f"Do NOT list other benchmarks, generic split words (train/test/validation), "
+        f"metrics, or model names.",
+        'Answer with ONLY a JSON array of name strings, e.g. ["Hard", "Consensus"]. '
+        "Answer [] if none are named.",
+    ]
+    for label, text in source_blocks:
+        if text:
+            parts.append(f"{label}:\n{text}")
+    return _parse_name_list(llm_handler.generate("\n\n".join(parts)))
+
+
 def build_frame(
     benchmark_name: str,
     eee_metadata: Optional[Dict[str, Any]],
@@ -452,22 +588,30 @@ def build_frame(
     doc_index=None,
     paper_text: str = "",
     llm_handler=None,
+    extra_texts: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Return {"target_id": "target", "nodes": [...], "telemetry": {...}}.
 
     Each node: {"id", "type", "name", "aliases": [...], "description": one line,
     and for metrics "role"}. Deterministic builders run always; the LLM sibling
-    pass runs only when llm_handler and paper_text are given and never raises
-    (fail-soft to the deterministic frame). Dedup by normalized name across
-    builders; the target node always exists and carries the resolved benchmark
-    name plus HF/EEE aliases.
+    and subset passes run only when llm_handler and source text are given and
+    never raise (fail-soft to the deterministic frame). Dedup by normalized name
+    across builders; the target node always exists and carries the resolved
+    benchmark name plus HF/EEE aliases.
+
+    extra_texts ({source_label: text}) feeds the HF README body, GitHub README,
+    and HTML dump into the alias, split, and LLM-subset builders. Each channel
+    keeps its own guard: an alias needs a heading sharing the target's identity,
+    a split needs its set/split noun, an LLM-proposed name must occur literally
+    in a source text.
     """
     nodes: List[Dict[str, Any]] = []
     index: Dict[str, Dict[str, Any]] = {}
     counts: Dict[str, int] = {}
     merged = 0
 
-    target = _target_node(benchmark_name, eee_metadata, hf_json)
+    target = _target_node(benchmark_name, eee_metadata, hf_json,
+                          extra_aliases=_extra_alias_candidates(extra_texts, benchmark_name))
     _add_node(nodes, index, target)
     counts["target"] = 1
 
@@ -476,7 +620,7 @@ def build_frame(
         ("subsets", _subset_nodes(eee_metadata, hf_json)),
         ("metrics", _metric_nodes(eee_metadata)),
         ("versions", _version_nodes(paper_text, [target["name"], *target["aliases"]])),
-        ("splits", _split_nodes(paper_text, hf_json)),
+        ("splits", _split_nodes(paper_text, hf_json, extra_texts)),
     ]
     for label, batch in builders:
         added = 0
@@ -487,37 +631,73 @@ def build_frame(
                 merged += 1
         counts[label] = added
 
-    telemetry: Dict[str, Any] = {"llm_pass": "skipped"}
+    def add_llm_nodes(names, presence_texts, cap, node_type, description):
+        kept = 0
+        merged_here = 0
+        for name in names:
+            if kept >= cap:
+                break
+            # the LLM is never trusted: the name must occur literally in a source
+            if not any(_token_present(t, name) for t in presence_texts if t):
+                continue
+            low = name.lower()
+            if low in _SPLIT_WORDS or low in ("default", "all") or name.isdigit():
+                continue
+            node = {
+                "id": f"{node_type}:" + _slug(name),
+                "type": node_type,
+                "name": name,
+                "aliases": [],
+                "description": description,
+            }
+            if _add_node(nodes, index, node):
+                kept += 1
+            else:
+                merged_here += 1
+        return kept, merged_here
+
+    telemetry: Dict[str, Any] = {"llm_pass": "skipped", "llm_subset_pass": "skipped"}
     counts["siblings_llm"] = 0
+    counts["subsets_llm"] = 0
+    extra_items = [(k, v) for k, v in (extra_texts or {}).items()
+                   if isinstance(v, str) and v.strip()]
     if llm_handler is not None and paper_text:
+        excerpts, presence_text = _ranked_paper_excerpts(doc_index, paper_text)
         try:
             names = _llm_sibling_names(llm_handler, target["name"], target["aliases"],
-                                       paper_text, doc_index)
-            kept = 0
-            for name in names:
-                if kept >= MAX_LLM_SIBLINGS:
-                    break
-                # the LLM is never trusted: the name must occur literally in the paper
-                if not _token_present(paper_text, name):
-                    continue
-                node = {
-                    "id": "sibling:" + _slug(name),
-                    "type": "sibling",
-                    "name": name,
-                    "aliases": [],
-                    "description": "Benchmark or dataset named in the paper (LLM sibling pass).",
-                }
-                if _add_node(nodes, index, node):
-                    kept += 1
-                else:
-                    merged += 1
-            counts["siblings_llm"] = kept
+                                       excerpts, doc_index)
+            counts["siblings_llm"], m = add_llm_nodes(
+                names, [presence_text, paper_text], MAX_LLM_SIBLINGS, "sibling",
+                "Benchmark or dataset named in the paper (LLM sibling pass).")
+            merged += m
             telemetry["llm_pass"] = "ok"
             telemetry["llm_returned"] = len(names)
         except Exception as exc:
             logger.warning("frame LLM sibling pass failed: %s", exc)
             telemetry["llm_pass"] = "failed"
             telemetry["llm_pass_error"] = str(exc)[:200]
+    if llm_handler is not None and (paper_text or extra_items):
+        try:
+            blocks: List[Tuple[str, str]] = []
+            presence: List[str] = []
+            if paper_text:
+                excerpts, presence_text = _ranked_paper_excerpts(doc_index, paper_text)
+                blocks.append(("Paper text (excerpts)", "\n[...]\n".join(excerpts)))
+                presence.extend([presence_text, paper_text])
+            for label, text in extra_items:
+                blocks.append((label, text[:HEAD_CHARS]))
+                presence.append(text)
+            names = _llm_subset_names(llm_handler, target["name"], target["aliases"], blocks)
+            counts["subsets_llm"], m = add_llm_nodes(
+                names, presence, MAX_LLM_SUBSETS, "subset",
+                "Subset named in the sources (LLM subset pass, literal-verified).")
+            merged += m
+            telemetry["llm_subset_pass"] = "ok"
+            telemetry["llm_subset_returned"] = len(names)
+        except Exception as exc:
+            logger.warning("frame LLM subset pass failed: %s", exc)
+            telemetry["llm_subset_pass"] = "failed"
+            telemetry["llm_subset_pass_error"] = str(exc)[:200]
 
     telemetry["builder_counts"] = counts
     telemetry["merged_duplicates"] = merged
@@ -552,6 +732,15 @@ def names_target_implicitly(text: str) -> bool:
     return bool(_TARGET_DEICTIC_RE.search(text or ""))
 
 
+# Nouns that mark a bare subset-name mention as genuinely about the subset ("the Hard
+# subset", "seven subject categories"). Single common-word subset names need one nearby;
+# specific names (multi-word, digits, hyphens) stand alone.
+_SUBSET_CUE_RE = re.compile(
+    r"\b(subsets?|splits?|categor(?:y|ies)|tracks?|tiers?|variants?|portions?"
+    r"|partitions?|sections?|tasks?|class(?:es)?|sets?|domains?|themes?|subjects?)\b",
+    re.IGNORECASE)
+
+
 def mention_is_referential(node: Dict[str, Any], text: str) -> bool:
     """Does `text` really refer to `node`, or does it just contain its name?
 
@@ -559,11 +748,29 @@ def mention_is_referential(node: Dict[str, Any], text: str) -> bool:
     CREATED these nodes each applied a context test. Re-applying that test is what
     separates a genuine reference from a word collision: "verification test" is not
     the test split, "Matplotlib version 3.3.2" is not a release of the benchmark.
-    Siblings and subsets are exempt; their names are specific enough to stand alone.
+    Siblings are exempt; their names are specific enough to stand alone. A subset
+    whose name is specific (multi-word, digits, hyphens) also stands alone, but a
+    single common-word subset name (the LLM subset pass proposes real ones like
+    "human", "Hard", "OCR") needs a nearby subset cue, and a capitalized name must
+    occur with its exact casing, so "human annotators wrote the questions" never
+    re-binds to a subset:human node.
     """
     ntype = node.get("type")
     name = (node.get("name") or "").strip()
     if not text or not name:
+        return False
+    if ntype == "subset":
+        specific = (len(name.split()) > 1 or any(c.isdigit() for c in name)
+                    or "-" in name or "_" in name)
+        if specific:
+            return True
+        needs_case = name != name.lower()
+        for start, end in _iter_token_hits(text, name):
+            if needs_case and text[start:end] != name:
+                continue
+            window = text[max(0, start - 50):end + 50]
+            if _SUBSET_CUE_RE.search(window):
+                return True
         return False
     if ntype == "split":
         return any(_SPLIT_CANON.get(m.group(1).lower(), m.group(1).lower()) == _norm(name)

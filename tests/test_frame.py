@@ -372,3 +372,138 @@ def test_scrape_source_labels_are_not_siblings():
     fr = F.build_frame("mybench", eee, None)
     names = {n["name"] for n in fr["nodes"] if n["type"] == "sibling"}
     assert names == {"helm_lite"}
+
+
+# ------------------------- WP1.1: ranked excerpts, extra sources, subset pass ----
+
+class SeqHandler:
+    """Per-call responses: first call gets responses[0], second responses[1], ..."""
+
+    def __init__(self, *responses):
+        self.responses = list(responses)
+        self.prompts = []
+
+    def generate(self, prompt, response_format=None):
+        self.prompts.append(prompt)
+        r = self.responses[min(len(self.prompts) - 1, len(self.responses) - 1)]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+
+def _sectioned_paper():
+    """A paper whose related-work content lies beyond the old 4000-char head."""
+    from auto_benchmarkcard.tools.composer import docstructure
+    md = (
+        "FibbleBench: a benchmark for fibbling.\n\n"
+        "## 1 Introduction\n" + ("intro filler. " * 300) +
+        "\n## 2 Method\n" + ("method filler. " * 300) +
+        "\n## 3 Related Work\nUnlike DeepMindWordle, FibbleBench measures fibbling.\n"
+        "\n## 4 Data\nWe release a ThemeTrack subset with 500 items.\n"
+    )
+    index = docstructure.build_index(md)
+    return md, index
+
+
+def test_sibling_prompt_reads_ranked_excerpts_beyond_head():
+    # Failure class: the 4000-char head starved the sibling pass; a related-work
+    # sibling past the head was invisible even though the section index knew where
+    # related work lives.
+    md, index = _sectioned_paper()
+    assert md.find("DeepMindWordle") > F.HEAD_CHARS
+    handler = SeqHandler('["DeepMindWordle"]', "[]")
+    fr = F.build_frame("fibblebench", make_eee(), None, doc_index=index,
+                       paper_text=md, llm_handler=handler)
+    assert "DeepMindWordle" in handler.prompts[0]     # the model SAW the mention
+    assert "sibling:deepmindwordle" in node_ids(fr)   # and the literal check passed
+    assert fr["telemetry"]["builder_counts"]["siblings_llm"] == 1
+
+
+def test_excerpts_fall_back_to_head_without_index():
+    md, _ = _sectioned_paper()
+    excerpts, presence = F._ranked_paper_excerpts(None, md)
+    assert excerpts == [md[:F.HEAD_CHARS]] and presence == md
+
+
+def test_llm_subset_pass_literal_guard_and_filters():
+    md, index = _sectioned_paper()
+    # ThemeTrack occurs literally; PhantomTrack does not; 'test' is a split word.
+    handler = SeqHandler("[]", '["ThemeTrack", "PhantomTrack", "test"]')
+    fr = F.build_frame("fibblebench", make_eee(), None, doc_index=index,
+                       paper_text=md, llm_handler=handler)
+    assert "subset:themetrack" in node_ids(fr)
+    assert "subset:phantomtrack" not in node_ids(fr)
+    assert "split:test" not in [n for n in node_ids(fr) if n.startswith("subset:")]
+    assert fr["telemetry"]["llm_subset_pass"] == "ok"
+    assert fr["telemetry"]["builder_counts"]["subsets_llm"] == 1
+    node = get_node(fr, "subset:themetrack")
+    assert node["type"] == "subset" and "LLM subset pass" in node["description"]
+
+
+def test_subset_pass_runs_from_extra_texts_without_paper():
+    handler = SeqHandler('["HardCore"]')
+    fr = F.build_frame("fibblebench", make_eee(), None, llm_handler=handler,
+                       extra_texts={"HF dataset page": "The HardCore subset has 100 items."})
+    # no paper -> the sibling pass is skipped, the subset pass still runs
+    assert fr["telemetry"]["llm_pass"] == "skipped"
+    assert fr["telemetry"]["llm_subset_pass"] == "ok"
+    assert "subset:hardcore" in node_ids(fr)
+
+
+def test_subset_pass_fail_soft_keeps_frame():
+    md, index = _sectioned_paper()
+    handler = SeqHandler("[]", RuntimeError("subset engine down"))
+    fr = F.build_frame("fibblebench", make_eee(), None, doc_index=index,
+                       paper_text=md, llm_handler=handler)
+    assert fr["telemetry"]["llm_pass"] == "ok"
+    assert fr["telemetry"]["llm_subset_pass"] == "failed"
+    assert "subset engine down" in fr["telemetry"]["llm_subset_pass_error"]
+    assert "target" in node_ids(fr)
+
+
+def test_extra_texts_feed_split_builder_with_context_guard():
+    fr = F.build_frame("fibblebench", None, None,
+                       extra_texts={"GitHub README": "Evaluate on the validation split only."})
+    assert "split:validation" in node_ids(fr)
+    # a bare verb in an extra text stays excluded, same guard as the paper channel
+    fr2 = F.build_frame("fibblebench", None, None,
+                        extra_texts={"GitHub README": "We test models thoroughly."})
+    assert not any(i.startswith("split:") for i in node_ids(fr2))
+
+
+def test_extra_heading_alias_identity_guarded():
+    fr = F.build_frame("fibble-bench", None, None,
+                       extra_texts={"GitHub README": "# FibbleBench: A Stickier Benchmark\nbody"})
+    target = get_node(fr, "target")
+    assert "FibbleBench" in target["aliases"]
+    # a foreign heading never becomes an alias
+    fr2 = F.build_frame("fibble-bench", None, None,
+                        extra_texts={"GitHub README": "# TotallyOtherProject\nbody"})
+    assert "TotallyOtherProject" not in get_node(fr2, "target")["aliases"]
+
+
+def test_extra_heading_alias_skips_frontmatter():
+    text = "---\nlicense: mit\n---\n# Fibble Bench\nbody"
+    fr = F.build_frame("fibble-bench", None, None, extra_texts={"HF dataset page": text})
+    assert "Fibble Bench" in get_node(fr, "target")["aliases"]
+
+
+def test_common_word_subset_needs_cue_for_referential_mention():
+    # Failure class: the LLM subset pass proposes real but common-word subset names
+    # (human, Hard, OCR); without a context requirement the quote-override path would
+    # re-bind ordinary prose to the subset node.
+    human = {"id": "subset:human", "type": "subset", "name": "human", "aliases": []}
+    assert not F.mention_is_referential(human, "Questions were written by human annotators.")
+    assert F.mention_is_referential(human, "The human subset contains 4,800 questions.")
+
+    hard = {"id": "subset:hard", "type": "subset", "name": "Hard", "aliases": []}
+    # case must match for a capitalized name, and a cue must be nearby
+    assert not F.mention_is_referential(hard, "these problems are hard to solve")
+    assert not F.mention_is_referential(hard, "the Hard problems stump models")
+    assert F.mention_is_referential(hard, "the Hard subset stumps models")
+
+
+def test_specific_subset_names_stand_alone():
+    for name in ("RepoBench-R", "SWE-PolyBench500", "Number Theory"):
+        node = {"id": "subset:x", "type": "subset", "name": name, "aliases": []}
+        assert F.mention_is_referential(node, f"We evaluate on {name} extensively.")

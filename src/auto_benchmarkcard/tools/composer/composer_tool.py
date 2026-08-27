@@ -3596,9 +3596,21 @@ def compose_benchmark_card(
                 frame_llm = get_llm_handler()
             except Exception:
                 frame_llm = None
+            # Non-paper sources feed the frame's alias/split/subset builders with the
+            # same 15K caps the extractors read, so the frame sees exactly what the
+            # evidence calls can quote.
+            frame_extra_texts = {}
+            _frame_readme = _get_hf_readme(hf_metadata)
+            if _frame_readme and len(_frame_readme) >= 100:
+                frame_extra_texts["HF dataset page"] = _frame_readme[:15000]
+            if has_github:
+                frame_extra_texts["GitHub README"] = (github_readme.get("text") or "")[:15000]
+            if has_html:
+                frame_extra_texts["Web page"] = (html_content.get("text") or "")[:15000]
             card_frame = frame_mod.build_frame(
                 query, eee_metadata, hf_metadata, doc_index=doc_index,
                 paper_text=paper_source, llm_handler=frame_llm,
+                extra_texts=frame_extra_texts,
             )
             logger.info(
                 "Referent frame: %d nodes (%s)", len(card_frame.get("nodes", [])),
