@@ -31,5 +31,26 @@
     "screen_author_overlap": "d0ad2316597fc809e6d6a92eaad980ea8e1cbfba808c8c5c236347165950bcc4",
     "screen_contamination": "3eef16ba5bc415f918274bfec349e08c7390d5a17c15fc387e0e3e5ba14ddda9",
     "screen_scores": "b35b38e4e023a2211ca17d2b0638d9703e32c57c224ce521cd0242d22312aca4"
+  },
+  "derived_outputs": {
+    "producer_script": "scripts/analyze_paper_extensions.py",
+    "script_sha256": "55b2e8f23ef23699dc4199188fc86aa315f2fdb3b4cfe7fd01a9ece513b50a74",
+    "corpus": {
+      "dataset": "evaleval/auto-benchmarkcards",
+      "revision": "0a86cea5b55d6070bd7f1f020f01281e1631adba",
+      "manifest_sha256": "42769d73e799a86caa7919f5fdbf4de48b064f76abe326589343b18f8e42170c"
+    },
+    "environment": {
+      "python": "3.11.7",
+      "numpy": "2.2.6"
+    },
+    "paper_extension_analysis": {
+      "path": "s150/paper_extension_analysis.json",
+      "sha256": "62301484bfa51236f7007f3296cb7494d9c4b31f30dd10cf2354551ca49eff2e"
+    },
+    "paper_extension_field_matrix": {
+      "path": "s150/paper_extension_field_matrix.csv",
+      "sha256": "d044fb9e2c90740b0db937a67ed30bf2b8cf70590126ce791e0af02bb73a039b"
+    }
   }
 }

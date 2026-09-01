@@ -18,11 +18,9 @@ from pathlib import Path
 
 
 REPO = Path(__file__).resolve().parents[1]
-DEFAULT_CARD_REVISION = "0a86cea5b55d6070bd7f1f020f01281e1631adba"
-CARD_URL_TEMPLATE = (
-    "https://huggingface.co/datasets/evaleval/auto-benchmarkcards/"
-    "blob/{revision}/cards/{card}.json"
-)
+DEFAULT_CORPUS_CARDS = REPO / "eval" / "corpus" / "cards"
+DEFAULT_CARD_REVISION = "WITHHELD_REVISION"
+CARD_URL_TEMPLATE = "eval/corpus/cards/{card}.json"
 TRIAGE_ORDER = {
     "wrong-identity": 0,
     "wrong-paper": 1,
@@ -80,7 +78,12 @@ def _canonical_sha256(value):
     return hashlib.sha256(payload).hexdigest()
 
 
-def derive_worklist(screen_results, sample, card_revision=DEFAULT_CARD_REVISION):
+def derive_worklist(
+    screen_results,
+    sample,
+    card_revision=DEFAULT_CARD_REVISION,
+    corpus_cards=DEFAULT_CORPUS_CARDS,
+):
     """Return participant rows plus source records derived from raw findings."""
     if not card_revision or any(ch.isspace() for ch in card_revision):
         raise ValueError("card revision must be a non-empty, whitespace-free value")
@@ -101,13 +104,19 @@ def derive_worklist(screen_results, sample, card_revision=DEFAULT_CARD_REVISION)
         raise ValueError("sample contains a card with no name")
     if len(sample_names) != len(set(sample_names)):
         raise ValueError("sample contains duplicate card names")
+    corpus_cards = resolve(corpus_cards)
     for sample_row in sample_rows:
         corpus_card = sample_row.get("corpus_card")
         if not corpus_card:
             continue
-        card_path = resolve(corpus_card)
+        recorded_path = resolve(corpus_card)
+        public_path = corpus_cards / f"{sample_row['name']}.json"
+        card_path = recorded_path if recorded_path.is_file() else public_path
         if not card_path.is_file():
-            raise ValueError(f"sample corpus card is missing: {card_path}")
+            raise ValueError(
+                "sample corpus card is missing from both the recorded and "
+                f"public paths: recorded={recorded_path}, public={public_path}"
+            )
         expected_md5 = sample_row.get("corpus_card_md5")
         if expected_md5 and md5(card_path) != expected_md5:
             raise ValueError(f"sample corpus card MD5 differs: {sample_row['name']}")
@@ -220,12 +229,16 @@ def validate_worklist_against_source(
     sample_path,
     card_revision=DEFAULT_CARD_REVISION,
     require_empty_responses=True,
+    corpus_cards=DEFAULT_CORPUS_CARDS,
 ):
     """Require exact columns, rows, order, and raw text identity."""
     screen_results = _load_json(screen_results_path)
     sample = _load_json(sample_path)
     expected_rows, source_records = derive_worklist(
-        screen_results, sample, card_revision=card_revision
+        screen_results,
+        sample,
+        card_revision=card_revision,
+        corpus_cards=corpus_cards,
     )
     fields, rows = read_worklist(worklist_path)
     if fields != WORKLIST_FIELDS:
@@ -333,6 +346,7 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--manifest-out", required=True)
     parser.add_argument("--card-revision", default=DEFAULT_CARD_REVISION)
+    parser.add_argument("--corpus-cards", default="eval/corpus/cards")
     parser.add_argument("--expected-screen-sha256", default=None)
     parser.add_argument("--expected-sample-sha256", default=None)
     parser.add_argument("--force", action="store_true")
@@ -351,6 +365,7 @@ def main():
         _load_json(screen_results_path),
         _load_json(sample_path),
         card_revision=args.card_revision,
+        corpus_cards=args.corpus_cards,
     )
     write_worklist(out_path, rows, overwrite=args.force)
     validate_worklist_against_source(
@@ -359,6 +374,7 @@ def main():
         sample_path,
         card_revision=args.card_revision,
         require_empty_responses=True,
+        corpus_cards=args.corpus_cards,
     )
     write_manifest(
         manifest_path,

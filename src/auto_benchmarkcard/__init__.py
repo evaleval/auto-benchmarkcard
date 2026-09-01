@@ -1,6 +1,6 @@
-"""Auto-BenchmarkCard: generate validated documentation cards for AI benchmarks."""
+"""Auto-BenchmarkCards: generate source-linked documentation for AI benchmarks."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Aris Hofmann"
 
 from auto_benchmarkcard.config import Config

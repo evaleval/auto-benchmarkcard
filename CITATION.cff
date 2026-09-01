@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use Auto-BenchmarkCards, please cite the accompanying paper."
+title: "Auto-BenchmarkCards"
+type: software
+version: 0.2.0
+date-released: 2026-09-01
+license: MIT
+authors:
+  - family-names: Hofmann
+    given-names: Aris
+    email: aris.hofmann@ibm.com
+repository-code: "https://github.com/evaleval/auto-benchmarkcard"
+url: "https://github.com/evaleval/auto-benchmarkcard/releases/tag/v0.2.0"
+preferred-citation:
+  type: article
+  title: "Auto-BenchmarkCards: Automated Documentation for AI Benchmarks"
+  year: 2026
+  authors:
+    - family-names: Hofmann
+      given-names: Aris
+    - family-names: Vejsbjerg
+      given-names: Inge
+    - family-names: Batzner
+      given-names: Jan
+    - family-names: Choshen
+      given-names: Leshem
+    - family-names: Chim
+      given-names: Jenny
+    - family-names: Ghosh
+      given-names: Avijit
+    - family-names: Daly
+      given-names: Elizabeth M.

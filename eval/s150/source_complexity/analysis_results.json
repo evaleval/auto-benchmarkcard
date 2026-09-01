@@ -1,0 +1,584 @@
+{
+  "analysis_version": "source-complexity-v2-2026-07-28",
+  "scope": "exploratory association with observed screen-detected and verifier-confirmed findings in the finite 530-card collection",
+  "claim_guards": [
+    "No causal effect of source count is estimated.",
+    "The primary outcome is not overall defect prevalence.",
+    "A screen-negative card was not manually verified error-free.",
+    "Documentary source channels are source types, not necessarily unique documents.",
+    "Budgeted character measures are proxies, not exact Composer token counts.",
+    "Complete-card fullness is a post-generation opportunity measure; fullness-adjusted results answer a different estimand and are diagnostic.",
+    "The paper-cap exclusion sensitivity is disabled because deleting domain-external sampled cards before variance estimation does not preserve the original stratified sample design."
+  ],
+  "input_hashes": {
+    "exposures_outcome_free_csv": "b251490c1db9ee5898dea1fc9175f4e347dd588c1f5243a1505f3fb8ccc46722",
+    "sample_json": "d9f1071c233e4c0dfabeea51597f9e8f1003ae1687de70d99ed2e371c963713a",
+    "judge_analysis_frame_json": "2dbd1a213d3d97904f13990906e98cfd0d799ed1b6797368dc305f81cd8fcd28",
+    "verifier_ratings_csv": "dd7082ac57a6de08a602d52d5a03db4f3106b1d75f097b3ff0865dac9e1000d3",
+    "analysis_script": "8cc4d8be59464c393d475f44e25326532f0318b9b635c2ff2718694453533b86"
+  },
+  "sample": {
+    "n": 150,
+    "strata": {
+      "flagged": 75,
+      "unflagged": 75
+    },
+    "kish_weight_only_effective_n": 126.92183183660295,
+    "primary_events": 70,
+    "weighted_exposure_quartiles_raw": [
+      1.0,
+      2.0
+    ]
+  },
+  "primary_model": {
+    "n": 150,
+    "events": 70,
+    "converged": true,
+    "iterations": 5,
+    "predictor": "log2(1 + documentary_channel_count)",
+    "coefficient": {
+      "log_odds": 0.6494675995979325,
+      "standard_error": 0.2676172932249786,
+      "z": 2.4268521356426045,
+      "p_value": 0.015230461869268797,
+      "odds_ratio": 1.9145212657383843,
+      "odds_ratio_ci95": [
+        1.1330778656431852,
+        3.2348983137922884
+      ]
+    },
+    "standardized_probability_contrast": {
+      "probability_low": 0.44718753117703625,
+      "probability_high": 0.5418700667961085,
+      "risk_difference": 0.09468253561907225,
+      "risk_difference_ci95": [
+        0.018632708982253318,
+        0.17073236225589117
+      ],
+      "standard_error": 0.03880093195756068
+    },
+    "contrast_raw_channel_counts": [
+      1.0,
+      2.0
+    ]
+  },
+  "primary_model_lineage_adjusted_sensitivity": {
+    "n": 150,
+    "events": 70,
+    "converged": true,
+    "iterations": 5,
+    "predictor": "log2(1 + documentary_channel_count)",
+    "coefficient": {
+      "log_odds": 0.6409825295126135,
+      "standard_error": 0.2748677286112189,
+      "z": 2.3319672074681357,
+      "p_value": 0.019702416346682624,
+      "odds_ratio": 1.8983451434362653,
+      "odds_ratio_ci95": [
+        1.1076512488628727,
+        3.253473769210001
+      ]
+    },
+    "standardized_probability_contrast": {
+      "probability_low": 0.4475840938754745,
+      "probability_high": 0.5410164325828906,
+      "risk_difference": 0.09343233870741607,
+      "risk_difference_ci95": [
+        0.015204730718213183,
+        0.17165994669661896
+      ],
+      "standard_error": 0.039912044892450455
+    },
+    "contrast_raw_channel_counts": [
+      1.0,
+      2.0
+    ]
+  },
+  "primary_domain_estimates": {
+    "0": {
+      "n": 23,
+      "weighted_denominator": 79.76000400000001,
+      "estimate": 0.26579739138428327,
+      "standard_error": 0.08846360368177393,
+      "ci95": [
+        0.09240872816800635,
+        0.43918605460056015
+      ]
+    },
+    "1": {
+      "n": 49,
+      "weighted_denominator": 183.68000700000002,
+      "estimate": 0.5055168415798242,
+      "standard_error": 0.0678951175402792,
+      "ci95": [
+        0.372442411200877,
+        0.6385912719587714
+      ]
+    },
+    "2": {
+      "n": 63,
+      "weighted_denominator": 221.09334400000003,
+      "estimate": 0.47473163190294865,
+      "standard_error": 0.06010841334115135,
+      "ci95": [
+        0.356919141754292,
+        0.5925441220516053
+      ]
+    },
+    "3_or_4": {
+      "n": 15,
+      "weighted_denominator": 45.46667,
+      "estimate": 0.7554252158779169,
+      "standard_error": 0.10123381293779492,
+      "ci95": [
+        0.5570069425198388,
+        0.9538434892359949
+      ]
+    }
+  },
+  "primary_domain_contrasts": {
+    "1_minus_0": {
+      "risk_difference": 0.23971945019554097,
+      "standard_error": 0.11151158827707258,
+      "ci95": [
+        0.021156737172478707,
+        0.45828216321860327
+      ],
+      "p_value": 0.03157683101296553
+    },
+    "2_minus_1": {
+      "risk_difference": -0.03078520967687559,
+      "standard_error": 0.09065530522832066,
+      "ci95": [
+        -0.20846960792438407,
+        0.1468991885706329
+      ],
+      "p_value": 0.7341688444226363
+    },
+    "3_or_4_minus_2": {
+      "risk_difference": 0.28069358397496824,
+      "standard_error": 0.1178425201793329,
+      "ci95": [
+        0.04972224442347575,
+        0.5116649235264608
+      ],
+      "p_value": 0.0172217938747755
+    }
+  },
+  "primary_categorical_model": {
+    "reference_group": "1 documentary source channel",
+    "zero_vs_one": {
+      "log_odds": -1.0381189539291447,
+      "standard_error": 0.5284426339860052,
+      "z": -1.9644875094552594,
+      "p_value": 0.04947358337927576,
+      "odds_ratio": 0.35412017221219005,
+      "odds_ratio_ci95": [
+        0.1256988243138167,
+        0.9976314182105456
+      ]
+    },
+    "two_vs_one": {
+      "log_odds": -0.12322791230434219,
+      "standard_error": 0.36305418196046846,
+      "z": -0.3394201703969354,
+      "p_value": 0.7342932257339843,
+      "odds_ratio": 0.8840621509561999,
+      "odds_ratio_ci95": [
+        0.4339551423141107,
+        1.8010292091148452
+      ]
+    },
+    "three_or_four_vs_one": {
+      "log_odds": 1.1056914009778658,
+      "standard_error": 0.6114878430045864,
+      "z": 1.8081985007992591,
+      "p_value": 0.0705756118839298,
+      "odds_ratio": 3.021312685370998,
+      "odds_ratio_ci95": [
+        0.9113531815284682,
+        10.016237972060638
+      ]
+    },
+    "omnibus_wald_chi_square": 9.26194927052234,
+    "omnibus_df": 3,
+    "omnibus_p_value": 0.026003441147984623
+  },
+  "primary_opportunity_adjusted_diagnostic": {
+    "note": "post-hoc opportunity diagnostic; complete-card filled-field count is an output/mediator, not a baseline confounder",
+    "n": 150,
+    "events": 70,
+    "source_count_coefficient": {
+      "log_odds": 0.2725962248115407,
+      "standard_error": 0.3950538194899125,
+      "z": 0.690023007911967,
+      "p_value": 0.4901797186317002,
+      "odds_ratio": 1.3133698315968252,
+      "odds_ratio_ci95": [
+        0.605494825782591,
+        2.8488109907780292
+      ]
+    },
+    "card_fullness_coefficient": {
+      "log_odds": 0.41616645808209113,
+      "standard_error": 0.31347541297598674,
+      "z": 1.327588834260411,
+      "p_value": 0.18431397521530557,
+      "odds_ratio": 1.5161382213274404,
+      "odds_ratio_ci95": [
+        0.8201685989761727,
+        2.802686068497869
+      ]
+    },
+    "source_count_standardized_probability_contrast": {
+      "probability_low": 0.46433226876602246,
+      "probability_high": 0.5031759385997656,
+      "risk_difference": 0.038843669833743155,
+      "risk_difference_ci95": [
+        -0.07339081269406397,
+        0.15107815236155028
+      ],
+      "standard_error": 0.05726249108561588
+    }
+  },
+  "primary_categorical_opportunity_adjusted_diagnostic": {
+    "note": "post-hoc opportunity diagnostic",
+    "reference_group": "1 documentary source channel",
+    "zero_vs_one": {
+      "log_odds": -0.4607225617201033,
+      "standard_error": 0.718450585240739,
+      "z": -0.641272442649238,
+      "p_value": 0.5213456901799072,
+      "odds_ratio": 0.6308276688656271,
+      "odds_ratio_ci95": [
+        0.15429549617542287,
+        2.579100217896238
+      ]
+    },
+    "two_vs_one": {
+      "log_odds": -0.23245255583578464,
+      "standard_error": 0.38290779118946994,
+      "z": -0.6070718882833146,
+      "p_value": 0.5438032052604636,
+      "odds_ratio": 0.7925873520992435,
+      "odds_ratio_ci95": [
+        0.3742048790665738,
+        1.6787453767964629
+      ]
+    },
+    "three_or_four_vs_one": {
+      "log_odds": 0.9392160795640785,
+      "standard_error": 0.6321591783347362,
+      "z": 1.4857271898483009,
+      "p_value": 0.13735129569192417,
+      "odds_ratio": 2.557975382968652,
+      "odds_ratio_ci95": [
+        0.7409546104823186,
+        8.830821709327582
+      ]
+    },
+    "card_fullness_coefficient": {
+      "log_odds": 0.40666826443390347,
+      "standard_error": 0.3496767380143476,
+      "z": 1.1629834650803035,
+      "p_value": 0.2448362111429465,
+      "odds_ratio": 1.5018058206130156,
+      "odds_ratio_ci95": [
+        0.7567683052517515,
+        2.9803319023473507
+      ]
+    }
+  },
+  "opportunity_normalized_count_diagnostics": {
+    "note": "post-hoc screen-opportunity diagnostic; the denominator is filled card fields, but the screen was not an exhaustive field-level audit",
+    "confirmed_material_findings_per_filled_field": {
+      "events": 111,
+      "source_count": {
+        "log_ratio": -0.5776028141295447,
+        "standard_error": 0.23847784328278618,
+        "z": -2.4220397424704374,
+        "p_value": 0.015433662552698218,
+        "incidence_rate_ratio": 0.5612421570328767,
+        "incidence_rate_ratio_ci95": [
+          0.3516850012075859,
+          0.8956673095222175
+        ]
+      }
+    },
+    "confirmed_wrong_section_splices_per_filled_field": {
+      "events": 63,
+      "source_count": {
+        "log_ratio": 0.2884980522681659,
+        "standard_error": 0.3179659963304838,
+        "z": 0.9073235993710163,
+        "p_value": 0.3642356980097853,
+        "incidence_rate_ratio": 1.3344217504246447,
+        "incidence_rate_ratio_ci95": [
+          0.7155417717129411,
+          2.488577855830255
+        ]
+      }
+    }
+  },
+  "judged_field_rate_diagnostics": {
+    "note": "field-opportunity analysis over the frozen 23-field source-judge frame; partial-support labels were less stable under human assessment",
+    "unsupported_per_filled_field": {
+      "events": 30,
+      "trials": 2035,
+      "source_count": {
+        "log_ratio": -0.09035628563837557,
+        "standard_error": 0.38297450644334036,
+        "z": -0.2359328992352744,
+        "p_value": 0.8134847388747848,
+        "odds_ratio": 0.9136056227155279,
+        "odds_ratio_ci95": [
+          0.4312849293737241,
+          1.9353220504817383
+        ]
+      }
+    },
+    "partial_or_unsupported_per_filled_field": {
+      "events": 289,
+      "trials": 2035,
+      "source_count": {
+        "log_ratio": 0.1011284237701409,
+        "standard_error": 0.12284381377619938,
+        "z": 0.8232276470541672,
+        "p_value": 0.41037854961606235,
+        "odds_ratio": 1.106418723103693,
+        "odds_ratio_ci95": [
+          0.8696665199385266,
+          1.4076227643222805
+        ]
+      }
+    }
+  },
+  "secondary_models": {
+    "primary_source_fillable_abstention": {
+      "n": 150,
+      "events": 63,
+      "converged": true,
+      "iterations": 6,
+      "predictor": "log2(1 + documentary_channel_count)",
+      "coefficient": {
+        "log_odds": 1.4708273381612806,
+        "standard_error": 0.2536160517255742,
+        "z": 5.799425265687806,
+        "p_value": 6.654258548942176e-09,
+        "odds_ratio": 4.352834918178481,
+        "odds_ratio_ci95": [
+          2.6478285176420036,
+          7.15573976889828
+        ]
+      },
+      "standardized_probability_contrast": {
+        "probability_low": 0.3645724179534362,
+        "probability_high": 0.5756169407996965,
+        "risk_difference": 0.2110445228462603,
+        "risk_difference_ci95": [
+          0.1411776997748197,
+          0.2809113459177009
+        ],
+        "standard_error": 0.0356463383017554
+      },
+      "contrast_raw_channel_counts": [
+        1.0,
+        2.0
+      ]
+    },
+    "unsupported_filled": {
+      "n": 150,
+      "events": 25,
+      "converged": true,
+      "iterations": 6,
+      "predictor": "log2(1 + documentary_channel_count)",
+      "coefficient": {
+        "log_odds": 0.8435707341652315,
+        "standard_error": 0.3120105740659712,
+        "z": 2.7036607226871348,
+        "p_value": 0.006858027285517154,
+        "odds_ratio": 2.324652892080842,
+        "odds_ratio_ci95": [
+          1.2611575743329864,
+          4.28496103789247
+        ]
+      },
+      "standardized_probability_contrast": {
+        "probability_low": 0.13960902976638198,
+        "probability_high": 0.20997372759402683,
+        "risk_difference": 0.07036469782764485,
+        "risk_difference_ci95": [
+          0.01751945700635503,
+          0.12320993864893466
+        ],
+        "standard_error": 0.02696185756188256
+      },
+      "contrast_raw_channel_counts": [
+        1.0,
+        2.0
+      ]
+    },
+    "partial_or_unsupported_filled": {
+      "n": 150,
+      "events": 115,
+      "converged": true,
+      "iterations": 7,
+      "predictor": "log2(1 + documentary_channel_count)",
+      "coefficient": {
+        "log_odds": 3.373601176160315,
+        "standard_error": 0.4530083380743835,
+        "z": 7.447106140475439,
+        "p_value": 9.540985886211513e-14,
+        "odds_ratio": 29.18343273475401,
+        "odds_ratio_ci95": [
+          12.00958202855928,
+          70.91610217229868
+        ]
+      },
+      "standardized_probability_contrast": {
+        "probability_low": 0.7732543470893671,
+        "probability_high": 0.9608421526339842,
+        "risk_difference": 0.18758780554461707,
+        "risk_difference_ci95": [
+          0.1297585796171206,
+          0.24541703147211355
+        ],
+        "standard_error": 0.029504707105865554
+      },
+      "contrast_raw_channel_counts": [
+        1.0,
+        2.0
+      ]
+    },
+    "confirmed_wrong_section_splice": {
+      "n": 150,
+      "events": 47,
+      "converged": true,
+      "iterations": 6,
+      "predictor": "log2(1 + documentary_channel_count)",
+      "coefficient": {
+        "log_odds": 1.30442713070407,
+        "standard_error": 0.3592239371508196,
+        "z": 3.6312366627071633,
+        "p_value": 0.0002820663757025636,
+        "odds_ratio": 3.685577134846248,
+        "odds_ratio_ci95": [
+          1.8227533979446644,
+          7.452175830377382
+        ]
+      },
+      "standardized_probability_contrast": {
+        "probability_low": 0.2564711881830089,
+        "probability_high": 0.42522744175036986,
+        "risk_difference": 0.16875625356736096,
+        "risk_difference_ci95": [
+          0.08040283448285869,
+          0.25710967265186324
+        ],
+        "standard_error": 0.0450782750431134
+      },
+      "contrast_raw_channel_counts": [
+        1.0,
+        2.0
+      ]
+    }
+  },
+  "sensitivities": {
+    "unweighted": {
+      "log_odds": 0.5936447240325796,
+      "standard_error_model_based": 0.2861652074717042,
+      "odds_ratio": 1.8105754520034074,
+      "odds_ratio_ci95_model_based": [
+        1.0333034648155668,
+        3.172527315566935
+      ]
+    },
+    "within_stratum": {
+      "flagged": {
+        "n": 75,
+        "events": 33,
+        "log_odds": 0.497349466996335,
+        "standard_error_model_based": 0.38717153454721503,
+        "odds_ratio": 1.644357066846463,
+        "odds_ratio_ci95_model_based": [
+          0.7698906857922272,
+          3.5120702369655836
+        ]
+      },
+      "unflagged": {
+        "n": 75,
+        "events": 37,
+        "log_odds": 0.7424030453360073,
+        "standard_error_model_based": 0.43048513540726907,
+        "odds_ratio": 2.100978199030185,
+        "odds_ratio_ci95_model_based": [
+          0.9036186815141308,
+          4.884924894872363
+        ]
+      }
+    },
+    "leave_one_out": {
+      "successful_fits": 150,
+      "failed_fits": 0,
+      "risk_difference_min": 0.08808261169391002,
+      "risk_difference_max": 0.11081690613319273
+    },
+    "exclude_paper_budget_reached": {
+      "status": "disabled_after_statistical_audit",
+      "reason": "The previous implementation subset sampled cards before Taylor variance estimation, causing stratum sample sizes and finite-population corrections to describe the subset rather than the original sampling design. No estimate from that implementation is reported."
+    },
+    "budgeted_character_proxy": {
+      "n": 150,
+      "events": 70,
+      "converged": true,
+      "iterations": 5,
+      "predictor": "log2(1 + budgeted_stage_a_documentary_chars)",
+      "coefficient": {
+        "log_odds": 0.09249454770679456,
+        "standard_error": 0.03486946773529617,
+        "z": 2.65259419526981,
+        "p_value": 0.007987583740600691,
+        "odds_ratio": 1.0969071608845395,
+        "odds_ratio_ci95": [
+          1.0244443734641038,
+          1.1744955126564915
+        ]
+      },
+      "standardized_probability_contrast": {
+        "probability_low": 0.450106479492979,
+        "probability_high": 0.5442979845603818,
+        "risk_difference": 0.09419150506740281,
+        "risk_difference_ci95": [
+          0.024986041364919914,
+          0.16339696876988571
+        ],
+        "standard_error": 0.035308910052287194
+      },
+      "contrast_raw_budgeted_stage_a_documentary_chars": [
+        1618.0,
+        27487.0
+      ],
+      "predictor_note": "budgeted-character proxy only; exact long-paper passages were not persisted"
+    }
+  },
+  "weighted_confirmed_finding_count_by_source_count": {
+    "0": {
+      "n": 23,
+      "weighted_mean_confirmed_findings": 0.5947843483056996
+    },
+    "1": {
+      "n": 49,
+      "weighted_mean_confirmed_findings": 0.9009872206723074
+    },
+    "2": {
+      "n": 63,
+      "weighted_mean_confirmed_findings": 0.6209142415431557
+    },
+    "3_or_4": {
+      "n": 15,
+      "weighted_mean_confirmed_findings": 1.1554252158779168
+    }
+  },
+  "joined_table": "analysis_joined_card_table.csv",
+  "joined_table_sha256": "75caabfbfcbab496a3720042f3368318e15f2f67522b1cdca4097907cfec4d9d"
+}

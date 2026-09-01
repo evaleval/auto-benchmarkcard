@@ -10,9 +10,17 @@ unsupported/supported_by_eee_only; flags on judge-unlabeled fields are
 outside the universe; flaggable = not UNFLAGGABLE_FIELDS and not *.name;
 amendments applied with the same stale-guard).
 
+Paper mapping:
+  - Evaluation / Evaluation Design: stratified sampling, source-judge frame,
+    combined-ratio estimators, and whole-card bootstrap intervals.
+  - Evaluation / Warnings Did Not Reliably Prioritize Unsupported Fields:
+    warning precision, recall, review budget, and the random-review comparison.
+
 Usage:
   python scripts/analyze_s.py --sample eval/s150/sample.json \
-      --judge eval/s150/judge_s150_source_parity_analysis.json --screen eval/s150/screen/screen_results.json \
+      --judge eval/s150/judge/analysis_frame.json \
+      --screen eval/s150/screen/screen_results.json \
+      --corpus-cards eval/corpus/cards \
       --out eval/s150/analysis_s150.json [--amendments f.json] [--seed 20260704] \
       [--B 5000] [--allow-partial] [--flags-from-report report.json] [--skip-card-md5]
 """
@@ -48,8 +56,23 @@ def _flaggable(path):
     return path not in UNFLAGGABLE_FIELDS and not path.endswith(".name")
 
 
+def _resolve_corpus_card(card_meta, corpus_cards):
+    """Resolve a sampled card, preferring its recorded path and then the public corpus."""
+    recorded = card_meta.get("corpus_card")
+    recorded_path = os.path.join(REPO, recorded) if recorded else None
+    if recorded_path and os.path.isfile(recorded_path):
+        return recorded_path
+
+    fallback_path = os.path.join(corpus_cards, f"{card_meta['name']}.json")
+    if os.path.isfile(fallback_path):
+        return fallback_path
+
+    tried = [path for path in (recorded_path, fallback_path) if path]
+    sys.exit(f"{card_meta['name']}: corpus card not found; tried {tried}")
+
+
 def build_records(sample, judge, screen_per_card, amendments, flags_by_card,
-                  allow_partial, skip_card_md5):
+                  corpus_cards, allow_partial, skip_card_md5):
     jcards = judge.get("per_card", {})
     amended_by_card = {}
     for key, am in (amendments or {}).items():
@@ -82,7 +105,7 @@ def build_records(sample, judge, screen_per_card, amendments, flags_by_card,
         if name in flags_by_card:
             flagged = set(flags_by_card[name])
         else:
-            card_p = os.path.join(REPO, c["corpus_card"])
+            card_p = _resolve_corpus_card(c, corpus_cards)
             if not skip_card_md5 and file_md5(card_p) != c["corpus_card_md5"]:
                 sys.exit(f"{name}: corpus card md5 mismatch vs sample file "
                          f"(corpus changed after sampling?)")
@@ -154,6 +177,12 @@ def main():
     ap.add_argument("--flags-from-report", default=None,
                     help="take flagged_paths per card from an eval_gold_set report "
                          "instead of the corpus cards (replay/reapply experiments)")
+    ap.add_argument(
+        "--corpus-cards",
+        default="eval/corpus/cards",
+        help="directory containing public <benchmark-name>.json cards; used when "
+             "a sampled card's recorded corpus_card path is unavailable",
+    )
     ap.add_argument("--seed", type=int, default=20260704)
     ap.add_argument("--B", type=int, default=5000)
     ap.add_argument("--allow-partial", action="store_true")
@@ -178,10 +207,11 @@ def main():
     if args.flags_from_report:
         rep = _load(os.path.join(REPO, args.flags_from_report))
         flags_by_card = {c["name"]: c.get("flagged_paths", []) for c in rep["cards"]}
+    corpus_cards = os.path.join(REPO, args.corpus_cards)
 
     records, missing_judge, n_amended = build_records(
         sample, judge, screen_per_card, amendments, flags_by_card,
-        args.allow_partial, args.skip_card_md5)
+        corpus_cards, args.allow_partial, args.skip_card_md5)
     if not records:
         sys.exit("no cards to analyze")
 

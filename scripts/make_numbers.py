@@ -63,10 +63,10 @@ def pct(v, nd=1):
     return None if v is None else f"{100 * v:.{nd}f}\\%"
 
 
-def ci_pct(ci):
+def ci_pct(ci, nd=1):
     if not ci or ci[0] is None:
         return None
-    return f"[{100 * ci[0]:.1f}, {100 * ci[1]:.1f}]"
+    return f"[{100 * ci[0]:.{nd}f}, {100 * ci[1]:.{nd}f}]"
 
 
 def ci_num(ci, nd=2):
@@ -87,7 +87,7 @@ def intc(v):
     return None if v is None else f"{int(round(v)):,}"
 
 
-def build_values(analysis, calibration, cs, hf_pub):
+def build_values(analysis, calibration, cs, hf_pub, extensions=None):
     """manifest key -> (formatted value or None, source string, extra note)."""
     v = {}
 
@@ -276,6 +276,100 @@ def build_values(analysis, calibration, cs, hf_pub):
                 .get("design_weighted_confirmation_rate"), 0), src,
             "conditional on judge-partial")
 
+    if extensions:
+        src = "eval/s150/paper_extension_analysis.json"
+        outcomes = ((extensions.get("field_slot_outcomes") or {}).get("five_state") or {})
+
+        def outcome(prefix, state):
+            metric = outcomes.get(state) or {}
+            v[f"{prefix}Rate"] = (pct(metric.get("value"), 2), src,
+                                  "over all 3,450 evaluated field-card slots")
+            v[f"{prefix}RateCI"] = (ci_pct(metric.get("ci95"), 2), src,
+                                    "stratified whole-card bootstrap")
+
+        outcome("rq2SlotFullSupport", "filled_fully_supported")
+        outcome("rq2SlotPartial", "filled_partially_supported")
+        outcome("rq2SlotUnsupported", "filled_unsupported")
+        outcome("rq2SlotUnfilledAvailable",
+                "not_specified_information_available")
+        outcome("rq2SlotUnfilledNoInfo",
+                "not_specified_no_information")
+
+        ethical = extensions.get("ethical_legal_coverage") or {}
+        full = ethical.get("full_corpus") or {}
+        v["corpusEthicalLegalNSCount"] = (
+            intc(full.get("ethical_legal_not_specified_count")), src,
+            "three source-checkable prose fields")
+        v["corpusEthicalLegalSlots"] = (
+            intc(full.get("ethical_legal_slots")), src,
+            "530 cards x three ethical/legal prose fields")
+        v["corpusEthicalLegalNSRate"] = (
+            pct(full.get("ethical_legal_not_specified_rate"), 2), src,
+            "generated-card output census")
+        v["corpusCardsAllEthicalLegalNSCount"] = (
+            intc(full.get("cards_all_three_not_specified_count")), src, None)
+        v["corpusCardsAllEthicalLegalNSRate"] = (
+            pct(full.get("cards_all_three_not_specified_rate"), 2), src,
+            "generated-card output census")
+
+        held = ethical.get("held_out") or {}
+        held_eth = held.get("ethical_legal_fields") or {}
+        for suffix, metric_key in (
+            ("NS", "not_specified"),
+            ("NoInfo", "no_information"),
+            ("Available", "information_available"),
+        ):
+            metric = held_eth.get(metric_key) or {}
+            v[f"rq2EthicalLegal{suffix}Rate"] = (
+                pct(metric.get("value"), 2), src,
+                "three ethical/legal prose fields")
+            v[f"rq2EthicalLegal{suffix}RateCI"] = (
+                ci_pct(metric.get("ci95"), 2), src,
+                "stratified whole-card bootstrap")
+
+        differences = held.get("paired_differences") or {}
+        for suffix, metric_key in (
+            ("NS", "not_specified"),
+            ("NoInfo", "no_information"),
+            ("Omission", "information_available"),
+        ):
+            metric = differences.get(metric_key) or {}
+            v[f"rq2EthicalLegal{suffix}Difference"] = (
+                pct(metric.get("value"), 2), src,
+                "ethical/legal minus other 20 judged fields")
+            v[f"rq2EthicalLegal{suffix}DifferenceCI"] = (
+                ci_pct(metric.get("ci95"), 2), src,
+                "paired stratified whole-card bootstrap")
+
+        confirmed = extensions.get("human_confirmed_unsupported") or {}
+        by_path = confirmed.get("by_path") or {}
+        v["rq2ConfirmedUnsupportedAudienceCount"] = (
+            intc(by_path.get("purpose_and_intended_users.audience")), src,
+            "among 27 human-confirmed judge-unsupported items")
+        v["rq2ConfirmedUnsupportedHumanBaselineCount"] = (
+            intc(by_path.get("methodology.human_baseline")), src,
+            "among 27 human-confirmed judge-unsupported items")
+
+        overlap = extensions.get("cross_instrument_overlap") or {}
+        for key, artifact_key in (
+            ("rq2OverlapNoExactPathFindings",
+             "findings_without_exact_judged_path_match"),
+            ("rq2OverlapMatchedFindings",
+             "findings_naming_at_least_one_exact_judged_path"),
+            ("rq2OverlapFieldChecks", "matched_field_checks"),
+            ("rq2OverlapCards", "cards_with_matched_checks"),
+            ("rq2OverlapFullySupportedChecks", "fully_supported_checks"),
+        ):
+            v[key] = (intc(overlap.get(artifact_key)), src,
+                      "selected-candidate cross-instrument overlap")
+        overlap_counts = overlap.get("source_judge_status_counts") or {}
+        v["rq2OverlapPartialChecks"] = (
+            intc(overlap_counts.get("partial")), src,
+            "selected-candidate cross-instrument overlap")
+        v["rq2OverlapUnsupportedChecks"] = (
+            intc(overlap_counts.get("unsupported")), src,
+            "selected-candidate cross-instrument overlap")
+
     return v
 
 
@@ -290,6 +384,7 @@ def main():
     ap.add_argument("--calibration",
                     default="eval/s150/human_validation/scores.json")
     ap.add_argument("--corpus-stats", default="eval/corpus/corpus_stats.json")
+    ap.add_argument("--extensions", default="eval/s150/paper_extension_analysis.json")
     ap.add_argument("--out", default="eval/numbers.tex")
     ap.add_argument("--json", default="eval/paper_numbers.json")
     ap.add_argument("--freeze", action="store_true",
@@ -316,6 +411,7 @@ def main():
                  f"{analysis.get('design', {}).get('tag')!r}, not corpus_v3")
     calibration = _load(args.calibration)
     cs = _load(args.corpus_stats)
+    extensions = _load(args.extensions)
     hf_pub = _load(HF_PUBLISHED)
 
     # curated-binding assert (the paper's zero-curated claim is measured)
@@ -329,7 +425,7 @@ def main():
             print(f"warning: {msg} - dry-run corpus stand-in only", file=sys.stderr)
 
     # every manifest key is emitted; absent artifacts leave n/a defaults behind
-    produced = build_values(analysis, calibration, cs, hf_pub)
+    produced = build_values(analysis, calibration, cs, hf_pub, extensions)
     values = {k: (None, mk["source"], None) for k, mk in mkeys.items()}
     orphans = [k for k in produced if k not in mkeys]
     values.update({k: pv for k, pv in produced.items() if k in mkeys})

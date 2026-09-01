@@ -16,8 +16,12 @@ eval/
 │   ├── corpus_stats.json
 │   ├── attempted_universe.txt
 │   ├── hf_published.json
-│   └── frozen_code_hashes_md5.json
+│   ├── frozen_code_hashes_md5.json
+│   └── schema_fill_summary.json
 ├── s150/
+│   ├── PAPER_EXTENSION_ANALYSIS.md
+│   ├── paper_extension_analysis.json
+│   ├── paper_extension_field_matrix.csv
 │   ├── sample.json
 │   ├── manifest.json
 │   ├── staging_report.json
@@ -35,14 +39,21 @@ eval/
 │   │   ├── ratings_r3.csv
 │   │   ├── adjudication.csv
 │   │   └── scores.json
-│   └── screen/
-│       ├── screen_results.json
-│       ├── scoring_lock.json
-│       ├── verifier_ratings.csv
-│       ├── author_overlap.csv
-│       ├── contamination.csv
-│       ├── verification_scores.json
-│       └── run_summary.json
+│   ├── screen/
+│   │   ├── screen_results.json
+│   │   ├── scoring_lock.json
+│   │   ├── verifier_ratings.csv
+│   │   ├── author_overlap.csv
+│   │   ├── contamination.csv
+│   │   ├── verification_scores.json
+│   │   └── run_summary.json
+│   └── source_complexity/
+│       ├── README.md
+│       ├── exposures_outcome_free.csv
+│       ├── exposure_reconstruction_audit.json
+│       ├── analysis_joined_card_table.csv
+│       ├── analysis_results.json
+│       └── ANALYSIS_REPORT.md
 ├── provenance.json
 ├── results_summary.json
 └── SHA256SUMS.txt
@@ -62,6 +73,31 @@ filled-field results are:
 - partial: 12.43%
 - unsupported: 1.48%
 
+The same automated judge separately assessed the candidate risks attached to
+the sampled cards. It classified 547 of 761 entries as relevant and grounded
+in the supplied evidence and 214 as not. The complete judge summary retains
+the S-weighted grounded-rate estimate of 74.84% (95% CI 69.38% to 79.95%) for
+audit and replay. The paper reports only the unweighted sample counts because
+the risk judgements were not human-validated. Neither the counts nor the
+weighted rate is a headline source-support result, and every candidate risk
+requires human review.
+
+The paper-extension analysis also places every one of the 3,450 field-card
+slots on one common denominator:
+
+- filled and fully supported: 51.89%
+- filled and partially supported: 7.49%
+- filled and unsupported: 0.89%
+- `Not specified`, information available in the supplied evidence: 7.29%
+- `Not specified`, no information found in the supplied evidence: 32.42%
+
+The full 530-card output contains 1,337 `Not specified` values among the 1,590
+slots for the three prose fields in Ethical and Legal Considerations. This is a
+post-hoc, schema-defined coverage description. It does not show public
+non-disclosure, non-applicability, or regulatory noncompliance. In the held-out
+analysis, "no information" means that the source judge found no fillable
+information in the evidence supplied to it.
+
 Three raters evaluated 75 items across 49 cards. One true three-way split was
 blind-adjudicated. In the probability arm, filled-field judge-human agreement
 is 89.06% with Cohen's kappa 0.7087 across 17 rows. All 15 probability-arm
@@ -75,9 +111,23 @@ verifier-confirmed material finding, with an approximate design interval of
 40.17% to 55.44%. This is not true defect prevalence, screen recall, or screen
 accuracy.
 
+Among the 111 confirmed material findings, 43 named at least one exact canonical
+path from the 23-field source-judge frame. They yielded 52 finding-path checks
+across 35 cards. The source judge had classified 20 as supported by documentary
+sources, 9 as supported with evaluation-record evidence, 17 as partial, and 6
+as unsupported. These selected, potentially dependent checks do not estimate a
+population error rate. A finding without an exact path match is not necessarily
+conceptually outside the 23-field universe.
+
 Within the overlapping 23-field filled universe, 33 fields were flagged and
 30 were labelled unsupported. One field overlaps. Weighted flag precision is
 3.03%, recall is 1.86%, and the error miss share is 98.14%.
+
+See [`s150/PAPER_EXTENSION_ANALYSIS.md`](s150/PAPER_EXTENSION_ANALYSIS.md) for
+the complete reproduction instructions and interpretation guards. Aggregate
+intervals use 5,000 stratified whole-card bootstrap replicates. The 23-field
+matrix records a Wilson-effective-sample-size fallback for rare field-level
+events. No finite-population correction is applied.
 
 ## Public projection policy
 
@@ -148,6 +198,35 @@ Expected SHA-256 values:
 98e0938fd3d501d81a9b6d648c19dca813324e6ff0be5bd786ea47e3e456a150  /tmp/calibration_scores.json
 b35b38e4e023a2211ca17d2b0638d9703e32c57c224ce521cd0242d22312aca4  /tmp/screen_scores.json
 ```
+
+Reproduce the paper-extension analysis from the pinned published corpus using
+Python 3.11.7 and NumPy 2.2.6:
+
+```bash
+git clone https://huggingface.co/datasets/evaleval/auto-benchmarkcards \
+  /tmp/auto-benchmarkcards-corpus
+git -C /tmp/auto-benchmarkcards-corpus checkout \
+  0a86cea5b55d6070bd7f1f020f01281e1631adba
+
+python scripts/analyze_paper_extensions.py \
+  --corpus-cards /tmp/auto-benchmarkcards-corpus/cards
+```
+
+Replay the exploratory documentary-source-complexity analysis from the same
+corpus and the public evaluation projections:
+
+```bash
+python scripts/analyze_source_complexity.py \
+  --exposures eval/s150/source_complexity/exposures_outcome_free.csv \
+  --sample eval/s150/sample.json \
+  --judge eval/s150/judge/analysis_frame.json \
+  --verifier eval/s150/screen/verifier_ratings.csv \
+  --corpus-cards /tmp/auto-benchmarkcards-corpus/cards \
+  --out-dir /tmp/source-complexity-replay
+```
+
+See [`s150/source_complexity/README.md`](s150/source_complexity/README.md) for
+the frozen exposure-construction boundary and numerical-runtime note.
 
 Verify the distributed snapshot:
 

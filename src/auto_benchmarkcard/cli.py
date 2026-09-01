@@ -131,7 +131,7 @@ def enable_debug_logging() -> None:
 
 def display_banner() -> None:
     """Print the application banner."""
-    title = Text("Auto-BenchmarkCard", style="bold cyan")
+    title = Text("Auto-BenchmarkCards", style="bold cyan")
     subtitle = Text("Benchmark Metadata Extraction & Validation", style="dim italic")
 
     banner_content = Align.center(

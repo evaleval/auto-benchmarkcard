@@ -21,6 +21,7 @@ import hashlib
 import json
 import math
 import random
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -131,6 +132,21 @@ def _valid_http_url(value):
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
+def _valid_evidence_reference(value, expected_card):
+    """Accept public URLs or an existing review-local card for this row."""
+    if _valid_http_url(value):
+        return True
+    if not isinstance(value, str):
+        return False
+    match = re.fullmatch(
+        r"eval/corpus/cards/([A-Za-z0-9_.-]+)\.json",
+        value,
+    )
+    if match is None or match.group(1) != expected_card:
+        return False
+    return (REPO / value).is_file()
+
+
 def _validate_response(
     row,
     *,
@@ -148,7 +164,10 @@ def _validate_response(
         raise ValueError(f"{context} {label_field} is blank")
     if label not in valid_labels:
         raise ValueError(f"{context} has invalid {label_field} {label!r}")
-    if evidence_url and not _valid_http_url(evidence_url):
+    if evidence_url and not _valid_evidence_reference(
+        evidence_url,
+        row.get("card"),
+    ):
         raise ValueError(f"{context} has invalid {evidence_field} {evidence_url!r}")
     if label == "unsure":
         if not notes or not notes.strip():

@@ -9,6 +9,7 @@ import pytest
 
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+import score_screen_verification as screen_scorer  # noqa: E402
 
 from build_screen_verification_worklist import (  # noqa: E402
     PROTECTED_FIELDS,
@@ -178,6 +179,45 @@ def test_prepare_freezes_154_rows_and_preselects_separate_checks(tmp_path):
     assert len(author_rows) == lock["author_overlap"]["n_rows"]
     assert [row["card"] for row in contamination_rows] == list(CONTAMINATION_CARDS)
     assert all(row["author_assessment"] == "" for row in contamination_rows)
+
+
+def test_review_local_evidence_reference_must_exist_and_match_card(
+    tmp_path,
+    monkeypatch,
+):
+    lock, _, _ = _full_fixture(tmp_path)
+    returned = tmp_path / "returned-local-evidence.csv"
+    _write_verifier_return(returned, lock)
+    with returned.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    card = rows[0]["card"]
+    cards_dir = tmp_path / "eval" / "corpus" / "cards"
+    cards_dir.mkdir(parents=True)
+    (cards_dir / f"{card}.json").write_text("{}\n", encoding="utf-8")
+    rows[0]["evidence_url"] = f"eval/corpus/cards/{card}.json"
+    with returned.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=PARTICIPANT_WORKLIST_FIELDS,
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    monkeypatch.setattr(screen_scorer, "REPO", tmp_path)
+    assert validate_verifier_return(returned, lock)[0]["evidence_url"] == (
+        f"eval/corpus/cards/{card}.json"
+    )
+
+    rows[0]["evidence_url"] = "eval/corpus/cards/other-card.json"
+    with returned.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=PARTICIPANT_WORKLIST_FIELDS,
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(ValueError, match="invalid evidence_url"):
+        validate_verifier_return(returned, lock)
 
 
 def test_seeded_overlap_is_repeatable_and_balanced(tmp_path):

@@ -1,0 +1,1539 @@
+{
+  "version": "source-complexity-exposures-v1",
+  "outcome_free": true,
+  "definitions": {
+    "documentary_channels": [
+      "paper_or_abstract",
+      "html",
+      "github_readme",
+      "hf_readme"
+    ],
+    "excluded_structured_inputs": [
+      "eee",
+      "hf_basic"
+    ],
+    "paper_budget_chars": 25000,
+    "other_document_budget_chars": 15000,
+    "long_paper_measure": "min(normalized persisted full text, paper budget); a ceiling on retrieved source content, not exact prompt length",
+    "abstract_measure": "reconstructed title-and-abstract payload from the later quote-validated recovery manifest; not proof of byte identity with the original in-memory source"
+  },
+  "inputs": {
+    "sample": "eval/s150/sample.json",
+    "sample_sha256": "d9f1071c233e4c0dfabeea51597f9e8f1003ae1687de70d99ed2e371c963713a",
+    "abstract_manifest": "[withheld-source-snapshot]/recovered_abstracts.json",
+    "abstract_manifest_sha256": "bdf9d103f5f3e074e0050d9734b542fa44b91e5e8b3bfd7ae418721dcf131b9a",
+    "run_root": "[withheld-source-snapshot]/source_runs",
+    "builder": "scripts/build_source_complexity_exposures.py",
+    "builder_sha256": "403f375c2ed763baf180c0b1c17705c28a75c40bf4738a56786c714adf72fcf4"
+  },
+  "n_cards": 150,
+  "n_complete": 150,
+  "stratum_counts": {
+    "flagged": 75,
+    "unflagged": 75
+  },
+  "documentary_channel_count_histogram": {
+    "2": 63,
+    "3": 14,
+    "0": 23,
+    "1": 49,
+    "4": 1
+  },
+  "cards_without_documentary_channels": [
+    "aider",
+    "aime",
+    "anthropic-red-team",
+    "cfeval",
+    "creative-writing-v3",
+    "disinformation",
+    "ds-arena-code",
+    "ds-fim-eval",
+    "easy-problems",
+    "extremelandmarkpairs",
+    "functionalmath",
+    "helm-lite",
+    "humanevalfim-average",
+    "mcp-mark",
+    "mm-mind2web",
+    "musiccaps",
+    "nih-multi-needle",
+    "nmos",
+    "pathmcqa",
+    "pinchbench",
+    "qwenwebbench",
+    "sage-overall",
+    "seccodebench"
+  ],
+  "cards_at_paper_budget": [
+    "ace",
+    "acemath-rewardbench",
+    "androidworld",
+    "androidworld-sr",
+    "apex-agents",
+    "api-bank",
+    "arena-hard",
+    "artifactsbench",
+    "assistantbench",
+    "babyvision",
+    "bigcodebench",
+    "boolq",
+    "browsecomp",
+    "chartqa",
+    "churro-ds",
+    "civilcomments",
+    "cnn-dailymail",
+    "codegolf-v2.2",
+    "core-bench-hard",
+    "corpusqa-1m",
+    "cotd",
+    "covost2",
+    "csimpleqa",
+    "design2code",
+    "dexter",
+    "do-not-answer",
+    "drop",
+    "dynamath",
+    "finance-agent",
+    "finqa",
+    "flenqa",
+    "fleurs",
+    "gdm-intercode-ctf",
+    "gdpval-aa",
+    "global-piqa",
+    "healthbench",
+    "helm-mmlu",
+    "informative-tracking-benchmark",
+    "iquad-v1",
+    "journeybench",
+    "jrdb",
+    "judgebench",
+    "lingoqa",
+    "livebench",
+    "livecodebench-pro",
+    "longfact-objects",
+    "math",
+    "mathconstruct",
+    "mathverse-mini",
+    "mathvision",
+    "mc-bench",
+    "mega-mlqa",
+    "mlvu",
+    "mmau",
+    "mme",
+    "mme-realworld",
+    "mmmu",
+    "mmsearch-plus",
+    "mmvet",
+    "mtvqa",
+    "objectron",
+    "ocrbench",
+    "omni-math",
+    "omnigaia",
+    "perceptiontest",
+    "piqa",
+    "qmsum",
+    "repobench",
+    "salad-bench",
+    "scoring-verifiers",
+    "seal-0",
+    "simplesafetytests",
+    "swe-bench-multimodal",
+    "swe-polybench",
+    "tlp",
+    "tro",
+    "tydiqa",
+    "vinabench",
+    "vision2web",
+    "visual-commonsense-reasoning",
+    "vl-checklist",
+    "wmt24",
+    "worldvqa",
+    "writingbench"
+  ],
+  "source_artifacts": {
+    "360vot": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "1df845aa3dfcf59370367d70e9cdf8158b719ae800180aff6a9e3a34dcce7568",
+        "recovery_source_url": "https://api.openalex.org/works/W4390873041"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/360vot_2026-06-25_16-07/tool_output/html/360vot.json",
+        "sha256": "4c203d0c0e73955ceac8b5b19d641650285fae7457d3ee6fe423b1f3efb0a0aa"
+      }
+    ],
+    "ace": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/ace_2026-06-25_16-07/tool_output/docling/ace.json",
+        "sha256": "8358fe72efa06895848c153ad5947b92287418e2b4a444715429a9dfa62ad993"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/ace_2026-06-25_16-07/tool_output/hf/ace.json",
+        "sha256": "4bfe7eea1e01418e35293d2ddda6520fa87aa73fa398fe032e731d4a406288b2"
+      }
+    ],
+    "actionbench": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/actionbench_2026-06-25_16-07/tool_output/html/actionbench.json",
+        "sha256": "aeff00a62655c8ce70617eaa6e02703f61fa1e6b7775875d6fd0da1bcf3f7874"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/actionbench_2026-06-25_16-07/tool_output/hf/actionbench.json",
+        "sha256": "f32921ef6c9f982f8f73eb8df85b10d4b73577b0160f94a56918ec62f98a09a3"
+      }
+    ],
+    "activitynet": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "a4c14552c614fccf50652c34ce687eb78ea6c447235664b14a638a39d6504b00",
+        "recovery_source_url": "https://api.openalex.org/works/W1927052826"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/activitynet_2026-06-25_16-14/tool_output/hf/activitynet.json",
+        "sha256": "a50e4dcdf970c87ebe5fefa62261e0e2e01171509adbb9c71bc9be77184f8e01"
+      }
+    ],
+    "aider": [],
+    "apex-agents": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/apex-agents_2026-06-25_16-42/tool_output/docling/apex-agents.json",
+        "sha256": "1a1391340260aa94bab1f6296b43cc6854321638f4a7246fb83c5cfdae196339"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/apex-agents_2026-06-25_16-42/tool_output/hf/apex-agents.json",
+        "sha256": "23b3ce6d1b85cb3959dfd2b2aaa173ec678c1b3d57082f8fc26cd3f177b9c949"
+      }
+    ],
+    "arena-hard": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/arena-hard_2026-06-25_16-56/tool_output/docling/arena-hard.json",
+        "sha256": "e847c59478b7143389de391afbfa2f4920abf1d521f1e6bd74f1361cfff3061a"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/arena-hard_2026-06-25_16-56/tool_output/hf/arena-hard.json",
+        "sha256": "2f61ad1bb559c87fdfde57068315a7af98563ce827757d77abccae29f2c6a52a"
+      }
+    ],
+    "artifactsbench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/artifactsbench_2026-06-25_16-50/tool_output/docling/artifactsbench.json",
+        "sha256": "089365277647dcc7c5ccae18ff184d8cd71ae78e2abd96c6fbeee2b2c2b5f006"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/artifactsbench_2026-06-25_16-50/tool_output/html/artifactsbench.json",
+        "sha256": "9316fa68f4ad6f3c47b9a3b95984d19a8382b976a98273c87511752f5d8dbfcc"
+      }
+    ],
+    "assistantbench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/assistantbench_2026-06-25_16-44/tool_output/docling/assistantbench.json",
+        "sha256": "7bdbe7f655352c20240dac181a6c78e5f1bf64e9e4ea9b733acdb85c309c96f1"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/assistantbench_2026-06-25_16-44/tool_output/html/assistantbench.json",
+        "sha256": "4b7e00dd0c0b7737f81f34c7b230dbd9c66cbeedce1b541dcfa5ef64f8916bd6"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/assistantbench_2026-06-25_16-44/tool_output/hf/assistantbench.json",
+        "sha256": "e31d8cef819ca2d3ad1c33557bb5d04396f1c31a8a16568d4a67ce7c94ff6da0"
+      }
+    ],
+    "assistgui": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "a5a5cea3b2fd7bdb329ddc617a1687d13df7daf489238584bd239cfadefbfdc6",
+        "recovery_source_url": "https://api.openalex.org/works/W4402727710"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/assistgui_2026-06-25_16-50/tool_output/html/assistgui.json",
+        "sha256": "b77555db6987dbf65d8177f7ecca7e59c478cc2beed1bd1d522862725c382f7e"
+      }
+    ],
+    "belief": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/belief_2026-06-25_17-16/tool_output/html/belief.json",
+        "sha256": "97995527672fd0a7febef66f0a3ea73eb61ae8e6804adc34e3ca9fdb51e03e5d"
+      }
+    ],
+    "cbnsl": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "bb798ec58d477e370992516f20a5c3daf076f30ebe2e89c8b08a894d193db514",
+        "recovery_source_url": "https://api.openalex.org/works/W2306514254"
+      }
+    ],
+    "cfeval": [],
+    "churro-ds": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/churro-ds_2026-06-25_17-40/tool_output/docling/churro-ds.json",
+        "sha256": "7836f95ed4f9bdaeb86056d32d2d558e979442740a819d193de504db51e1cc44"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/churro-ds_2026-06-25_17-40/tool_output/html/churro-ds.json",
+        "sha256": "7b4ac8760ce84e5235490a284989ee4d159e6670eedb97143ba0f70963a17fc5"
+      }
+    ],
+    "creative-writing-v3": [],
+    "cryptobench": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/cryptobench_2026-06-25_17-40/tool_output/html/cryptobench.json",
+        "sha256": "5aa9a93acd9511058811f46425b114fe92f2bddacebab909ada20fe4b13d31ca"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/cryptobench_2026-06-25_17-40/tool_output/hf/cryptobench.json",
+        "sha256": "bfe60fb8c08e41936a21c32c4a615b530fec7e5d730409fe9b063c18f10979f3"
+      }
+    ],
+    "cyse2-interpreter-abuse": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/cyse2-interpreter-abuse_2026-06-25_18-24/tool_output/html/cyse2-interpreter-abuse.json",
+        "sha256": "31db747e14c3995b5e0927f8a245c50ac6e1550ab9cc756db79874ff3ebe403e"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/cyse2-interpreter-abuse_2026-06-25_18-24/tool_output/github/cyse2-interpreter-abuse.json",
+        "sha256": "4178535a29755aa85da3d93ff86e1472202f48a3bc446987a02cc25f9fdbf8da"
+      }
+    ],
+    "dexter": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/dexter_2026-06-25_18-27/tool_output/docling/dexter.json",
+        "sha256": "f7cc4fa01f38f6183cfcded05e9398de7c559257a8cbc2248e187a84ceb254eb"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/dexter_2026-06-25_18-27/tool_output/html/dexter.json",
+        "sha256": "5a0d7d7a0516af72b0bf212008f539f45e024478f55fa7f60b0b0cbc96183cdb"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/dexter_2026-06-25_18-27/tool_output/github/dexter.json",
+        "sha256": "667466c12e3ff5a6950f740890e886fc0fb44a85f90d2b2fe0439b2f3a753c39"
+      }
+    ],
+    "do-not-answer": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/do-not-answer_2026-06-25_18-31/tool_output/docling/do-not-answer.json",
+        "sha256": "b47e217e55de678d7f0dfcbb4a66b53d23243e40bb1d01e0e89c31943ecd034e"
+      }
+    ],
+    "ds-arena-code": [],
+    "ds-fim-eval": [],
+    "finance-agent": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/finance-agent_2026-06-25_18-12/tool_output/docling/finance-agent.json",
+        "sha256": "012896cd9ef8d774743bbad01f5a11dc22268c0ddfe2dbf576b8f8a7be56eae8"
+      }
+    ],
+    "finqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/finqa_2026-06-25_18-46/tool_output/docling/finqa.json",
+        "sha256": "4aabe7592de94bc0af6b02883859d490c338eb1e0b9b7ee3c18e3ea42da406e4"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/finqa_2026-06-25_18-46/tool_output/hf/finqa.json",
+        "sha256": "e4c2759e6cf46a3af5cbbacf75ebb67976cf5360bf91169af3c6b89a83923946"
+      }
+    ],
+    "functionalmath": [],
+    "gdm-intercode-ctf": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/gdm-intercode-ctf_2026-06-25_18-41/tool_output/docling/gdm-intercode-ctf.json",
+        "sha256": "cfffd53112a043be45b395717ad27afcec2b9f70faf593689c0d771c64675648"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/gdm-intercode-ctf_2026-06-25_18-41/tool_output/html/gdm-intercode-ctf.json",
+        "sha256": "8fc7885bdf3191f3594755ea74c4111977966c8c3b7fa7afb9a010827c9aaa8c"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/gdm-intercode-ctf_2026-06-25_18-41/tool_output/github/gdm-intercode-ctf.json",
+        "sha256": "4178535a29755aa85da3d93ff86e1472202f48a3bc446987a02cc25f9fdbf8da"
+      }
+    ],
+    "healthbench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/healthbench_2026-06-25_19-38/tool_output/docling/healthbench.json",
+        "sha256": "8eb76308ca93bd160eed9b3195376af22152fd01970de0f8db198c6ac823cace"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/healthbench_2026-06-25_19-38/tool_output/hf/healthbench.json",
+        "sha256": "9e08e6eac23ddaa5469ab9886a29606529fd34d14535a3b890cae81cd7e2c601"
+      }
+    ],
+    "helm-mmlu": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run_heavy/output/helm-mmlu_2026-07-04_23-34/tool_output/docling/helm-mmlu.json",
+        "sha256": "6f29c308e73ac401a03947e337fc05ea8615fe8d394e8ab9852d59ad81a9016f"
+      }
+    ],
+    "humaneval-nfr": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/humaneval-nfr_2026-06-25_19-27/tool_output/html/humaneval-nfr.json",
+        "sha256": "e7ac0466e441db2a54c5e65fe7dc095c43afc700034b8447dd8d470e518272f2"
+      }
+    ],
+    "hypersim": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "c2affe6694c5d0a048530d7b38855421516a4d58921e8b00ac0a1ae114db870f",
+        "recovery_source_url": "https://api.openalex.org/works/W3097660860"
+      }
+    ],
+    "ifbench": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/ifbench_2026-06-25_20-05/tool_output/hf/ifbench.json",
+        "sha256": "7bd1a823ad1ee5cbb5c40bd631f157b900d2e893099d6433fd44e2f44adb2709"
+      }
+    ],
+    "journeybench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/journeybench_2026-06-25_20-19/tool_output/docling/journeybench.json",
+        "sha256": "2c994de878008e3186fe5c7ab091ec101e343c2c6e9f2ce10dfc18af20cab706"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/journeybench_2026-06-25_20-19/tool_output/html/journeybench.json",
+        "sha256": "ba592e0f05e8b898a36f4e136a71a41879403ccb0d89eda88075ffdcfe2916eb"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/journeybench_2026-06-25_20-19/tool_output/hf/journeybench.json",
+        "sha256": "a822aed73e1173ffda9df640efc325a8fcaf004e15cba811ca79c9235b650c57"
+      }
+    ],
+    "judgebench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/judgebench_2026-06-25_19-37/tool_output/docling/judgebench.json",
+        "sha256": "a2c531ca4f99b19ca131f8befad184c3a935b7243dbcd3241d15fb35ea2cf062"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/judgebench_2026-06-25_19-37/tool_output/hf/judgebench.json",
+        "sha256": "213c3d24516616ea6583ff0b214b371bff809009de246dd5264a872d9f94d180"
+      }
+    ],
+    "lingoqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/lingoqa_2026-06-25_19-46/tool_output/docling/lingoqa.json",
+        "sha256": "df134e7bc2d9e28a869b20cfd9745f6b72f16ecd7580ac42de615ef2479aebbd"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/lingoqa_2026-06-25_19-46/tool_output/hf/lingoqa.json",
+        "sha256": "86d6c9aed53fb642035156866ec5c610de92df4a08055b79daa554c41c01cadc"
+      }
+    ],
+    "lmarena-text-leaderboard": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/lmarena-text-leaderboard_2026-06-25_20-31/tool_output/html/lmarena-text-leaderboard.json",
+        "sha256": "ee2446c123e48136252f314c62ec52096c2afda44ad89354b4ca659960bcfa3a"
+      }
+    ],
+    "lvos": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "f46c483fc22a07c461359bbc98efef577cfed13915d9a81f80212730b70f203f",
+        "recovery_source_url": "https://api.openalex.org/works/W4390872599"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/lvos_2026-06-25_20-43/tool_output/html/lvos.json",
+        "sha256": "9571f93dc971064ab290626e4c2935bbcc72e3383d8caa301f08dcd808b65e2c"
+      }
+    ],
+    "mask": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mask_2026-06-25_20-12/tool_output/hf/mask.json",
+        "sha256": "fa6343fe26df909d033dd97225163cc9b4a6582d9410aa95009e97c0826b9128"
+      }
+    ],
+    "math": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/math_2026-07-05_00-57/tool_output/docling/math.json",
+        "sha256": "432c3c95ba0f6aa45bd0e10a648f5fd488b2187f53909f15e4602536074bce79"
+      }
+    ],
+    "mathconstruct": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mathconstruct_2026-06-25_20-27/tool_output/docling/mathconstruct.json",
+        "sha256": "01705afed1e4a891c4ff936ecaceb1c9d5ef76cdae9a05ba22d642856bced766"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/mathconstruct_2026-06-25_20-27/tool_output/html/mathconstruct.json",
+        "sha256": "eb134f147a967476362a23f715620b7368779a917fd8f30db30c1d10ba163530"
+      }
+    ],
+    "mathverse-mini": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mathverse-mini_2026-06-25_20-42/tool_output/docling/mathverse-mini.json",
+        "sha256": "ddde05f9228b3294a4c11eb30ccabe00e973b935bf9868f328b250074f10584c"
+      }
+    ],
+    "mathvision": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mathvision_2026-06-25_20-47/tool_output/docling/mathvision.json",
+        "sha256": "6458105260976ee851e0a6ff71675f49011d05bdb3c1f7f44a9c9b87df9e57fa"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mathvision_2026-06-25_20-47/tool_output/hf/mathvision.json",
+        "sha256": "0dcd7cbecd5be244518d576e97527c4b2fce0b00a58cd247796d3d77c0cbaeef"
+      }
+    ],
+    "mega-xcopa": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "52af9de7ec52049eec0ad8bddb35833187fcbc545ef125dbdbe74d8badbbd566",
+        "recovery_source_url": "https://api.openalex.org/works/W4389524534"
+      }
+    ],
+    "metaclue": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "9b57b1d6e0d892573f3b6fe32db0b35ff01ea3f02870021a4d8007c7c0b1bd56",
+        "recovery_source_url": "https://api.openalex.org/works/W4386066368"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/metaclue_2026-06-25_20-12/tool_output/html/metaclue.json",
+        "sha256": "fc9e542d46926bb253b6d21a5b6c44503be22a910bfa624fe7024134d8789f7e"
+      }
+    ],
+    "mlvu": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mlvu_2026-06-25_20-36/tool_output/docling/mlvu.json",
+        "sha256": "e62927ac8d70646bac93e4a8b444a39e417eb69a11a6aec1d83c840b2dca4a1c"
+      }
+    ],
+    "mme": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mme_2026-06-25_20-19/tool_output/docling/mme.json",
+        "sha256": "d7f83669db1565ecdece998ef38ac4e648cf935f6631e3d783339cbb174cd51f"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/mme_2026-06-25_20-19/tool_output/github/mme.json",
+        "sha256": "b954079e9968f6597836c8fc39a66490168d7e3b0643b786640bc79eb496a263"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mme_2026-06-25_20-19/tool_output/hf/mme.json",
+        "sha256": "10fa47d41d23b4311f58fc185c7b06aaaf9ba170e8e98f8d5fc26797aad35e79"
+      }
+    ],
+    "mme-realworld": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mme-realworld_2026-06-25_21-16/tool_output/docling/mme-realworld.json",
+        "sha256": "9227ffa502cfe264c1f8717af412628c5dc1bb30717646ef1e15930526af21d3"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mme-realworld_2026-06-25_21-16/tool_output/hf/mme-realworld.json",
+        "sha256": "c378e27c5a69a27ae5759a02b0b4ec47908388a085f238c0dfc9972cd0c7a879"
+      }
+    ],
+    "mmlu-french": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mmlu-french_2026-06-25_22-00/tool_output/hf/mmlu-french.json",
+        "sha256": "49ff79ef46e67bf26f5d742622c05bbcf1493d4c623052091638386b94a52dff"
+      }
+    ],
+    "multipl-e": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "9cc5ba42e829a67b152739cb8cf214568419443d6bcfcc645af8bb0019b4e124",
+        "recovery_source_url": "https://api.openalex.org/works/W4366204357"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/multipl-e_2026-06-25_22-15/tool_output/hf/multipl-e.json",
+        "sha256": "ac20d3326bca2088a34d832b16ba1684781f8e283a1abde176121b202c544284"
+      }
+    ],
+    "music-avqa": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "ba2daad14dd96df1edd1d3b732c299d659febe7902ab6cca9d1fb87841887a6b",
+        "recovery_source_url": "https://api.openalex.org/works/W4312380001"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/music-avqa_2026-06-25_22-27/tool_output/html/music-avqa.json",
+        "sha256": "6b3d768093a43632e2f5ddb69e7b49f60d1760251ca701b62fc37027c974f3da"
+      }
+    ],
+    "musiccaps": [],
+    "nih-multi-needle": [],
+    "ocrbench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/ocrbench_2026-06-25_22-08/tool_output/docling/ocrbench.json",
+        "sha256": "588793d9fa81c930de47309305bcc26bbb765c7fe235b8ff7130e65157d84ef9"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/ocrbench_2026-06-25_22-08/tool_output/hf/ocrbench.json",
+        "sha256": "83b1ec160b8b82bdb73ac28fd85752db29d557e132063d24a54df6478f44db26"
+      }
+    ],
+    "omni-math": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/omni-math_2026-07-05_00-49/tool_output/docling/omni-math.json",
+        "sha256": "a386f0664853d2ac68c49b0281d4d4122d4a8057baa123b2a4b49d6f0a21cacb"
+      }
+    ],
+    "pathmcqa": [],
+    "perceptiontest": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/perceptiontest_2026-06-25_22-35/tool_output/docling/perceptiontest.json",
+        "sha256": "a86dccd1db42816a0af7fed2b337ffa3a0e48ce3820a15ee52c24c4c7aaa97ef"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/perceptiontest_2026-06-25_22-35/tool_output/github/perceptiontest.json",
+        "sha256": "0596bf711d908258f0a2d3a5468f11880d02d696fff931cc346e2081a3ae72d2"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/perceptiontest_2026-06-25_22-35/tool_output/hf/perceptiontest.json",
+        "sha256": "0823045548df47c8290383b4988810e8627e00e41a6649c422ba7146e3382b63"
+      }
+    ],
+    "pinchbench": [],
+    "probe": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/probe_2026-06-25_23-00/tool_output/html/probe.json",
+        "sha256": "5cdde960be077ff901805a767c8f71ee92f82bf02391681bb00d91f5e2ea6290"
+      }
+    ],
+    "qwenwebbench": [],
+    "repobench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/repobench_2026-06-25_22-51/tool_output/docling/repobench.json",
+        "sha256": "e9710eb358b9ddd2051a3fccb295f015ba6a513a98a2f8a69559204eb41a534d"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/repobench_2026-06-25_22-51/tool_output/hf/repobench.json",
+        "sha256": "479d78d540c81c1656f686a6b847659fd98cec51c0e6597aa42f52f90ad9b00c"
+      }
+    ],
+    "scoring-verifiers": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/scoring-verifiers_2026-06-25_22-35/tool_output/docling/scoring-verifiers.json",
+        "sha256": "d5dafc526b26dfde4c26f1b6e4df35acfdb68eae5382de68f5e3f7537f66592b"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/scoring-verifiers_2026-06-25_22-35/tool_output/html/scoring-verifiers.json",
+        "sha256": "9c49e46b965c85af79a746e9af025bfc087c59041ea7517a3e46d4e8a7868327"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/scoring-verifiers_2026-06-25_22-35/tool_output/hf/scoring-verifiers.json",
+        "sha256": "aec98e0a622f8efa86ec5b1e73cd5eb4658558f7530df49f2a8f63262b1bc4a7"
+      }
+    ],
+    "seal-0": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/seal-0_2026-07-05_00-36/tool_output/docling/seal-0.json",
+        "sha256": "e5694626959d05f31da57c5e29dd76669ab92b7224426dbe234cccddb09dd59b"
+      }
+    ],
+    "seccodebench": [],
+    "sifo": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "4a16560e20c269507aded00839d79aa0c962b10b6e609db3a7b3a5b370c59328",
+        "recovery_source_url": "https://api.openalex.org/works/W4404783119"
+      }
+    ],
+    "sunrgbd": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "21e9618b8943bb569ab07f6d922784d80e810ee3943480e596c0d109579e7281",
+        "recovery_source_url": "https://api.openalex.org/works/W1923184257"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/sunrgbd_2026-06-25_23-56/tool_output/hf/sunrgbd.json",
+        "sha256": "d0b1053a30a150785422ac9ec0685b460a730137e6827b431b26179424554234"
+      }
+    ],
+    "swe-polybench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/swe-polybench_2026-06-25_23-33/tool_output/docling/swe-polybench.json",
+        "sha256": "ca30cc90c9be0033f7c7e89ec0634674e504168b6e0a871385dd7f9ec90a8c86"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/swe-polybench_2026-06-25_23-33/tool_output/hf/swe-polybench.json",
+        "sha256": "f2c39610bf653b7d52b6e50c666bf88b864d1441bfd702ca6f49fe2957399476"
+      }
+    ],
+    "tldr9-test": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "cfd674ff03c0b6ae50e4f265745578cdd1253c2341d8b6f2342761bf86a40636",
+        "recovery_source_url": "https://api.openalex.org/works/W3202059497"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/tldr9-test_2026-06-26_00-15/tool_output/html/tldr9-test.json",
+        "sha256": "94e78b835b060d5d5817d17f674b075ed4a47cb86d21edd846d1b558c72ccf99"
+      }
+    ],
+    "tro": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/tro_2026-06-25_23-40/tool_output/docling/tro.json",
+        "sha256": "993811d9efe1d5117be7dc74777986f92fe29e9bb170783f228a3f58b5351aa8"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/tro_2026-06-25_23-40/tool_output/github/tro.json",
+        "sha256": "aaddf49bf3a19851773ce2637a31073edb8588050917aacd09a9d955b68aeb1c"
+      }
+    ],
+    "uniform-bar-exam": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "be5d11277f4e61c2932767b91f63611f10780cbe8aff7ae37d82675b82f937e6",
+        "recovery_source_url": "https://api.openalex.org/works/W4392773006"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/uniform-bar-exam_2026-06-26_00-32/tool_output/html/uniform-bar-exam.json",
+        "sha256": "05fbd1daf91e4bce1f9bb9e0a06ac11ae504eee2618c8d41b990f44bf5b6d599"
+      }
+    ],
+    "union14m": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "974e7aa2ee7dd80e15daec4f5d3c936e0ab6995f283bd887bbada5038707a8dd",
+        "recovery_source_url": "https://api.openalex.org/works/W4390871832"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/union14m_2026-06-25_23-52/tool_output/html/union14m.json",
+        "sha256": "afb5da4c32766b579e2870d2f833d84946aeeffe8998a5dae0c3bca381ea23bb"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/union14m_2026-06-25_23-52/tool_output/github/union14m.json",
+        "sha256": "dd92170669569c465c927faedf95fdc50eee21be4c0d1bd5d410edf2295b9965"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/union14m_2026-06-25_23-52/tool_output/hf/union14m.json",
+        "sha256": "7a65918826f87b92e13011b5f206e201ddf9a6ba66eed1bb46045459086e5a9d"
+      }
+    ],
+    "video-mme": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "e7ece42fd08cf53238a44d55d8de62c5c7889653c173bc32f9e707d27f5f4096",
+        "recovery_source_url": "https://api.openalex.org/works/W4413146669"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/video-mme_2026-06-26_00-51/tool_output/hf/video-mme.json",
+        "sha256": "8fd085c4cad8e3bfc8613e570b0f4968ebce2f422260d0ecd72623dc193d9148"
+      }
+    ],
+    "vinabench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/vinabench_2026-06-26_01-39/tool_output/docling/vinabench.json",
+        "sha256": "5f4ef3aacf4a2d8d32b91ab6b9c87836fb6a4be2b8dbaa5d0ee8f7b633e4cf21"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/vinabench_2026-06-26_01-39/tool_output/html/vinabench.json",
+        "sha256": "f1a500148e4258526c5788484e094163baf0a57f3b976e71177716702da484a4"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/vinabench_2026-06-26_01-39/tool_output/hf/vinabench.json",
+        "sha256": "4336db3422e6e5aa834cd1ba406daafd520e1930ba12c87dba305c703d3d9416"
+      }
+    ],
+    "vl-checklist": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/vl-checklist_2026-06-26_00-57/tool_output/docling/vl-checklist.json",
+        "sha256": "80ae9e636ea080ccb0feb0aec7a6d19a3ffbcb4e1f751df55b0a567555a33df6"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/vl-checklist_2026-06-26_00-57/tool_output/html/vl-checklist.json",
+        "sha256": "46cdee8514ccbfec61633fd58c9abd5d1d9cda8ba7b5e092e1ae7926993682d8"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/vl-checklist_2026-06-26_00-57/tool_output/github/vl-checklist.json",
+        "sha256": "0183ba2ea0fae33158c00e04fa7e582387bdf2ea957551cd22244ab0be44e536"
+      }
+    ],
+    "vqa-rad": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "5e7f0c6de48aa282afc4069c8e8b26dd845025fd5048b535e7b9cabb2ca1160e",
+        "recovery_source_url": "https://api.openalex.org/works/W2901466771"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/vqa-rad_2026-06-26_01-32/tool_output/hf/vqa-rad.json",
+        "sha256": "7a16cf703508af97d2e17bff7db5692310c70c27df9f4bcf8a59e4cbad0dc9ff"
+      }
+    ],
+    "wmt24": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/wmt24_2026-06-26_01-34/tool_output/docling/wmt24.json",
+        "sha256": "a0491f95dfc21b2c9ec833376e6a0b0a56a7267e4802854ed4a7ebde73d7c42b"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/wmt24_2026-06-26_01-34/tool_output/html/wmt24.json",
+        "sha256": "d79ed5c35788ef27e90afd0ca6291a0a62e8f27ccb1616170dd0b2f509c73dbf"
+      }
+    ],
+    "wordle-arena": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/wordle-arena_2026-06-26_00-57/tool_output/html/wordle-arena.json",
+        "sha256": "9ea4e4115cc15dfb5d761265fe1699923dca0059ecdb0721975f31ab77b4b9dc"
+      }
+    ],
+    "writingbench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/writingbench_2026-06-26_02-21/tool_output/docling/writingbench.json",
+        "sha256": "8a16372c11969c4b9fa45454f4a514b736842d603c0a6c03f378648f0ea583e3"
+      }
+    ],
+    "acemath-rewardbench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/acemath-rewardbench_2026-06-25_16-07/tool_output/docling/acemath-rewardbench.json",
+        "sha256": "b0d7694bd78fd91b1878e8c627999be008709d15cce9e91a9137d1ae8d901f28"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/acemath-rewardbench_2026-06-25_16-07/tool_output/html/acemath-rewardbench.json",
+        "sha256": "3bad24aa631b463561af1913afc2d7121390dd1e1e24351fcd3597b7f9c6d4bb"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/acemath-rewardbench_2026-06-25_16-07/tool_output/hf/acemath-rewardbench.json",
+        "sha256": "b5f5946eda13d84145c64a8947881387c70ede220cc6ae4bb8a322567381a992"
+      }
+    ],
+    "aime": [],
+    "androidworld": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/androidworld_2026-06-25_16-14/tool_output/docling/androidworld.json",
+        "sha256": "c7a8cd54893c5b4ab9fac5a53f5b20fb581e05a5ae3aa6ebd47fbfaaea8abcdd"
+      }
+    ],
+    "androidworld-sr": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/androidworld-sr_2026-06-25_16-23/tool_output/docling/androidworld-sr.json",
+        "sha256": "c7a8cd54893c5b4ab9fac5a53f5b20fb581e05a5ae3aa6ebd47fbfaaea8abcdd"
+      }
+    ],
+    "anthropic-red-team": [],
+    "api-bank": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/api-bank_2026-06-26_02-32/tool_output/docling/api-bank.json",
+        "sha256": "11a67296a14038186010a9dda93b1e3c70e428b5d6ff4a5668ef91af1435051e"
+      }
+    ],
+    "babyvision": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/babyvision_2026-06-25_16-55/tool_output/docling/babyvision.json",
+        "sha256": "af3159bcc5c94108e4ee4b233d49fe3ae7765d7f7cefa79b54a8abff2ac03e82"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/babyvision_2026-06-25_16-55/tool_output/hf/babyvision.json",
+        "sha256": "0727a46ecefccc9b83ad4be75c646c8528993ad05bf2d26164646f036b609fa7"
+      }
+    ],
+    "beyond-aime": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/beyond-aime_2026-06-25_17-16/tool_output/hf/beyond-aime.json",
+        "sha256": "006ae15b5ca968e34fcef7a3844692263c6ca02a2dc8b2bec8d80446dcd97e88"
+      }
+    ],
+    "bigcodebench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/bigcodebench_2026-06-25_17-06/tool_output/docling/bigcodebench.json",
+        "sha256": "26f428f5fb633f49224283216a413f05298dad0f9f48a4ffd5650d7da2d500bf"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/bigcodebench_2026-06-25_17-06/tool_output/hf/bigcodebench.json",
+        "sha256": "f2d1af4f13a428082d99d204d28c33992e8e3b9abf708a9b57a7727f5a363782"
+      }
+    ],
+    "boolq": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/boolq_2026-07-04_23-34/tool_output/docling/boolq.json",
+        "sha256": "f16e9c68db48d940b1de2730081efa864b87bf71426ae4dd1b1b412e72ead039"
+      }
+    ],
+    "browsecomp": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/browsecomp_2026-06-25_17-23/tool_output/docling/browsecomp.json",
+        "sha256": "0822737191e1a6598663f6f1f198ea6f12015df05aeb7c56e12f3e1015618fe7"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/browsecomp_2026-06-25_17-23/tool_output/github/browsecomp.json",
+        "sha256": "07b32c98092a93fee558541d95252a87f8d34148aace201c85f83e2734542e11"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/browsecomp_2026-06-25_17-23/tool_output/hf/browsecomp.json",
+        "sha256": "0610feabce4ec519e20a9be71f2017784c31a7438b0c182c7accbfdf1793c9be"
+      }
+    ],
+    "chartqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/chartqa_2026-06-25_17-38/tool_output/docling/chartqa.json",
+        "sha256": "687a2bfd2d532e89b577b6d601f08d2971b76855729790eddee548da9e28f6d6"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/chartqa_2026-06-25_17-38/tool_output/hf/chartqa.json",
+        "sha256": "46102dbf7a1f193d78e5d68488710d055e59b30744864afabf514e6faa09c7ea"
+      }
+    ],
+    "civilcomments": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/civilcomments_2026-06-25_17-12/tool_output/docling/civilcomments.json",
+        "sha256": "32a2ecb0d05e3351705ab47ae7f50c04a0de909b8ab6f133b8afc1bb5c8456f4"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/civilcomments_2026-06-25_17-12/tool_output/hf/civilcomments.json",
+        "sha256": "484843938718e66c5695dde784614653e0bf2cf041ff3507b6bb3b433d3a8353"
+      }
+    ],
+    "cnn-dailymail": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/cnn-dailymail_2026-07-05_00-51/tool_output/docling/cnn-dailymail.json",
+        "sha256": "e0120c63e435d1301c23f81b9e885f1836f01e6ec1e644a8894cf8c20278971c"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/regen_run/output/cnn-dailymail_2026-07-05_00-51/tool_output/hf/cnn-dailymail.json",
+        "sha256": "b3dc42c759c30be7c8ed9884b8b8667301bfda405c6f5cd78e408e39a9498320"
+      }
+    ],
+    "codegolf-v2.2": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/codegolf-v2.2_2026-06-25_17-39/tool_output/docling/codegolf-v2.2.json",
+        "sha256": "c254b276a0f937c3b71bba3e66064cf3106ff0ee62d6ba49f30d449cbc7982e4"
+      }
+    ],
+    "core-bench-hard": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/core-bench-hard_2026-06-25_17-43/tool_output/docling/core-bench-hard.json",
+        "sha256": "457cf6daa8fe637a2752bbdcf7b3ba2d2052505eb2bd11dd88437787b4b8ffe7"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/core-bench-hard_2026-06-25_17-43/tool_output/html/core-bench-hard.json",
+        "sha256": "4fd52c8e775edc892a016a7a9ac2dc43979bd5ea9cd7415a41e40ae9d2ae75c9"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/core-bench-hard_2026-06-25_17-43/tool_output/github/core-bench-hard.json",
+        "sha256": "3b84d8fb2432daeabfe424f2109a53b9630a6361fd3574961002c8f9d6363c64"
+      }
+    ],
+    "corpusqa-1m": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/corpusqa-1m_2026-06-25_18-05/tool_output/docling/corpusqa-1m.json",
+        "sha256": "a12988b35f49a7316e4a79efc9b01f47c9f8823ccf3564e240236fa16869703f"
+      }
+    ],
+    "cotd": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/cotd_2026-06-25_17-34/tool_output/docling/cotd.json",
+        "sha256": "2dc29c1c39834751e3cf6688ca0a5b79f18077445bace79f0a4d68f4a8286d2b"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/cotd_2026-06-25_17-34/tool_output/github/cotd.json",
+        "sha256": "fdf16bd274a0985e69cee6feca486886c1481e4b7fbe6ec50942feacbbd86037"
+      }
+    ],
+    "covost2": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/covost2_2026-07-04_23-10/tool_output/docling/covost2.json",
+        "sha256": "2bfa888cc254c00e95b27d561ae88d4c6c0913fe9a7a8ed89d34b1d0f8ea160f"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/regen_run/output/covost2_2026-07-04_23-10/tool_output/hf/covost2.json",
+        "sha256": "24a896ff74ec6d9f03d0c26c8951c185cc4389af29beceab4cd3f34023b91b59"
+      }
+    ],
+    "csimpleqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/csimpleqa_2026-06-25_17-49/tool_output/docling/csimpleqa.json",
+        "sha256": "c8b7d12d0a57ca3b9f5b651c331eec2cf624e9b1aef1c8bb0dfbe017afc66350"
+      }
+    ],
+    "cyse2-vulnerability-exploit": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/cyse2-vulnerability-exploit_2026-06-25_17-57/tool_output/html/cyse2-vulnerability-exploit.json",
+        "sha256": "0813afae52ef35f2d03512e2ca079ad470cc48071bf7f65bc8f6d9e6c6f58122"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/cyse2-vulnerability-exploit_2026-06-25_17-57/tool_output/github/cyse2-vulnerability-exploit.json",
+        "sha256": "4178535a29755aa85da3d93ff86e1472202f48a3bc446987a02cc25f9fdbf8da"
+      }
+    ],
+    "design2code": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/design2code_2026-06-25_17-55/tool_output/docling/design2code.json",
+        "sha256": "be7fd4eb07c7cf0aa86f3cda1ac4be4520a2ecd38bfbe4be0606890e1ab5f964"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/design2code_2026-06-25_17-55/tool_output/hf/design2code.json",
+        "sha256": "617eb7b23b1b2c76d9a5e14fa2c4d77af81a816b5bcda07f4cf543fa924b9623"
+      }
+    ],
+    "disinformation": [],
+    "drop": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run/output/drop_2026-07-04_23-34/tool_output/docling/drop.json",
+        "sha256": "28f3d0a7bf7bd116e6aaf06257fb6f7690fd6f6eb53fe59234519a963b882a2b"
+      }
+    ],
+    "dtto": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "7b8d8597ba7d20ded5b933aa819343f8ee51ce9a557856d13e45489748a8d697",
+        "recovery_source_url": "https://link.springer.com/chapter/10.1007/978-981-97-8493-6_16"
+      }
+    ],
+    "dynamath": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/dynamath_2026-06-25_18-10/tool_output/docling/dynamath.json",
+        "sha256": "d91d19e599f8cc85dd204b426044de2003d7208d359165a0373c1c89fcabc235"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/dynamath_2026-06-25_18-10/tool_output/hf/dynamath.json",
+        "sha256": "be39abc3548c449a5e8dc8e7276b76722c94f809f4dbd4e9a1aa0de3fae96489"
+      }
+    ],
+    "easy-problems": [],
+    "egoschema": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/egoschema_2026-06-25_18-05/tool_output/docling/egoschema.json",
+        "sha256": "ad66217fabf29a476d0f704379f047f518781b6402cafa6cf50192c68a4d9eb4"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/egoschema_2026-06-25_18-05/tool_output/hf/egoschema.json",
+        "sha256": "608c268c412a2b5eb923809811890c406d106e5c5578e09b551247973c288a43"
+      }
+    ],
+    "erqa": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/erqa_2026-06-25_18-44/tool_output/hf/erqa.json",
+        "sha256": "665dbb7cbd0debd43d0962a02c16a2b15a8752dcb1bb7c639b39ea59d9d24071"
+      }
+    ],
+    "extremelandmarkpairs": [],
+    "flenqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/flenqa_2026-06-25_19-04/tool_output/docling/flenqa.json",
+        "sha256": "f8104cc6ddc819e7ca9b9c4721ea377e29a21a10636dc8a112fd165d76cc2b43"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/flenqa_2026-06-25_19-04/tool_output/hf/flenqa.json",
+        "sha256": "6ea954d492cbfc09ca7c4b0f69878c8c818efeb81705320d3625cba07e1c130f"
+      }
+    ],
+    "fleurs": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/fleurs_2026-06-25_18-54/tool_output/docling/fleurs.json",
+        "sha256": "a7cf0cba1fd6ec89a276665509fef2a8f7f494baf7ccee371992e872d8400974"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/fleurs_2026-06-25_18-54/tool_output/hf/fleurs.json",
+        "sha256": "24f5e88739299fd3676a39fc8e4e54c51af7380f500d30b76d4b7adc69fbc1f3"
+      }
+    ],
+    "gdpval-aa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/gdpval-aa_2026-06-25_18-24/tool_output/docling/gdpval-aa.json",
+        "sha256": "7dccfbeac6e6d5f9d1ca6e6359281fd99d8708c4efd8c2c7d124a5f3d8a7402b"
+      }
+    ],
+    "giantsteps-tempo": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "bebeefdb465c7f9add3ffe65dc48f8fb06c99eaaf4c848cf867c2574bc6ad4ea",
+        "recovery_source_url": "https://api.openalex.org/works/W1960352584"
+      }
+    ],
+    "global-piqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/global-piqa_2026-06-25_18-49/tool_output/docling/global-piqa.json",
+        "sha256": "a517c71ee10d6a38b8b7c0cc74f381811bc99b3cf6f6b6c3328b6ab4134b2306"
+      }
+    ],
+    "gsm-mc": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/gsm-mc_2026-06-25_19-05/tool_output/html/gsm-mc.json",
+        "sha256": "b9fba88a94a01763e069d671f2f39c75a3ad8ef185b1ab69b3ddd544d8ecfa86"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/gsm-mc_2026-06-25_19-05/tool_output/github/gsm-mc.json",
+        "sha256": "04247737e7f4d895a268b83b8215f4dac07ab7b290a8aa41338c228649d98e7b"
+      }
+    ],
+    "helm-lite": [],
+    "herb": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/herb_2026-06-25_18-46/tool_output/html/herb.json",
+        "sha256": "04d4eb4302bae786ebc5db784e696c8a077f7831b487a9197ba44de4bfa5dc81"
+      }
+    ],
+    "humanevalfim-average": [],
+    "informative-tracking-benchmark": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/informative-tracking-benchmark_2026-06-25_20-10/tool_output/docling/informative-tracking-benchmark.json",
+        "sha256": "e7261e023f22ccfbc8c7ade44537779cf2caf2f44c21f805df769302dd12a143"
+      }
+    ],
+    "ioi": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/ioi_2026-06-25_18-58/tool_output/html/ioi.json",
+        "sha256": "73f3068b17c8f3038482b82a03ebb7f270b5a7ef285e9047d2dffbc3858c1424"
+      }
+    ],
+    "iquad-v1": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/iquad-v1_2026-06-25_20-19/tool_output/docling/iquad-v1.json",
+        "sha256": "67cf19b02957556732be3824bad6e74d510de9becda961dbea7925c8a6fe2408"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/iquad-v1_2026-06-25_20-19/tool_output/html/iquad-v1.json",
+        "sha256": "394fe4d72d814edcf9019854958d24855cd399a95bd2bb9cb07e6b6a281a721a"
+      }
+    ],
+    "jrdb": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/jrdb_2026-06-25_20-16/tool_output/docling/jrdb.json",
+        "sha256": "738b78a91a006b064ace6c964028ec5f8b5fc7dea3644c6e78131bcefb4d1d5e"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/jrdb_2026-06-25_20-16/tool_output/html/jrdb.json",
+        "sha256": "42c9e5ab2101a757aa26b03fed3653f162f444cb011242ad1a9c761e2156b0b5"
+      }
+    ],
+    "livebench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/livebench_2026-06-25_19-21/tool_output/docling/livebench.json",
+        "sha256": "7b057bb7a07bdfe5ab343efde643dd173930eb183bd4ab43516bba916af921d2"
+      }
+    ],
+    "livecodebench-pro": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/livecodebench-pro_2026-06-25_19-12/tool_output/docling/livecodebench-pro.json",
+        "sha256": "3fa06ec197748643d6d42fc58e72b48541bce67e97839a213c10f1f1c24f6daa"
+      }
+    ],
+    "longfact-objects": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/longfact-objects_2026-06-26_02-53/tool_output/docling/longfact-objects.json",
+        "sha256": "7d6ffa9c9c7264abd24b16c23a1cf4e5bc208e35427701e966fd5e8a4a940e84"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/longfact-objects_2026-06-26_02-53/tool_output/html/longfact-objects.json",
+        "sha256": "5506a5ca0a0631df2d8270feb2f43e1bd1484a807f58f243adaee9108ff8326f"
+      },
+      {
+        "channel": "github",
+        "artifact": "output/broad_run/output/longfact-objects_2026-06-26_02-53/tool_output/github/longfact-objects.json",
+        "sha256": "d128c3653cf7740c2389f7b9f8a8cc7a84c91fff4d1a7fad8766f2756ece0a74"
+      }
+    ],
+    "mc-bench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mc-bench_2026-06-25_20-09/tool_output/docling/mc-bench.json",
+        "sha256": "033136bea6c2f2ce3549c550eb746163916b0bbdbe1065f7b38974c5579042ea"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/mc-bench_2026-06-25_20-09/tool_output/html/mc-bench.json",
+        "sha256": "728d042a12680884b35484c3e9a803919b5d49e518bbea369bfdb914eeafb491"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mc-bench_2026-06-25_20-09/tool_output/hf/mc-bench.json",
+        "sha256": "6ff6e02a6f5669bacad055f8485c15116d1256d100d925c4163fe07d13107fd1"
+      }
+    ],
+    "mcp-mark": [],
+    "mega-mlqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mega-mlqa_2026-06-25_21-01/tool_output/docling/mega-mlqa.json",
+        "sha256": "60a67456b52d9838a4e07e49e7f72b8b5c3f29021cd674e9594991275176ac72"
+      }
+    ],
+    "mm-mind2web": [],
+    "mmau": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mmau_2026-06-25_21-02/tool_output/docling/mmau.json",
+        "sha256": "c68212012e089984e576552870ef2364eaff1e67aeb4f337804edb0a9aefdf50"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mmau_2026-06-25_21-02/tool_output/hf/mmau.json",
+        "sha256": "93a458835a33d5bd6554c96ec56de978ce7afdc5e8d1c409156db7d10bb6df0c"
+      }
+    ],
+    "mmmu": [
+      {
+        "channel": "paper",
+        "artifact": "output/regen_run_heavy/output/mmmu_2026-07-05_00-13/tool_output/docling/mmmu.json",
+        "sha256": "0c6c722e75bd72ab57247388f325e352620c037f9fc4ebae4c1a29879de7d4e4"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/regen_run_heavy/output/mmmu_2026-07-05_00-13/tool_output/hf/mmmu.json",
+        "sha256": "9560bb44ef0fc731a4bbf4547593dcec02d41dffd51ca1bdda92749d400d1204"
+      }
+    ],
+    "mmsearch-plus": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mmsearch-plus_2026-06-25_21-19/tool_output/docling/mmsearch-plus.json",
+        "sha256": "79ad6fd2629a7f651f99dfad3867bb6fee53bca3e41cfefeb7efe56fabd05c05"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mmsearch-plus_2026-06-25_21-19/tool_output/hf/mmsearch-plus.json",
+        "sha256": "cc33011ad9274f1cace3d31568cf0c8409f8ce3daa1ae8807ae03d31e03fcabf"
+      }
+    ],
+    "mmvet": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mmvet_2026-06-25_21-40/tool_output/docling/mmvet.json",
+        "sha256": "ec2cfb8284c6a5099e1887950a7b7a4efacc73b4d65410f35a9bbe32e42bc45f"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mmvet_2026-06-25_21-40/tool_output/hf/mmvet.json",
+        "sha256": "01d6f6e3bdde634ed4d2fcdcb23b7dff26174d93b43724a9e03ae42bb1ada469"
+      }
+    ],
+    "mtvqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/mtvqa_2026-06-25_22-12/tool_output/docling/mtvqa.json",
+        "sha256": "f3017c5c4cc989612f64843bfffcdac1ee1456ddb44b6e34063c318fd35a5c82"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/mtvqa_2026-06-25_22-12/tool_output/hf/mtvqa.json",
+        "sha256": "63d05a6181b6b2fecfb39c24efa5d7c26488a7a99955bd9c62691c09525fdb47"
+      }
+    ],
+    "multi-if": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/multi-if_2026-06-25_21-45/tool_output/hf/multi-if.json",
+        "sha256": "ec3b1db2e98b923f922cd26380a0471555198bb76cef06d27c23bd11172d3c67"
+      }
+    ],
+    "nmos": [],
+    "nt-vot211": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "b273a5a375fc19d200bedf206df3d9628f24558592f244228274749057265fe6",
+        "recovery_source_url": "https://link.springer.com/chapter/10.1007/978-981-96-0901-7_19"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/nt-vot211_2026-06-25_22-29/tool_output/html/nt-vot211.json",
+        "sha256": "236a54d8f6d5a54d8e198c59c0123d68af8b8250036da0081d34695c09fb0194"
+      }
+    ],
+    "objectron": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/objectron_2026-06-25_22-40/tool_output/docling/objectron.json",
+        "sha256": "6c4c673ac9a9c426f189ded5d7093a6c760177c310788328cec2eff1dea6eb3b"
+      }
+    ],
+    "omnigaia": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/omnigaia_2026-06-25_22-36/tool_output/docling/omnigaia.json",
+        "sha256": "8b8c89e5af84d7a197df54fddde65fe87b2a42cf1eb4f9fe69a8ed945f525d01"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/omnigaia_2026-06-25_22-36/tool_output/hf/omnigaia.json",
+        "sha256": "5067f63a4930a4288343c24a26e340694d3a743737fdffca24c68cfbcaadf6e9"
+      }
+    ],
+    "piqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/piqa_2026-06-25_22-52/tool_output/docling/piqa.json",
+        "sha256": "e47a975d9915edac8569437921fb4ecdcf2b1038e3663bb8b88cf2b867c7be2b"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/piqa_2026-06-25_22-52/tool_output/hf/piqa.json",
+        "sha256": "d982961ea05c0999d76d7b29756f4e7d6ccb1732d819691d51584a1035de93d5"
+      }
+    ],
+    "qmsum": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/qmsum_2026-06-25_22-52/tool_output/docling/qmsum.json",
+        "sha256": "9e46159465be547eda8fc9cba1ff17e08a74948881a7c2eb355e3801480a8646"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/qmsum_2026-06-25_22-52/tool_output/hf/qmsum.json",
+        "sha256": "d7245f97d8195c4f4ad3442c0d5b8e68febb354cb9034c45c50282320eac3a94"
+      }
+    ],
+    "realworldqa": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/realworldqa_2026-06-25_23-21/tool_output/hf/realworldqa.json",
+        "sha256": "4087850d216eb9f87d302505134404b2a799eae64116315d384649ba77dcdb49"
+      }
+    ],
+    "researchpulse-bench": [
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/researchpulse-bench_2026-06-25_22-23/tool_output/html/researchpulse-bench.json",
+        "sha256": "89511c8122618887ae13562d4f56e8ed74560801b7c5b538c82445b2b211f0a0"
+      }
+    ],
+    "sage-overall": [],
+    "salad-bench": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/salad-bench_2026-06-25_23-07/tool_output/docling/salad-bench.json",
+        "sha256": "d945cfdf70f42e442782812e332a47e6dcb94894bb2913d8bf2397f8a83c3cbf"
+      }
+    ],
+    "simplesafetytests": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/simplesafetytests_2026-06-25_23-25/tool_output/docling/simplesafetytests.json",
+        "sha256": "7226a2436b6fd0888f740332143d0673dc06c466652adbb0687d96c3e8e42367"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/simplesafetytests_2026-06-25_23-25/tool_output/hf/simplesafetytests.json",
+        "sha256": "0da456817a796650dac866d119218e4a684a6d5d1e0e94c1c0916f18b7b9ae7a"
+      }
+    ],
+    "swe-bench": [
+      {
+        "channel": "hf_readme",
+        "artifact": "output/regen_run/output/swe-bench_2026-07-04_23-47/tool_output/hf/swe-bench.json",
+        "sha256": "9061b603fbe6a6dcc008c9c00cdf2798c72adb55bdf112cf246f3262fe02df4d"
+      }
+    ],
+    "swe-bench-multimodal": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/swe-bench-multimodal_2026-06-26_00-08/tool_output/docling/swe-bench-multimodal.json",
+        "sha256": "3d5ca954b80f82713570fa9e96e1ab18372d2e231dca78d39db5ddf0c6c29490"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/swe-bench-multimodal_2026-06-26_00-08/tool_output/hf/swe-bench-multimodal.json",
+        "sha256": "11bd54839810b5049c4946667325e704cf6c80b427615245a63aff7e2cb42da1"
+      }
+    ],
+    "tlp": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/tlp_2026-06-26_00-43/tool_output/docling/tlp.json",
+        "sha256": "28257e94c2344c72a2ccc5bbbbf0db24a22e4bc7e2b806e3bf0ebf918de16d0d"
+      }
+    ],
+    "tydiqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/tydiqa_2026-06-26_01-03/tool_output/docling/tydiqa.json",
+        "sha256": "5e4798215ed541e3dc8fb9b7f1ab870ff10c2320a5744bab1dd05792bb0e1f13"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/tydiqa_2026-06-26_01-03/tool_output/hf/tydiqa.json",
+        "sha256": "c57b543b8f0167dd2fbe1438854ee5dc4ecc97e715f3546531555facc826c33d"
+      }
+    ],
+    "vision2web": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/vision2web_2026-06-26_00-19/tool_output/docling/vision2web.json",
+        "sha256": "98e6e9ec74693607cd05b835fef1124b3c21dd860cd6eab51f4e0d20d264771c"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/vision2web_2026-06-26_00-19/tool_output/hf/vision2web.json",
+        "sha256": "716467402071a9c31d82ea254904fe11994538c86fad0bafd99f42e9a07a4982"
+      }
+    ],
+    "visual-commonsense-reasoning": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/visual-commonsense-reasoning_2026-06-26_01-28/tool_output/docling/visual-commonsense-reasoning.json",
+        "sha256": "67c359116431c662f5f948d826b274ef121d60160415f273921a681559766da2"
+      },
+      {
+        "channel": "html",
+        "artifact": "output/broad_run/output/visual-commonsense-reasoning_2026-06-26_01-28/tool_output/html/visual-commonsense-reasoning.json",
+        "sha256": "c80b832cfbada28a350b2f86e2621bbe65de6c5352aa5c1f8f2f106d90ba5711"
+      }
+    ],
+    "worldvqa": [
+      {
+        "channel": "paper",
+        "artifact": "output/broad_run/output/worldvqa_2026-06-26_01-58/tool_output/docling/worldvqa.json",
+        "sha256": "df7ce29a3afc07dd3dbb31d055e88edbcf65c84575a623c47df8a071db36b68a"
+      },
+      {
+        "channel": "hf_readme",
+        "artifact": "output/broad_run/output/worldvqa_2026-06-26_01-58/tool_output/hf/worldvqa.json",
+        "sha256": "350ff568a6bd3e0787c2ad6cf40b1b3090cf009faac7c53c078358cb5764ff44"
+      }
+    ],
+    "xsum": [
+      {
+        "channel": "paper_abstract",
+        "paper_abstract_sha256": "71032b06bbc426c2ea6962178e71a29c9a171953e35acff248b16e80487cfd48",
+        "recovery_source_url": "https://api.openalex.org/works/W2888482885"
+      }
+    ]
+  },
+  "output": "eval/s150/source_complexity/exposures_outcome_free.csv",
+  "output_sha256": "b251490c1db9ee5898dea1fc9175f4e347dd588c1f5243a1505f3fb8ccc46722"
+}

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "frozen_corpus": {
     "attempted": 531,
     "published": 530,
@@ -33,7 +33,353 @@
     "not_specified_rows": 1415.0,
     "supported_including_eee": 0.8608375363016555,
     "partial": 0.12432775746741817,
-    "unsupported": 0.014834706230926285
+    "unsupported": 0.014834706230926285,
+    "common_denominator_five_state": {
+      "filled_fully_supported": {
+        "value": 0.5189412066126995,
+        "ci95": [
+          0.4748678152236265,
+          0.5610093497001332
+        ],
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "counts": {
+          "by_stratum": {
+            "flagged": {
+              "den": 1725.0,
+              "num": 821.0
+            },
+            "unflagged": {
+              "den": 1725.0,
+              "num": 925.0
+            }
+          },
+          "den": 3450.0,
+          "num": 1746.0
+        }
+      },
+      "filled_partially_supported": {
+        "value": 0.07494886520954902,
+        "ci95": [
+          0.064441892612462,
+          0.08563095431806408
+        ],
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "counts": {
+          "by_stratum": {
+            "flagged": {
+              "den": 1725.0,
+              "num": 130.0
+            },
+            "unflagged": {
+              "den": 1725.0,
+              "num": 129.0
+            }
+          },
+          "den": 3450.0,
+          "num": 259.0
+        }
+      },
+      "filled_unsupported": {
+        "value": 0.008942849291046896,
+        "ci95": [
+          0.005221766611770648,
+          0.013490839232384534
+        ],
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "counts": {
+          "by_stratum": {
+            "flagged": {
+              "den": 1725.0,
+              "num": 14.0
+            },
+            "unflagged": {
+              "den": 1725.0,
+              "num": 16.0
+            }
+          },
+          "den": 3450.0,
+          "num": 30.0
+        }
+      },
+      "not_specified_information_available": {
+        "value": 0.0729494117353641,
+        "ci95": [
+          0.055584359232074936,
+          0.09249614396962402
+        ],
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "counts": {
+          "by_stratum": {
+            "flagged": {
+              "den": 1725.0,
+              "num": 113.0
+            },
+            "unflagged": {
+              "den": 1725.0,
+              "num": 131.0
+            }
+          },
+          "den": 3450.0,
+          "num": 244.0
+        }
+      },
+      "not_specified_no_information": {
+        "value": 0.32421766715134054,
+        "ci95": [
+          0.28178441745069405,
+          0.36920754763787206
+        ],
+        "ci_method": "stratified-cluster-bootstrap-percentile",
+        "counts": {
+          "by_stratum": {
+            "flagged": {
+              "den": 1725.0,
+              "num": 647.0
+            },
+            "unflagged": {
+              "den": 1725.0,
+              "num": 524.0
+            }
+          },
+          "den": 3450.0,
+          "num": 1171.0
+        }
+      }
+    },
+    "ethical_legal_comparison": {
+      "analysis_status": "post_hoc_schema_defined",
+      "paths": [
+        "ethical_and_legal_considerations.compliance_with_regulations",
+        "ethical_and_legal_considerations.consent_procedures",
+        "ethical_and_legal_considerations.privacy_and_anonymity"
+      ],
+      "comparison_path_count": 20,
+      "ethical_legal_fields": {
+        "information_available": {
+          "value": 0.09140461141173217,
+          "ci95": [
+            0.055916143903326554,
+            0.13075052276334015
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile",
+          "counts": {
+            "by_stratum": {
+              "flagged": {
+                "den": 225.0,
+                "num": 17.0
+              },
+              "unflagged": {
+                "den": 225.0,
+                "num": 22.0
+              }
+            },
+            "den": 450.0,
+            "num": 39.0
+          }
+        },
+        "no_information": {
+          "value": 0.7334339654040584,
+          "ci95": [
+            0.6675211808559192,
+            0.7961769387809621
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile",
+          "counts": {
+            "by_stratum": {
+              "flagged": {
+                "den": 225.0,
+                "num": 180.0
+              },
+              "unflagged": {
+                "den": 225.0,
+                "num": 159.0
+              }
+            },
+            "den": 450.0,
+            "num": 339.0
+          }
+        },
+        "not_specified": {
+          "value": 0.8248385768157904,
+          "ci95": [
+            0.7715723315296071,
+            0.8748696000847672
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile",
+          "counts": {
+            "by_stratum": {
+              "flagged": {
+                "den": 225.0,
+                "num": 197.0
+              },
+              "unflagged": {
+                "den": 225.0,
+                "num": 181.0
+              }
+            },
+            "den": 450.0,
+            "num": 378.0
+          }
+        }
+      },
+      "other_20_fields": {
+        "information_available": {
+          "value": 0.07018113178390888,
+          "ci95": [
+            0.05141968533161862,
+            0.0908079229925508
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile",
+          "counts": {
+            "by_stratum": {
+              "flagged": {
+                "den": 1500.0,
+                "num": 96.0
+              },
+              "unflagged": {
+                "den": 1500.0,
+                "num": 109.0
+              }
+            },
+            "den": 3000.0,
+            "num": 205.0
+          }
+        },
+        "no_information": {
+          "value": 0.2628352224134329,
+          "ci95": [
+            0.2184044062191318,
+            0.3097002539575352
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile",
+          "counts": {
+            "by_stratum": {
+              "flagged": {
+                "den": 1500.0,
+                "num": 467.0
+              },
+              "unflagged": {
+                "den": 1500.0,
+                "num": 365.0
+              }
+            },
+            "den": 3000.0,
+            "num": 832.0
+          }
+        },
+        "not_specified": {
+          "value": 0.33301635419734177,
+          "ci95": [
+            0.28102729808361804,
+            0.3886620122848107
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile",
+          "counts": {
+            "by_stratum": {
+              "flagged": {
+                "den": 1500.0,
+                "num": 563.0
+              },
+              "unflagged": {
+                "den": 1500.0,
+                "num": 474.0
+              }
+            },
+            "den": 3000.0,
+            "num": 1037.0
+          }
+        }
+      },
+      "paired_differences": {
+        "information_available": {
+          "value": 0.021223479627823297,
+          "ci95": [
+            -0.018171591686874603,
+            0.0625663099394822
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile"
+        },
+        "no_information": {
+          "value": 0.4705987429906255,
+          "ci95": [
+            0.4130353086013219,
+            0.5279083629359262
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile"
+        },
+        "not_specified": {
+          "value": 0.49182222261844866,
+          "ci95": [
+            0.43956811367367404,
+            0.5461487217036767
+          ],
+          "ci_method": "stratified-cluster-bootstrap-percentile"
+        }
+      },
+      "scope_guard": "No information means no fillable information in the evidence supplied to the source judge. This comparison does not establish public non-disclosure, non-applicability, or noncompliance."
+    },
+    "full_corpus_ethical_legal_coverage": {
+      "n_cards": 530,
+      "ethical_legal_not_specified_count": 1337,
+      "ethical_legal_slots": 1590,
+      "ethical_legal_not_specified_rate": 0.8408805031446541,
+      "cards_all_three_not_specified_count": 359,
+      "cards_all_three_not_specified_rate": 0.6773584905660377,
+      "fields": {
+        "ethical_and_legal_considerations.compliance_with_regulations": {
+          "absent_count": 0,
+          "denominator": 530,
+          "not_specified_count": 479,
+          "not_specified_rate": 0.9037735849056604
+        },
+        "ethical_and_legal_considerations.consent_procedures": {
+          "absent_count": 0,
+          "denominator": 530,
+          "not_specified_count": 420,
+          "not_specified_rate": 0.7924528301886793
+        },
+        "ethical_and_legal_considerations.privacy_and_anonymity": {
+          "absent_count": 0,
+          "denominator": 530,
+          "not_specified_count": 438,
+          "not_specified_rate": 0.8264150943396227
+        }
+      },
+      "interpretation": "Census of generated-card output. Not specified does not establish non-applicability, author non-disclosure, or absence from all public sources."
+    }
+  },
+  "candidate_risk_source_judge": {
+    "scope": "Candidate annotations in the 150 sampled cards; separate from the fixed 40-field BenchmarkCard schema.",
+    "sample_counts": {
+      "total": 761,
+      "relevant_and_grounded": 547,
+      "not_relevant_or_not_grounded": 214
+    },
+    "s_weighted_grounded_rate": {
+      "value": 0.748351513135232,
+      "ci95": [
+        0.6938486579427771,
+        0.7994730375808277
+      ],
+      "ci_method": "stratified-cluster-bootstrap-percentile",
+      "counts": {
+        "num": 547.0,
+        "den": 761.0,
+        "by_stratum": {
+          "flagged": {
+            "num": 246.0,
+            "den": 379.0
+          },
+          "unflagged": {
+            "num": 301.0,
+            "den": 382.0
+          }
+        }
+      }
+    },
+    "human_validated": false,
+    "headline_result": false,
+    "interpretation": "The paper reports the unweighted sample counts because these risk judgements were made by the automated source judge and were not checked by the human raters. Treat every candidate risk as a prompt for human review, not as a verified benchmark property."
   },
   "human_validation": {
     "n_raters": 3,
@@ -54,6 +400,23 @@
       "unsupported_denominator": 30,
       "partial": 3,
       "partial_denominator": 13
+    },
+    "confirmed_unsupported_by_field": {
+      "judge_unsupported_census_size": 30,
+      "human_confirmed_unsupported": 27,
+      "by_path": {
+        "data.annotation": 1,
+        "data.contamination_controls": 1,
+        "data.source": 1,
+        "ethical_and_legal_considerations.consent_procedures": 3,
+        "ethical_and_legal_considerations.privacy_and_anonymity": 1,
+        "methodology.baseline_results": 1,
+        "methodology.human_baseline": 6,
+        "methodology.validation": 1,
+        "purpose_and_intended_users.audience": 10,
+        "purpose_and_intended_users.out_of_scope_uses": 2
+      },
+      "scope_note": "Distribution among human-confirmed items selected because the source judge classified them as unsupported. This is not a corpus-wide human error taxonomy."
     }
   },
   "public_source_screen": {
@@ -77,7 +440,22 @@
     "approximate_design_interval95": [
       0.4017251373525483,
       0.5543503343455649
-    ]
+    ],
+    "cross_instrument_overlap": {
+      "confirmed_material_findings": 111,
+      "findings_without_exact_judged_path_match": 68,
+      "findings_naming_at_least_one_exact_judged_path": 43,
+      "matched_field_checks": 52,
+      "cards_with_matched_checks": 35,
+      "source_judge_status_counts": {
+        "partial": 17,
+        "supported": 20,
+        "supported_by_eee_only": 9,
+        "unsupported": 6
+      },
+      "fully_supported_checks": 29,
+      "scope_note": "Counts among exact canonical judged paths named by screen-selected, verifier-confirmed material findings. No exact match does not prove that a finding is conceptually outside the 23-field universe. Findings may name multiple paths, checks are not independent, and these counts are not a population error rate."
+    }
   },
   "validation_flags": {
     "scope": "overlapping 23-field filled-field judge universe",

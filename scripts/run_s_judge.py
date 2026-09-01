@@ -49,15 +49,13 @@ from s_judge import load_frozen
 
 REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
-DEFAULT_MODEL = "claude-fable-5"  # judge_v31b.json judge_info pin
+DEFAULT_MODEL = "claude-sonnet-4-6"
 LIMIT_MARKERS = ("rate limit", "usage limit", "overloaded", "429", "quota")
 LIMIT_SLEEP_S = 900
 
 # USD per million tokens; a model missing here hard-stops the api transport
 # (the cost tripwire must never silently count zero)
 PRICING_USD_PER_MTOK = {
-    "claude-fable-5": {"input": 10.0, "output": 50.0,
-                       "cache_read": 1.0, "cache_write": 12.5},
     "claude-sonnet-4-6": {"input": 3.0, "output": 15.0,
                           "cache_read": 0.3, "cache_write": 3.75},
     "claude-opus-4-8": {"input": 5.0, "output": 25.0,

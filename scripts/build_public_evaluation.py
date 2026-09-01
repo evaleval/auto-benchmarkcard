@@ -17,12 +17,21 @@ import argparse
 import csv
 import hashlib
 import json
+import platform
 import re
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 
+from analyze_corpus_schema_fill import analyze as analyze_corpus_schema_fill
+from analyze_paper_extensions import run_analysis
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 HF_CORPUS_REVISION = "0a86cea5b55d6070bd7f1f020f01281e1631adba"
 EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 RATING_COLUMNS = (
@@ -72,8 +81,32 @@ def write_json(path: Path, value: Any) -> None:
 
 
 def copy_file(source: Path, destination: Path) -> None:
+    if source.resolve() == destination.resolve():
+        return
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, destination)
+
+
+def copy_release_static_files(out_root: Path) -> None:
+    """Copy reviewed public-only documents and frozen exposure inputs.
+
+    The two source-complexity exposure files cannot be regenerated without the
+    withheld source-run snapshots. They contain no copied source text, local
+    paths, participant identities, or outcomes and are therefore kept as
+    explicit release inputs. The statistical join is regenerated below from
+    the public projections.
+    """
+    relative_paths = (
+        "eval/README.md",
+        "eval/s150/PAPER_EXTENSION_ANALYSIS.md",
+        "eval/s150/source_complexity/README.md",
+        "eval/s150/source_complexity/exposure_reconstruction_audit.json",
+        "eval/s150/source_complexity/exposures_outcome_free.csv",
+    )
+    for relative in relative_paths:
+        source = REPO_ROOT / relative
+        destination = out_root / Path(relative).relative_to("eval")
+        copy_file(source, destination)
 
 
 def redact_public_text(value: Any) -> Any:
@@ -291,15 +324,86 @@ def build_run_summaries(source_root: Path, out_root: Path) -> None:
     write_json(out_root / "s150/screen/run_summary.json", screen_summary)
 
 
+def build_paper_extension_analysis(source_root: Path, out_root: Path) -> dict:
+    """Derive the paper extension outputs from the sanitized public inputs."""
+    human = out_root / "s150/human_validation"
+    screen = out_root / "s150/screen"
+    return run_analysis(
+        sample_path=out_root / "s150/sample.json",
+        judge_path=out_root / "s150/judge/analysis_frame.json",
+        prior_summary_path=out_root / "s150/judge/summary.json",
+        verifier_path=screen / "verifier_ratings.csv",
+        screen_lock_path=screen / "scoring_lock.json",
+        human_key_path=human / "key.json",
+        ratings_paths=[
+            human / "ratings_r1.csv",
+            human / "ratings_r2.csv",
+            human / "ratings_r3.csv",
+        ],
+        adjudication_path=human / "adjudication.csv",
+        corpus_cards=source_root / "output/auto-benchmarkcards-v3/cards",
+        corpus_manifest_path=out_root / "corpus/manifest.json",
+        output_path=out_root / "s150/paper_extension_analysis.json",
+        matrix_output_path=out_root / "s150/paper_extension_field_matrix.csv",
+    )
+
+
+def build_corpus_schema_fill(source_root: Path, out_root: Path) -> None:
+    """Recompute the fixed 40-field fill summary from the frozen card files."""
+    result = analyze_corpus_schema_fill(
+        source_root / "output/auto-benchmarkcards-v3/cards"
+    )
+    write_json(out_root / "corpus/schema_fill_summary.json", result)
+
+
+def build_source_complexity_analysis(source_root: Path, out_root: Path) -> None:
+    """Replay the public source-complexity join from frozen exposure inputs."""
+    output_dir = out_root / "s150/source_complexity"
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "scripts/analyze_source_complexity.py"),
+        "--exposures",
+        str(output_dir / "exposures_outcome_free.csv"),
+        "--sample",
+        str(out_root / "s150/sample.json"),
+        "--judge",
+        str(out_root / "s150/judge/analysis_frame.json"),
+        "--verifier",
+        str(out_root / "s150/screen/verifier_ratings.csv"),
+        "--corpus-cards",
+        str(source_root / "output/auto-benchmarkcards-v3/cards"),
+        "--out-dir",
+        str(output_dir),
+    ]
+    subprocess.run(command, check=True)
+
+
+def project_metric(metric: dict) -> dict:
+    """Keep the concise result, interval, and raw design counts."""
+    return {
+        key: metric[key]
+        for key in ("value", "ci95", "ci_method", "counts")
+        if key in metric
+    }
+
+
 def build_results_summary(out_root: Path, corpus_manifest: dict) -> None:
     corpus = load_json(out_root / "corpus/corpus_stats.json")
     judge = load_json(out_root / "s150/judge/summary.json")
     human = load_json(out_root / "s150/human_validation/scores.json")
     screen = load_json(out_root / "s150/screen/verification_scores.json")
+    extensions = load_json(out_root / "s150/paper_extension_analysis.json")
     metrics = judge["metrics"]
+    five_state = extensions["field_slot_outcomes"]["five_state"]
+    ethical = extensions["ethical_legal_coverage"]
+    confirmed = extensions["human_confirmed_unsupported"]
+    overlap = extensions["cross_instrument_overlap"]
+    risk_metric = metrics["judge.risk_grounded_rate"]
+    risk_grounded = int(risk_metric["counts"]["num"])
+    risk_total = int(risk_metric["counts"]["den"])
 
     summary = {
-        "schema_version": 1,
+        "schema_version": 3,
         "frozen_corpus": {
             "attempted": corpus["corpus"]["attempted"],
             "published": corpus_manifest["n_cards"],
@@ -331,6 +435,69 @@ def build_results_summary(out_root: Path, corpus_manifest: dict) -> None:
             ]["value"],
             "partial": metrics["judge.partial_rate"]["value"],
             "unsupported": metrics["judge.unsupported_rate"]["value"],
+            "common_denominator_five_state": {
+                state: project_metric(metric)
+                for state, metric in five_state.items()
+            },
+            "ethical_legal_comparison": {
+                "analysis_status": "post_hoc_schema_defined",
+                "paths": ethical["paths"],
+                "comparison_path_count": len(ethical["comparison_paths"]),
+                "ethical_legal_fields": {
+                    key: project_metric(metric)
+                    for key, metric in ethical["held_out"][
+                        "ethical_legal_fields"
+                    ].items()
+                },
+                "other_20_fields": {
+                    key: project_metric(metric)
+                    for key, metric in ethical["held_out"]["other_20_fields"].items()
+                },
+                "paired_differences": {
+                    key: project_metric(metric)
+                    for key, metric in ethical["held_out"][
+                        "paired_differences"
+                    ].items()
+                },
+                "scope_guard": (
+                    "No information means no fillable information in the evidence "
+                    "supplied to the source judge. This comparison does not establish "
+                    "public non-disclosure, non-applicability, or noncompliance."
+                ),
+            },
+            "full_corpus_ethical_legal_coverage": {
+                key: ethical["full_corpus"][key]
+                for key in (
+                    "n_cards",
+                    "ethical_legal_not_specified_count",
+                    "ethical_legal_slots",
+                    "ethical_legal_not_specified_rate",
+                    "cards_all_three_not_specified_count",
+                    "cards_all_three_not_specified_rate",
+                    "fields",
+                    "interpretation",
+                )
+            },
+        },
+        "candidate_risk_source_judge": {
+            "scope": (
+                "Candidate annotations in the 150 sampled cards; separate from "
+                "the fixed 40-field BenchmarkCard schema."
+            ),
+            "sample_counts": {
+                "total": risk_total,
+                "relevant_and_grounded": risk_grounded,
+                "not_relevant_or_not_grounded": risk_total - risk_grounded,
+            },
+            "s_weighted_grounded_rate": project_metric(risk_metric),
+            "human_validated": False,
+            "headline_result": False,
+            "interpretation": (
+                "The paper reports the unweighted sample counts because these "
+                "risk judgements were made by the automated source judge and were "
+                "not checked by the human raters. Treat every candidate risk as a "
+                "prompt for human review, not as a verified benchmark property."
+            ),
         },
         "human_validation": {
             "n_raters": 3,
@@ -370,6 +537,16 @@ def build_results_summary(out_root: Path, corpus_manifest: dict) -> None:
                     "error_arm_conditional_confirmation"
                 ]["partial"]["n"],
             },
+            "confirmed_unsupported_by_field": {
+                "judge_unsupported_census_size": confirmed[
+                    "judge_unsupported_census_size"
+                ],
+                "human_confirmed_unsupported": confirmed[
+                    "human_confirmed_unsupported"
+                ],
+                "by_path": confirmed["by_path"],
+                "scope_note": confirmed["scope_note"],
+            },
         },
         "public_source_screen": {
             "scope": screen["card_level"]["name"],
@@ -384,6 +561,19 @@ def build_results_summary(out_root: Path, corpus_manifest: dict) -> None:
                 screen["card_level"]["approximate_design_interval95"]["lower"],
                 screen["card_level"]["approximate_design_interval95"]["upper"],
             ],
+            "cross_instrument_overlap": {
+                key: overlap[key]
+                for key in (
+                    "confirmed_material_findings",
+                    "findings_without_exact_judged_path_match",
+                    "findings_naming_at_least_one_exact_judged_path",
+                    "matched_field_checks",
+                    "cards_with_matched_checks",
+                    "source_judge_status_counts",
+                    "fully_supported_checks",
+                    "scope_note",
+                )
+            },
         },
         "validation_flags": {
             "scope": "overlapping 23-field filled-field judge universe",
@@ -451,6 +641,33 @@ def build_provenance(source_root: Path, out_root: Path) -> None:
             "normalized_private_input_sha256": hashes["ratings_r1"],
         },
         "private_input_sha256": hashes,
+        "derived_outputs": {
+            "producer_script": "scripts/analyze_paper_extensions.py",
+            "script_sha256": sha256_file(
+                Path(__file__).resolve().parent / "analyze_paper_extensions.py"
+            ),
+            "corpus": {
+                "dataset": "evaleval/auto-benchmarkcards",
+                "revision": HF_CORPUS_REVISION,
+                "manifest_sha256": sha256_file(out_root / "corpus/manifest.json"),
+            },
+            "environment": {
+                "python": platform.python_version(),
+                "numpy": np.__version__,
+            },
+            "paper_extension_analysis": {
+                "path": "s150/paper_extension_analysis.json",
+                "sha256": sha256_file(
+                    out_root / "s150/paper_extension_analysis.json"
+                ),
+            },
+            "paper_extension_field_matrix": {
+                "path": "s150/paper_extension_field_matrix.csv",
+                "sha256": sha256_file(
+                    out_root / "s150/paper_extension_field_matrix.csv"
+                ),
+            },
+        },
     }
     write_json(out_root / "provenance.json", provenance)
 
@@ -486,6 +703,7 @@ def main() -> None:
     args = parser.parse_args()
     source_root = args.source_root.resolve()
     out_root = args.out.resolve()
+    copy_release_static_files(out_root)
 
     direct_copies = {
         "output/corpus_v3/corpus_stats_precheck.json": "corpus/corpus_stats.json",
@@ -523,6 +741,7 @@ def main() -> None:
 
     sample = load_json(out_root / "s150/sample.json")
     corpus_manifest = build_corpus_manifest(source_root, out_root, sample)
+    build_corpus_schema_fill(source_root, out_root)
     build_run_summaries(source_root, out_root)
 
     screen_results = redact_public_text(
@@ -573,6 +792,8 @@ def main() -> None:
         expected_rows=3,
     )
 
+    build_paper_extension_analysis(source_root, out_root)
+    build_source_complexity_analysis(source_root, out_root)
     build_results_summary(out_root, corpus_manifest)
     build_provenance(source_root, out_root)
     write_checksums(out_root)

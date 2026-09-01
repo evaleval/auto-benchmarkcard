@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_benchmarkcard"
-version = "0.1.0"
-description = "Generate and validate structured documentation for AI benchmarks"
+version = "0.2.0"
+description = "Generate source-linked structured documentation for AI benchmarks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

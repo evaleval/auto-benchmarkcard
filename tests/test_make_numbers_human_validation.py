@@ -26,3 +26,24 @@ def test_kappa_interval_remains_on_the_kappa_scale():
     assert values["rq2JudgeHumanAgreementCI"][0] == "[60.0, 80.0]"
     assert values["rq2JudgeHumanKappa"][0] == "-0.12"
     assert values["rq2JudgeHumanKappaCI"][0] == "[-0.27, -0.01]"
+
+
+def test_extension_rates_keep_two_decimal_precision():
+    extensions = {
+        "field_slot_outcomes": {
+            "five_state": {
+                "filled_fully_supported": {
+                    "value": 0.51894,
+                    "ci95": [0.47491, 0.56104],
+                }
+            }
+        },
+        "ethical_legal_coverage": {},
+        "human_confirmed_unsupported": {},
+        "cross_instrument_overlap": {},
+    }
+
+    values = build_values(None, None, None, None, extensions)
+
+    assert values["rq2SlotFullSupportRate"][0] == "51.89\\%"
+    assert values["rq2SlotFullSupportRateCI"][0] == "[47.49, 56.10]"

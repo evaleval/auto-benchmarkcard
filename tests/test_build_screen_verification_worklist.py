@@ -1,6 +1,7 @@
 """Tests for the source-derived V1 finding worklist."""
 
 import csv
+import hashlib
 import json
 import os
 import sys
@@ -13,6 +14,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from build_screen_verification_worklist import (  # noqa: E402
+    CARD_URL_TEMPLATE,
     DEFAULT_CARD_REVISION,
     WORKLIST_FIELDS,
     derive_worklist,
@@ -94,13 +96,33 @@ def test_finding_level_selection_includes_severe_finding_on_minor_card():
         row["verifier_label"] == row["evidence_url"] == row["notes"] == ""
         for row in rows
     )
-    assert rows[0]["card_reference"].endswith(
-        f"/{DEFAULT_CARD_REVISION}/cards/needs-card.json"
+    assert rows[0]["card_reference"] == CARD_URL_TEMPLATE.format(
+        revision=DEFAULT_CARD_REVISION,
+        card="needs-card",
     )
     assert [record["card"] for record in records] == ["needs-card", "minor-card"]
     assert records[1]["raw_card_verdict"] == "minor"
     assert records[1]["finding_indices"] == [1]
     assert records[1]["citations"] == ["https://example.test/minor"]
+
+
+def test_missing_recorded_card_uses_public_corpus_card_with_same_md5(tmp_path):
+    screen, sample = fixture_data()
+    cards_dir = tmp_path / "cards"
+    cards_dir.mkdir()
+    for row in sample["cards"]:
+        payload = (json.dumps({"name": row["name"]}) + "\n").encode("utf-8")
+        public_card = cards_dir / f"{row['name']}.json"
+        public_card.write_bytes(payload)
+        row["corpus_card"] = f"output/private/cards/{row['name']}.json"
+        row["corpus_card_md5"] = hashlib.md5(payload).hexdigest()
+
+    rows, _ = derive_worklist(screen, sample, corpus_cards=cards_dir)
+
+    assert len(rows) == 2
+    sample["cards"][0]["corpus_card_md5"] = "0" * 32
+    with pytest.raises(ValueError, match="corpus card MD5 differs"):
+        derive_worklist(screen, sample, corpus_cards=cards_dir)
 
 
 def test_source_validator_requires_exact_rows_order_and_raw_text(tmp_path):

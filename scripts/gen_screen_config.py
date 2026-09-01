@@ -1,8 +1,8 @@
-"""Generate the args config for the s_screen_review.js workflow from a sample file.
+"""Generate the card-and-path config for the public-source screen.
 
-The workflow script has no filesystem access of its own; this config is passed
-verbatim as the Workflow args and also persisted next to the screen outputs for
-the record.
+The raw API runner reads the card names, staged input directories, and output
+directory from this file. Its model is pinned separately by ``run_s_screen.py
+--model`` and recorded in the run summary.
 
 Usage:
   python scripts/gen_screen_config.py --sample eval/s150/sample.json \
@@ -16,10 +16,6 @@ import os
 from check_frozen import check
 
 REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-
-MODEL_ALIAS = "fable"          # Workflow agent opts alias
-MODEL_ID = "claude-fable-5"    # recorded in every verdict + screen_meta
-
 
 def main():
     ap = argparse.ArgumentParser(description="Screen workflow config generator.")
@@ -38,12 +34,10 @@ def main():
     outdir_abs = os.path.abspath(os.path.join(REPO, args.outdir))
     cfg = {
         "cards": [{"slug": c["name"],
-                   "staged_dir": os.path.abspath(
-                       os.path.join(REPO, args.stage_root, "rundirs", c["name"]))}
+                   "staged_dir": os.path.join(
+                       args.stage_root, "rundirs", c["name"])}
                   for c in cards],
-        "outdir": outdir_abs,
-        "model_alias": MODEL_ALIAS,
-        "model_id": MODEL_ID,
+        "outdir": args.outdir,
         "batch": args.batch,
         "sample_file": args.sample,
     }
@@ -54,7 +48,10 @@ def main():
         json.dump(cfg, f, indent=2)
         f.write("\n")
     print(f"config -> {os.path.relpath(dest, REPO)} ({len(cfg['cards'])} cards)")
-    print("pass this file's JSON verbatim as the Workflow args for s_screen_review.js")
+    print(
+        "pass this file to scripts/run_s_screen.py with --config; "
+        "pin the model separately with --model"
+    )
 
 
 if __name__ == "__main__":

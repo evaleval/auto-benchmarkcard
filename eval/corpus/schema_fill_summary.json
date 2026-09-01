@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "paper_mapping": "Deployment and Corpus, Figure 2",
+  "definition": "Fixed 40-field schema. Absent, empty, and literal Not specified values are unfilled; other values are filled.",
+  "card_count": 530,
+  "schema_field_count": 40,
+  "corpus_sha256": "e4e5130e30d802045b3651da147d09c3f49593381b938ba6e4f093a5f43c6f92",
+  "sections": {
+    "benchmark_details": {
+      "label": "Benchmark Details",
+      "field_count": 12,
+      "fields": [
+        "name",
+        "overview",
+        "data_type",
+        "domains",
+        "languages",
+        "similar_benchmarks",
+        "resources",
+        "authors",
+        "org_url",
+        "logo",
+        "benchmark_type",
+        "appears_in"
+      ],
+      "filled": 4675,
+      "unfilled": 1685,
+      "slots": 6360,
+      "fill_rate": 0.735062893081761,
+      "fill_rate_percent": 73.51
+    },
+    "purpose_and_intended_users": {
+      "label": "Purpose and Intended Users",
+      "field_count": 5,
+      "fields": [
+        "goal",
+        "audience",
+        "tasks",
+        "limitations",
+        "out_of_scope_uses"
+      ],
+      "filled": 1683,
+      "unfilled": 967,
+      "slots": 2650,
+      "fill_rate": 0.6350943396226415,
+      "fill_rate_percent": 63.51
+    },
+    "data": {
+      "label": "Data",
+      "field_count": 7,
+      "fields": [
+        "source",
+        "size",
+        "format",
+        "annotation",
+        "size_breakdown",
+        "collection_date",
+        "contamination_controls"
+      ],
+      "filled": 1760,
+      "unfilled": 1950,
+      "slots": 3710,
+      "fill_rate": 0.4743935309973046,
+      "fill_rate_percent": 47.44
+    },
+    "methodology": {
+      "label": "Methodology",
+      "field_count": 12,
+      "fields": [
+        "methods",
+        "metrics",
+        "calculation",
+        "interpretation",
+        "baseline_results",
+        "validation",
+        "human_baseline",
+        "judge_uses_llm",
+        "judge_num",
+        "judge_models",
+        "judge_score_consolidation",
+        "validity_justification"
+      ],
+      "filled": 3294,
+      "unfilled": 3066,
+      "slots": 6360,
+      "fill_rate": 0.5179245283018868,
+      "fill_rate_percent": 51.79
+    },
+    "ethical_and_legal_considerations": {
+      "label": "Ethical and Legal Considerations",
+      "field_count": 4,
+      "fields": [
+        "privacy_and_anonymity",
+        "data_licensing",
+        "consent_procedures",
+        "compliance_with_regulations"
+      ],
+      "filled": 443,
+      "unfilled": 1677,
+      "slots": 2120,
+      "fill_rate": 0.2089622641509434,
+      "fill_rate_percent": 20.9
+    }
+  },
+  "overall": {
+    "filled": 11855,
+    "unfilled": 9345,
+    "slots": 21200,
+    "fill_rate": 0.5591981132075472,
+    "fill_rate_percent": 55.92
+  },
+  "missing_schema_keys": {
+    "benchmark_details.appears_in": 31
+  },
+  "ignored_extra_fields": {
+    "benchmark_details.contains": 2
+  }
+}
