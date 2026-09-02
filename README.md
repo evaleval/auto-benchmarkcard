@@ -10,7 +10,11 @@ This repository contains research code and evaluation artifacts for
 package and command retain the singular name `auto_benchmarkcard` and
 `benchmarkcard` for compatibility.
 
-![Auto-BenchmarkCards pipeline](docs/figures/pipeline.png)
+![Four-stage Auto-BenchmarkCards pipeline from benchmark identification through extraction, composition, and warnings to 530 published cards](docs/figures/pipeline.png)
+
+*Pipeline overview. A benchmark enters as a name and an evaluation record and
+leaves as a published card. Red marks a field recorded as "Not specified"; the
+triangle marks a field that shipped with a warning.*
 
 ## Paper release
 
