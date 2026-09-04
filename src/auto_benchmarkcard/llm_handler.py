@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -41,21 +42,39 @@ DEFAULT_WML_MODEL = os.getenv("WML_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
 
 # Optional sink for per-call LLM usage records. When set to a path, every LLM call
 # appends one json line there. Unset means no telemetry. Writing is fail-soft.
-_usage_log_path: Optional[str] = None
+#
+# The path is per thread, with a process-wide default for the single-threaded case. A
+# batch runner composes several cards at once, and with one process-wide path every
+# worker appended to whichever file was set most recently, so per-card cost and the
+# per-card spend tripwire were both attributing calls to the wrong card.
+_usage_log_default: Optional[str] = None
+_usage_log_local = threading.local()
 _usage_log_warned = False
 
 
-def set_usage_log_path(path: str) -> None:
-    """Route per-call LLM usage records to this jsonl file (append mode)."""
-    global _usage_log_path, _usage_log_warned
-    _usage_log_path = path
+def _current_usage_log_path() -> Optional[str]:
+    path = getattr(_usage_log_local, "path", _UNSET)
+    return _usage_log_default if path is _UNSET else path
+
+
+def set_usage_log_path(path: Optional[str], *, this_thread_only: bool = False) -> None:
+    """Route per-call LLM usage records to this jsonl file (append mode).
+
+    Sets the calling thread's sink, and the process default too unless the caller asks
+    for this thread only. Passing None clears the calling thread's sink.
+    """
+    global _usage_log_default, _usage_log_warned
+    _usage_log_local.path = path
+    if not this_thread_only:
+        _usage_log_default = path
     _usage_log_warned = False
 
 
 def clear_usage_log_path() -> None:
     """Stop recording LLM usage records."""
-    global _usage_log_path
-    _usage_log_path = None
+    global _usage_log_default
+    _usage_log_local.path = None
+    _usage_log_default = None
 
 
 def _extract_json_object(text: str) -> Optional[str]:
@@ -351,7 +370,7 @@ class LLMHandler:
         For the RITS engine input_tokens is populated from usage.total_tokens upstream
         (a quirk in ai-atlas-nexus); it is recorded raw without adjustment.
         """
-        path = _usage_log_path
+        path = _current_usage_log_path()
         if path is None:
             return
         global _usage_log_warned
