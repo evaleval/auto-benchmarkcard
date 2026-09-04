@@ -847,6 +847,47 @@ def extract_json_object(raw: str) -> Optional[str]:
     return None
 
 
+def _salvage_truncated_items(raw: str) -> List[dict]:
+    """Every complete evidence object in a reply that was cut off mid-array.
+
+    A reply truncated by the token cap is not partly useful, it is useless: the array
+    never closes, so the whole document fails to parse and a call that emitted eighty
+    good quotes yields none. The objects before the cut are complete and well-formed, so
+    every balanced object in the text is read and the ones shaped like evidence items are
+    kept, in order, without their incomplete tail.
+    """
+    out: List[dict] = []
+    seen = set()
+    starts: List[int] = []
+    in_str = False
+    esc = False
+    for i, ch in enumerate(raw):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            starts.append(i)
+        elif ch == "}" and starts:
+            start = starts.pop()
+            try:
+                item = json.loads(raw[start:i + 1])
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(item, dict) and "field" in item and "quote" in item:
+                key = (str(item.get("field")), str(item.get("quote")))
+                if key not in seen:
+                    seen.add(key)
+                    out.append(item)
+    return out
+
+
 def parse_curator_extraction(raw: str) -> CuratorExtraction:
     """Parse LLM output into a CuratorExtraction. Fail-soft to empty on any error.
 
@@ -875,6 +916,15 @@ def parse_curator_extraction(raw: str) -> CuratorExtraction:
         except Exception as e:  # pydantic ValidationError and friends
             logger.debug("Curator extraction validation failed: %s", e)
             continue
+
+    salvaged = _salvage_truncated_items(raw)
+    if salvaged:
+        logger.warning("Curator extraction did not parse (%d chars); salvaged %d complete "
+                       "items from the truncated reply", len(raw), len(salvaged))
+        try:
+            return CuratorExtraction.model_validate({"evidence": salvaged})
+        except Exception as e:
+            logger.debug("Salvaged curator items failed validation: %s", e)
 
     logger.warning("Could not parse curator extraction from %d chars; 0 items", len(raw))
     return CuratorExtraction()
