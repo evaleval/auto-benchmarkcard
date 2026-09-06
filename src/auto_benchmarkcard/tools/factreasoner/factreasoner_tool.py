@@ -535,10 +535,10 @@ def _provider_routing() -> Optional[Dict[str, Any]]:
     answered 404 "Filter by Parameters" on the first NLI call (2026-09-06) even though
     the same provider returns logprobs for the same request without it.
     """
-    provider = os.environ.get("FACTREASONER_PROVIDER", "").strip()
-    if not provider:
+    order = [x.strip() for x in os.environ.get("FACTREASONER_PROVIDER", "").split(",") if x.strip()]
+    if not order:
         return None
-    return {"provider": {"order": [provider], "allow_fallbacks": False}}
+    return {"provider": {"order": order, "allow_fallbacks": False}}
 
 
 def _create_factreasoner_backend(model_id: str):
