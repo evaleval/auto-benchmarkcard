@@ -514,10 +514,31 @@ def create_atom_summary(
 
 
 def _active_factreasoner_engine() -> str:
-    """Return the engine type FactReasoner will run on (rits/hf/...)."""
+    """Return the engine type FactReasoner will run on (rits/hf/openai)."""
     from auto_benchmarkcard.config import Config
 
-    return Config.LLM_ENGINE_TYPE.lower()
+    # FactReasoner can run on a different route from the composer: RITS is gone, the
+    # HF router needs a token scope this machine does not have, and OpenRouter serves
+    # Llama-3.3-70B with logprobs from one provider when asked for it explicitly.
+    override = os.environ.get("FACTREASONER_ENGINE_TYPE", "").strip().lower()
+    return override or Config.LLM_ENGINE_TYPE.lower()
+
+
+def _provider_routing() -> Optional[Dict[str, Any]]:
+    """OpenRouter provider preferences for the FactReasoner route, or None.
+
+    Most OpenRouter providers silently drop `logprobs`; left to itself the router picks
+    the cheapest endpoint and the NLI extractor's assert fires on the first atom. The
+    provider is pinned by name with no fallback, which also keeps the route
+    reproducible. `require_parameters` is deliberately NOT set: Mellea adds request
+    fields the pinned provider does not advertise, and with that flag OpenRouter
+    answered 404 "Filter by Parameters" on the first NLI call (2026-09-06) even though
+    the same provider returns logprobs for the same request without it.
+    """
+    provider = os.environ.get("FACTREASONER_PROVIDER", "").strip()
+    if not provider:
+        return None
+    return {"provider": {"order": [provider], "allow_fallbacks": False}}
 
 
 def _create_factreasoner_backend(model_id: str):
@@ -568,11 +589,15 @@ def _create_factreasoner_backend(model_id: str):
         api_base = os.environ.get("FACTREASONER_API_BASE") or os.environ.get("LLM_API_BASE")
         api_key = os.environ.get("FACTREASONER_API_KEY") or os.environ.get("LLM_API_KEY")
         if api_base and api_key:
+            model_options: Dict[str, Any] = {max_new: 1024}
+            routing = _provider_routing()
+            if routing:
+                model_options["extra_body"] = routing
             return _LogprobsOpenAIBackend(
                 model_id=model_id,
                 base_url=api_base,
                 api_key=api_key,
-                model_options={max_new: 1024},
+                model_options=model_options,
             )
     except Exception:
         logger.debug("Could not create FactReasoner backend", exc_info=True)
