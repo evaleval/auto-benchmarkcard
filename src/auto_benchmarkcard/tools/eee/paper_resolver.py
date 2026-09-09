@@ -28,7 +28,7 @@ from auto_benchmarkcard.config import Config, get_llm_handler
 logger = logging.getLogger(__name__)
 
 OPENALEX_SEARCH_URL = "https://api.openalex.org/works"
-OPENALEX_MAILTO = ""
+OPENALEX_MAILTO = os.environ.get("OPENALEX_MAILTO")
 OPENALEX_LIMIT = 5
 
 S2_SEARCH_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
