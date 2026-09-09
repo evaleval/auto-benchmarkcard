@@ -1,7 +1,6 @@
 """Emit every paper number per the numbers_manifest.json contract.
 
-The manifest (paper/fragments/numbers_manifest.json, maintained by the paper
-chat) is THE contract: this script emits numbers.tex with one
+The caller-supplied manifest is the contract: this script emits numbers.tex with one
 \\defnum{key}{value} line per manifest key, sorted by key, trailing comment =
 provenance | source | date. Formatting lives in the value (percent keys
 include \\%, dollar keys \\$, compound P/R/F1 is one key, CIs one bracketed
@@ -19,8 +18,8 @@ Checks enforced here:
 No recomputation: values come from the artifact files that computed them.
 
 Usage:
-  python scripts/make_numbers.py --out eval/numbers.tex [--freeze]
-      [--manifest <path>] [--analysis ...] [--calibration ...]
+  python scripts/make_numbers.py --manifest <path> --out eval/numbers.tex [--freeze]
+      [--analysis ...] [--calibration ...]
       [--corpus-stats ...] [--json eval/paper_numbers.json]
 """
 
@@ -34,7 +33,7 @@ from check_frozen import check, file_md5
 
 REPO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
-MANIFEST_DEFAULT = "/Users/aris/Desktop/benchmarkcard/paper/fragments/numbers_manifest.json"
+MANIFEST_DEFAULT = os.environ.get("BENCHMARKCARD_NUMBERS_MANIFEST")
 DEV_JUDGE = "gold_set/judge_v31b.json"
 DEV_REPORT_SHIP = "gold_set/report_fr2_nofill_v31b.json"
 HF_PUBLISHED = "eval/hf_published.json"  # written after the HF v3 push
@@ -282,7 +281,9 @@ def build_values(analysis, calibration, cs, hf_pub):
 
 def main():
     ap = argparse.ArgumentParser(description="Emit numbers.tex per the manifest contract.")
-    ap.add_argument("--manifest", default=MANIFEST_DEFAULT)
+    ap.add_argument("--manifest", default=MANIFEST_DEFAULT, required=not MANIFEST_DEFAULT,
+                    help="manifest JSON path (or set BENCHMARKCARD_NUMBERS_MANIFEST); "
+                         "relative paths are resolved from the repository root")
     ap.add_argument("--analysis", default="eval/s150/analysis_s150.json")
     ap.add_argument("--calibration",
                     default="eval/s150/human_validation_final/calibration_scores.json")

@@ -21,11 +21,22 @@ The whole pipeline is orchestrated as a LangGraph state machine where each tool 
 ## Quick start
 
 ```bash
-git clone https://github.com/evaleval/auto-benchmarkcard.git
+git clone --branch composer-library https://github.com/evaleval/auto-benchmarkcard.git
 cd auto-benchmarkcard
 python -m venv .venv && source .venv/bin/activate
-pip install -e .
+python -m pip install -e .
 ```
+
+This installs the `composer-library` branch. The frozen research release is tagged
+`v0.2.0`; use that tag when reproducing the release. For development checks, install
+with `python -m pip install -e '.[dev]'`.
+
+`pyproject.toml` is the supported dependency specification. FactReasoner is pinned
+to a commit of the fork that supports LLM handler injection. The historical
+`requirements-lock.txt` workstation snapshot has been retired; that filename now
+only forwards older installation commands to `-e .`. It does not lock transitive
+dependencies, and a fresh install can resolve newer versions within the declared
+ranges.
 
 Create a `.env` file:
 
@@ -117,6 +128,37 @@ python scripts/batch_process.py --no-skip         # reprocess existing
 ```
 
 It tracks progress, skips already-processed benchmarks, and saves failure logs for review.
+
+For concurrent generation, `run_sharded.sh` uses this checkout's `.venv/bin/python`
+and `.env`. Set `BENCHMARKCARD_PYTHON` or `BENCHMARKCARD_ENV_FILE` to use another
+interpreter or credentials file; an already exported environment works without a
+`.env` file. The script requires GNU `gtimeout` (`brew install coreutils` on macOS).
+
+### Local evaluation data
+
+Generated evaluation data under `eval/`, run output, environment files, and local
+agent state are ignored. Keep raw annotation returns and source snapshots there;
+publish only explicitly reviewed release artifacts. The ignored files are not
+included in a fresh clone.
+
+Scripts that use historical captures accept explicit paths instead of assuming a
+particular workstation layout:
+
+- `BENCHMARKCARD_CAPTURED_RUNS` points to the output directory containing
+  `d6_pilot`, `d6_repilot`, and other captured runs used by the standalone regression
+  scripts. It defaults to this checkout's `output/`. Gate tests report missing
+  captures as skips; the furniture-strip script exits with an error if none exist.
+- `scripts/make_numbers.py` requires `--manifest` or
+  `BENCHMARKCARD_NUMBERS_MANIFEST`, plus the local evaluation artifacts and frozen
+  instrument baseline. Relative manifest paths resolve from the repository root.
+- `scripts/build_regression_set.py` accepts `--frozen-cards-dir` or
+  `BENCHMARKCARD_FROZEN_CARDS_DIR` for the frozen cards.
+- The probe generators accept `BENCHMARKCARD_SOURCE_ROOTS`, an `os.pathsep`-separated
+  list of additional cache directory paths or globs, each containing timestamped
+  card runs. They read these after searching local output directories.
+- Refresh scripts use `REFRESH_PUB_DIR` and `REFRESH_RUN_ROOT` for external card and
+  cache locations; `scripts/splice_v3.py` accepts `--ref-v2`. Their defaults stay
+  within this checkout's `output/` directory.
 
 ## Output
 

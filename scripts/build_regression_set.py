@@ -6,14 +6,10 @@ ratings_verifier_v1_raw_copy.csv, keyed by card + finding_index) and keeps only
 verifier-confirmed-material findings. The total is asserted against
 raw_label_counts in screen_verification_scores_final.json.
 
-current_value is recovered from the frozen evaluated cards. sample.json's
-corpus pointer (output/auto-benchmarkcards-v3/cards) does not exist on this
-branch and eval/s150/rundirs was not kept, so the default fallback is the
-integration worktree copy at
-.claude/worktrees/integration/output/auto-benchmarkcards-v3/cards, which
-matches all 150 sampled cards byte-for-byte against the per-card md5s recorded
-in sample.json (verified 2026-08-21). Cards are read strictly read-only and
-every used copy is md5-checked against sample.json.
+current_value is recovered from the frozen evaluated cards. Supply their directory
+with --frozen-cards-dir or BENCHMARKCARD_FROZEN_CARDS_DIR; the default is
+output/auto-benchmarkcards-v3/cards in this checkout. Cards are read strictly
+read-only and every used copy is md5-checked against sample.json.
 
 Usage:
   python scripts/build_regression_set.py \
@@ -45,8 +41,9 @@ SCORES_FINAL = os.path.join(
     REPO_ROOT, "eval/s150/screen_verification_final/screen_verification_scores_final.json"
 )
 SAMPLE = os.path.join(REPO_ROOT, "eval/s150/sample.json")
-INTEGRATION_CARDS = os.path.join(
-    REPO_ROOT, ".claude/worktrees/integration/output/auto-benchmarkcards-v3/cards"
+FROZEN_CARDS_DEFAULT = os.environ.get(
+    "BENCHMARKCARD_FROZEN_CARDS_DIR",
+    os.path.join(REPO_ROOT, "output", "auto-benchmarkcards-v3", "cards"),
 )
 
 
@@ -180,7 +177,7 @@ def load_frozen_cards(sample, frozen_dir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=os.path.join(REPO_ROOT, "eval/regression/findings_regression.json"))
-    ap.add_argument("--frozen-cards-dir", default=INTEGRATION_CARDS)
+    ap.add_argument("--frozen-cards-dir", default=FROZEN_CARDS_DEFAULT)
     args = ap.parse_args()
 
     screen = json.load(open(SCREEN_RESULTS))["per_card"]

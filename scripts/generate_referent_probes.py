@@ -19,9 +19,9 @@ Probe types:
                 the same document, so both numbers are genuine and only
                 the binding is wrong
 
-Sources are searched on this branch first (output/*/output and the
-phase dirs behind output/current), then read-only in the integration
-worktree (batch_output/, output/). Cards without cached text are skipped.
+Sources are searched in this checkout (output/*/output, the phase dirs behind
+output/current, and batch_output/*/output), then in any additional read-only
+roots configured with BENCHMARKCARD_SOURCE_ROOTS. Cards without cached text are skipped.
 
 Usage:
   python scripts/generate_referent_probes.py --cards acebench ai2d
@@ -41,16 +41,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from auto_benchmarkcard.card_utils import extract_card  # noqa: E402
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-INTEGRATION = os.path.join(REPO, ".claude", "worktrees", "integration")
 PATH_BASE = os.path.dirname(REPO)
 
-# branch roots first, integration worktree (read-only) after
+# Local cache roots first, followed by any explicitly configured archive roots.
 SOURCE_ROOTS = [
     os.path.join(REPO, "output", "*", "output"),
     os.path.join(REPO, "output", "current", "*", "output"),
-    os.path.join(INTEGRATION, "batch_output", "*", "output"),
-    os.path.join(INTEGRATION, "output", "*", "output"),
+    os.path.join(REPO, "batch_output", "*", "output"),
 ]
+# Each path/glob must point to a directory containing timestamped card run dirs.
+# Separate multiple roots with os.pathsep (":" on Unix, ";" on Windows).
+SOURCE_ROOTS.extend(
+    os.path.expanduser(path)
+    for path in os.environ.get("BENCHMARKCARD_SOURCE_ROOTS", "").split(os.pathsep)
+    if path
+)
 
 CARD_DIR_RE = re.compile(r"^(.+)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}$")
 
@@ -78,7 +83,7 @@ WINDOW = 150
 
 
 def find_card_dirs(name):
-    """All cached run dirs for a card, branch roots before integration."""
+    """All cached run dirs for a card, local roots before configured archives."""
     dirs = []
     for root in SOURCE_ROOTS:
         hits = glob.glob(os.path.join(root, name + "_20*"))

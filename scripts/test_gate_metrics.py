@@ -11,12 +11,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import compute_gate_metrics as gm  # noqa: E402
 
-D6_DIR = ("/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.claude/worktrees/"
-          "integration/output/d6_pilot/output")
-D6_REPILOT_DIR = ("/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.claude/worktrees/"
-                  "integration/output/d6_repilot/output")
-WAVE2_DIR = ("/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.claude/worktrees/"
-             "integration/output/d6_repilot_wave2/output")
+# Captured runs are optional local fixtures. Point this at the output directory
+# containing d6_pilot, d6_repilot, etc. to include those regression checks.
+CAPTURED_RUNS = os.path.expanduser(os.environ.get(
+    "BENCHMARKCARD_CAPTURED_RUNS", os.path.join(os.path.dirname(__file__), "..", "output")
+))
+D6_DIR = os.path.join(CAPTURED_RUNS, "d6_pilot", "output")
+D6_REPILOT_DIR = os.path.join(CAPTURED_RUNS, "d6_repilot", "output")
+WAVE2_DIR = os.path.join(CAPTURED_RUNS, "d6_repilot_wave2", "output")
 
 # Applied per-test (not module-wide) so the synthetic schema_invalid / verdict unit
 # tests below run even when the captured pilot fixtures are absent.
@@ -27,13 +29,11 @@ requires_repilot = pytest.mark.skipif(
 requires_wave2 = pytest.mark.skipif(
     not os.path.isdir(WAVE2_DIR), reason=f"D6 repilot wave2 fixture not present at {WAVE2_DIR}")
 
-D8_FINISH3_DIR = ("/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.claude/worktrees/"
-                  "integration/output/d8_finish3/output")
+D8_FINISH3_DIR = os.path.join(CAPTURED_RUNS, "d8_finish3", "output")
 requires_d8 = pytest.mark.skipif(
     not os.path.isdir(D8_FINISH3_DIR), reason=f"d8_finish3 fixture not present at {D8_FINISH3_DIR}")
 
-D8_FINISH4_DIR = ("/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.claude/worktrees/"
-                  "integration/output/d8_finish4/output")
+D8_FINISH4_DIR = os.path.join(CAPTURED_RUNS, "d8_finish4", "output")
 requires_d8_finish4 = pytest.mark.skipif(
     not os.path.isdir(D8_FINISH4_DIR), reason=f"d8_finish4 fixture not present at {D8_FINISH4_DIR}")
 

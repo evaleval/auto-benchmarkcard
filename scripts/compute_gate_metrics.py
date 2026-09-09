@@ -2,7 +2,7 @@
 
 Classifies every measured field of every card in a batch run and reports the
 reframed gate. Pure analysis of existing artifacts -- no model, no network.
-See memory/composer_gate_v2.md for the classifier, metrics and thresholds.
+The classifier, measured populations, and thresholds are defined below.
 
 Quote-verify-rate (gate metric 1) is telemetered upstream by verify_items and is
 read elsewhere; this script computes gate metric 2, the structural hallucination
@@ -52,7 +52,7 @@ _KEY = {NS: NS, EXTRACTED: "extracted", DERIVED: "derived", UNGROUNDED: "ungroun
 # Keys that can sit alongside real fields inside a section but are never measured.
 _BOOKKEEPING = {"provenance", "flagged_fields", "missing_fields"}
 # Only these provenance sources count as structured-derived (grounded in structured
-# data, no text quote expected). Matches composer_gate_v2.md. Classified by source,
+# data, no text quote expected). Classified by source,
 # NOT status: in the real artifacts deterministic fields carry status='stated'.
 _DERIVED_SOURCES = {"deterministic", "eee"}
 

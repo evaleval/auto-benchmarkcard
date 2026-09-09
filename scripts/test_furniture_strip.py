@@ -4,19 +4,20 @@ Feeds captured llm-stats scrapes (produced by the unpatched scraper, so they sti
 leaderboard table + related-benchmarks carousel) into the strip and checks that other-benchmark
 furniture is dropped while each benchmark's genuine hero summary survives. No network, no LLM.
 
-Run: PYTHONPATH=$PWD/src ../../../.venv/bin/python scripts/test_furniture_strip.py
+Run: PYTHONPATH=src python scripts/test_furniture_strip.py
+Set BENCHMARKCARD_CAPTURED_RUNS to the directory containing d6_pilot if needed.
 """
 
 import json
+import os
 from pathlib import Path
 
 from auto_benchmarkcard.tools.html.html_tool import strip_page_furniture
 
-# Captured d6_pilot scrapes live in the sibling integration worktree.
-FIXTURE_BASE = Path(
-    "/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.claude/worktrees/integration"
-    "/output/d6_pilot/output"
-)
+# Captured scrapes are optional local data, outside the public source tree.
+FIXTURE_BASE = Path(os.environ.get(
+    "BENCHMARKCARD_CAPTURED_RUNS", Path(__file__).resolve().parents[1] / "output"
+)).expanduser() / "d6_pilot" / "output"
 FIXTURES = {
     "aa-lcr": "aa-lcr_2026-06-19_13-56/tool_output/html/aa-lcr.json",
     "bigcodebench": "bigcodebench_2026-06-19_13-43/tool_output/html/bigcodebench.json",

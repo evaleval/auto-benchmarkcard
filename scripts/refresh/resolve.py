@@ -13,24 +13,13 @@ from typing import Dict, Optional
 
 
 def repo_root() -> str:
-    """The integration worktree root (holds output/broad_run)."""
+    """The current checkout root (holds output/broad_run by default)."""
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-def _main_worktree(repo: str) -> str:
-    """The main auto-benchmarkcard checkout that holds the published cards.
-
-    Worktrees live under <main>/.claude/worktrees/<name>; strip that suffix.
-    Falls back to repo when not run from a worktree.
-    """
-    marker = os.sep + os.path.join(".claude", "worktrees") + os.sep
-    return repo.split(marker)[0] if marker in repo else repo
-
 
 REPO = repo_root()
 PUB_DIR = os.environ.get(
     "REFRESH_PUB_DIR",
-    os.path.join(_main_worktree(REPO), "output", "auto-benchmarkcards-v2", "cards"),
+    os.path.join(REPO, "output", "auto-benchmarkcards-v2", "cards"),
 )
 RUN_ROOT = os.environ.get(
     "REFRESH_RUN_ROOT", os.path.join(REPO, "output", "broad_run", "output")

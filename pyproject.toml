@@ -59,7 +59,7 @@ dependencies = [
     "networkx>=3.4.0",
     "rapidfuzz>=3.0.0",
     "trafilatura>=2.0.0",
-    "fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@llm-handler-injection",
+    "fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@8229b9e9311ec8bc671ba0e95ef1f326c30af879",
     "ai-atlas-nexus",
 ]
 

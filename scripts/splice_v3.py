@@ -316,8 +316,7 @@ def main():
     ap = argparse.ArgumentParser(description="Assemble + pre-check the frozen v3 corpus.")
     ap.add_argument("--force", action="store_true", help="remove an existing output dir")
     ap.add_argument("--ref-v2", default=os.path.join(
-        REPO.split(os.sep + os.path.join(".claude", "worktrees") + os.sep)[0],
-        "output", "auto-benchmarkcards-v2"))
+        REPO, "output", "auto-benchmarkcards-v2"))
     args = ap.parse_args()
 
     if os.path.exists(OUT):

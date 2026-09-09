@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sharded batch card generator. Run FROM the integration worktree.
+# Sharded batch card generator. Paths are relative to this checkout.
 # Usage: run_sharded.sh <backlog> <outdir> [nshards] [per_card_timeout_sec]
 #
 # Splits the backlog round-robin into N shards run concurrently. Each card runs in its own
@@ -14,7 +14,9 @@ OUT="${2:?usage: run_sharded.sh <backlog> <outdir> [nshards] [timeout]}"
 NSHARDS="${3:-4}"
 PER_CARD_TIMEOUT="${4:-1200}"
 
-VENV=/Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.venv/bin/python
+# Override these for an environment or credentials file outside this checkout.
+VENV="${BENCHMARKCARD_PYTHON:-$PWD/.venv/bin/python}"
+ENV_FILE="${BENCHMARKCARD_ENV_FILE:-$PWD/.env}"
 # Model IDENTITY (card_info.llm) stays the corpus checkpoint. RITS retired this deployment
 # on 2026-07-04, so the composer is SERVED via OpenRouter (same checkpoint). Provider pinned
 # to Baidu fp8 (supports server-enforced json_schema, matching broad_run's vLLM guided
@@ -28,8 +30,20 @@ OR_MODEL_ID=deepseek/deepseek-v4-flash
 OR_PROVIDERS="${OR_PROVIDERS:-Baidu}"
 OR_QUANT=fp8
 
-# Load API keys (OPENALEX/S2/GITHUB) from the main-repo .env into every child process.
-set -a; . /Users/aris/Desktop/benchmarkcard/auto-benchmarkcard/.env; set +a
+# Load API keys into child processes; an exported environment is sufficient too.
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  . "$ENV_FILE"
+  set +a
+elif [ -n "${BENCHMARKCARD_ENV_FILE:-}" ]; then
+  echo "Environment file not found: $ENV_FILE" >&2
+  exit 1
+fi
+
+if [ ! -x "$VENV" ]; then
+  echo "Python not executable: $VENV (set BENCHMARKCARD_PYTHON)" >&2
+  exit 1
+fi
 
 mkdir -p "$OUT"
 

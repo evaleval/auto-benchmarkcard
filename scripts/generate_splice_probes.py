@@ -87,18 +87,22 @@ from auto_benchmarkcard.tools.composer.composer_tool import (  # noqa: E402
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 PATH_BASE = os.path.dirname(REPO)
 
-# Checked in next to the probes so the set is reconstructible from the repo alone
-# (an earlier default pointed at a per-session scratchpad file).
+# Optional local source index stored beside generated probes.
 DEFAULT_INDEX = os.path.join(REPO, "eval", "probes", "docling_index.json")
 
 # Fallback discovery roots, used only when no index file exists.
-INTEGRATION = os.path.join(REPO, ".claude", "worktrees", "integration")
 SOURCE_ROOTS = [
     os.path.join(REPO, "output", "*", "output"),
     os.path.join(REPO, "output", "current", "*", "output"),
-    os.path.join(INTEGRATION, "batch_output", "*", "output"),
-    os.path.join(INTEGRATION, "output", "*", "output"),
+    os.path.join(REPO, "batch_output", "*", "output"),
 ]
+# Each path/glob must point to a directory containing timestamped card run dirs.
+# Separate multiple roots with os.pathsep (":" on Unix, ";" on Windows).
+SOURCE_ROOTS.extend(
+    os.path.expanduser(path)
+    for path in os.environ.get("BENCHMARKCARD_SOURCE_ROOTS", "").split(os.pathsep)
+    if path
+)
 
 # A long paid regen writes here while this script runs. Nothing may be read from it.
 FORBIDDEN_PATH_MARK = os.path.join("output", "phase3_gate_regen20d")
