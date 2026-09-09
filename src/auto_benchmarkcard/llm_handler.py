@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -41,21 +42,39 @@ DEFAULT_WML_MODEL = os.getenv("WML_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
 
 # Optional sink for per-call LLM usage records. When set to a path, every LLM call
 # appends one json line there. Unset means no telemetry. Writing is fail-soft.
-_usage_log_path: Optional[str] = None
+#
+# The path is per thread, with a process-wide default for the single-threaded case. A
+# batch runner composes several cards at once, and with one process-wide path every
+# worker appended to whichever file was set most recently, so per-card cost and the
+# per-card spend tripwire were both attributing calls to the wrong card.
+_usage_log_default: Optional[str] = None
+_usage_log_local = threading.local()
 _usage_log_warned = False
 
 
-def set_usage_log_path(path: str) -> None:
-    """Route per-call LLM usage records to this jsonl file (append mode)."""
-    global _usage_log_path, _usage_log_warned
-    _usage_log_path = path
+def _current_usage_log_path() -> Optional[str]:
+    path = getattr(_usage_log_local, "path", _UNSET)
+    return _usage_log_default if path is _UNSET else path
+
+
+def set_usage_log_path(path: Optional[str], *, this_thread_only: bool = False) -> None:
+    """Route per-call LLM usage records to this jsonl file (append mode).
+
+    Sets the calling thread's sink, and the process default too unless the caller asks
+    for this thread only. Passing None clears the calling thread's sink.
+    """
+    global _usage_log_default, _usage_log_warned
+    _usage_log_local.path = path
+    if not this_thread_only:
+        _usage_log_default = path
     _usage_log_warned = False
 
 
 def clear_usage_log_path() -> None:
     """Stop recording LLM usage records."""
-    global _usage_log_path
-    _usage_log_path = None
+    global _usage_log_default
+    _usage_log_local.path = None
+    _usage_log_default = None
 
 
 def _extract_json_object(text: str) -> Optional[str]:
@@ -118,6 +137,16 @@ def _coerce_to_text(obj: Any) -> str:
     return str(obj)
 
 
+# Rate-limit handling for the OpenRouter engine. A 429 storm must degrade the run to
+# SLOW, never to zero-emission cards: the 2026-08-23 night regens shipped cards with 2
+# quotes each because the client's 3 internal retries exhausted within seconds and every
+# extraction call then failed soft to zero items. The outer schedule below waits through
+# a burst (~4.6 min total) before giving up; a storm longer than that is the documented
+# run-abort condition, not something to ride out silently.
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 529})
+_BACKOFF_SCHEDULE = (5, 10, 20, 40, 80, 120)
+
+
 class OpenRouterEngine:
     """Minimal OpenAI-compatible engine for OpenRouter, mirroring the ai-atlas-nexus surface
     the handler uses: generate/chat return a list of outputs with prediction, stop_reason,
@@ -131,6 +160,10 @@ class OpenRouterEngine:
     provider and quantization constant across a run. Every output carries serving, provider,
     quantization (OPENROUTER_QUANTIZATION) and cost for the usage telemetry.
     """
+
+    # Shared within the process so concurrent calls all honor one cooldown after a 429
+    # instead of each burning its own retry budget against a limited upstream.
+    _cooldown_until = 0.0
 
     def __init__(self, model_name: str, parameters: Optional[Dict] = None):
         import httpx
@@ -173,11 +206,27 @@ class OpenRouterEngine:
         rf = self._schema_format(response_format)
         if rf:
             kwargs["response_format"] = rf
-        # Deliberately NO silent downgrade on schema errors: a provider that rejects or
-        # mishandles json_schema must fail loudly (decoding parity with broad_run is part of
-        # the generation regime; the pre-authorized response is a manual provider hop).
-        response = self.client.chat.completions.create(
-            model=self.model_id, messages=messages, extra_body=extra_body, **kwargs)
+        # Propagate schema errors so a rejected json_schema request cannot silently
+        # become unconstrained generation. Provider changes require explicit configuration.
+        response = None
+        for attempt in range(len(_BACKOFF_SCHEDULE) + 1):
+            wait = OpenRouterEngine._cooldown_until - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model_id, messages=messages, extra_body=extra_body, **kwargs)
+                break
+            except Exception as exc:
+                status = getattr(exc, "status_code", None)
+                if status not in _RETRYABLE_STATUS or attempt >= len(_BACKOFF_SCHEDULE):
+                    raise
+                delay = _BACKOFF_SCHEDULE[attempt]
+                OpenRouterEngine._cooldown_until = max(
+                    OpenRouterEngine._cooldown_until, time.monotonic() + delay)
+                logger.warning(
+                    "OpenRouter HTTP %s; backing off %ds (attempt %d/%d)",
+                    status, delay, attempt + 1, len(_BACKOFF_SCHEDULE))
         choice = response.choices[0]
         usage = getattr(response, "usage", None)
         extra = getattr(response, "model_extra", None) or {}
@@ -320,7 +369,7 @@ class LLMHandler:
         For the RITS engine input_tokens is populated from usage.total_tokens upstream
         (a quirk in ai-atlas-nexus); it is recorded raw without adjustment.
         """
-        path = _usage_log_path
+        path = _current_usage_log_path()
         if path is None:
             return
         global _usage_log_warned
@@ -446,4 +495,3 @@ class LLMHandler:
 def get_llm_handler(engine_type: str = "ollama", **kwargs) -> LLMHandler:
     """Factory function to create an LLM handler."""
     return LLMHandler(engine_type=engine_type, **kwargs)
-

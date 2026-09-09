@@ -112,7 +112,7 @@ def test_biolp_prose_carrier_fires_fetch(monkeypatch):
 def test_evidence_routing_uses_github_doc(monkeypatch):
     captured = {}
 
-    def _fake_run(prompt, source_text, doc, label):
+    def _fake_run(prompt, source_text, doc, label, **_kw):
         captured["doc"], captured["label"] = doc, label
         return [], {}
 

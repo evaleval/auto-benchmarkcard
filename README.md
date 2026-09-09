@@ -2,23 +2,25 @@
 
 Auto-BenchmarkCards produces structured documentation for AI benchmarks from
 evaluation records, papers, dataset repositories, and linked web sources. It
-records source provenance, composes a 40-field BenchmarkCard, and checks
+records source provenance, composes a structured BenchmarkCard, and checks
 eligible claims against the collected evidence.
 
-This repository contains research code and evaluation artifacts for
-*Auto-BenchmarkCards: Automated Documentation for AI Benchmarks*. The Python
-package and command retain the singular name `auto_benchmarkcard` and
-`benchmarkcard` for compatibility.
+The `main` branch contains the current development package and a reusable card
+composer. The research code and evaluation artifacts for
+*Auto-BenchmarkCards: Automated Documentation for AI Benchmarks* are frozen at
+`v0.2.0`. The Python package and command retain the singular name
+`auto_benchmarkcard` and `benchmarkcard` for compatibility.
 
 ![Four-stage Auto-BenchmarkCards pipeline from benchmark identification through extraction, composition, and warnings to 530 published cards](docs/figures/pipeline.png)
 
-*Pipeline overview. A benchmark enters as a name and an evaluation record and
+*Research-release pipeline. A benchmark enters as a name and an evaluation record and
 leaves as a published card. Red marks a field recorded as "Not specified"; the
 triangle marks a field that shipped with a warning.*
 
 ## Paper release
 
-Use the following resources for distinct purposes.
+The paper evaluates the 40-field cards and configuration frozen in `v0.2.0`.
+Its results do not evaluate subsequent changes on `main`.
 
 | Resource | Role |
 |---|---|
@@ -51,6 +53,8 @@ No headline result in the paper depends on the candidate risk assignments.
 ## Repository contents
 
 - `src/auto_benchmarkcard/`: package and command-line application
+- `src/auto_benchmarkcard/tools/composer/`: reusable extraction, composition,
+  and schema validation library
 - `scripts/`: batch generation, corpus assembly, and evaluation programs
 - `tests/`: offline and artifact-backed regression tests
 - `eval/`: frozen evaluation sample, results, public human-label projections,
@@ -63,12 +67,25 @@ published cards. See [`eval/README.md`](eval/README.md) for result scopes,
 artifact locations, sanitization policy, and offline reproduction commands.
 The complete corpus and per-field provenance ship in the release archive.
 
+## Composer library
+
+The composer accepts a `CardSchema` describing the card's sections, fields, and
+allowed values. It uses that schema for evidence extraction, Stage B (formatting
+the selected evidence into card fields), and validation and repair. The
+benchmark schema is the default; other applications can supply their own.
+
+The library in this integration comes from `composer-library` commit
+[`94c7713`](https://github.com/evaleval/auto-benchmarkcard/commit/94c7713d1df00730d8c43a35e618de35cf0589bd).
+[Modelcards](https://github.com/evaleval/model-cards) uses it with a separate
+model-card schema and records its exact composer revision in `composer-pin.json`.
+That pin remains valid independently of subsequent work on `main`.
+
 ## Install
 
 Auto-BenchmarkCards requires Python 3.11 or newer.
 
 ```bash
-git clone --branch v0.2.0 https://github.com/evaleval/auto-benchmarkcard.git
+git clone --branch main https://github.com/evaleval/auto-benchmarkcard.git
 cd auto-benchmarkcard
 python3.12 -m venv .venv
 source .venv/bin/activate
@@ -78,8 +95,16 @@ python -m pip install -e .
 
 Copy `.env.example` to `.env` and add only the credentials required by your
 chosen backends. `.env` is ignored by Git. The entailment stage also requires a
-Merlin solver binary built from the FactReasoner revision pinned in
-`pyproject.toml`; it is not vendored here.
+separately built Merlin solver binary. Set `MERLIN_BIN` to its executable path;
+the default is `external/merlin/bin/merlin` in the checkout. Merlin source and
+build instructions are available in the
+[Merlin repository](https://github.com/arishofmann/merlin).
+
+`pyproject.toml` is the dependency specification. It pins a compatible
+FactReasoner fork; the current adapter supplies Mellea-backed extraction and
+entailment components. `requirements-lock.txt` is a compatibility shim for
+older install commands and contains `-e .`; it does not lock transitive
+dependencies.
 
 ## Run
 
@@ -114,6 +139,11 @@ the arXiv version. Its `REPRODUCIBILITY.md` gives seven offline commands for
 recomputing the reported summaries from frozen model outputs and annotations.
 Those commands require no credentials or new hosted-model calls.
 
+Use the release archive or a separate checkout of `v0.2.0` for those commands.
+Some runtime helpers on `main` have changed since the evaluated version, so the
+historical instrument check correctly rejects them. The frozen evaluation
+files and their checksum baseline are retained unchanged.
+
 Fresh generation is not byte-reproducible because it depends on changing web
 sources and hosted models. The archive records the evaluated configuration,
 software environment, frozen outputs, and checksums so the reported numerical
@@ -121,10 +151,11 @@ analysis can be replayed independently of those services.
 
 ## Development
 
-Run the maintained test suite with:
+Development checks are run manually. For example, after installing the `dev`
+extra, check the composer's schema interface with:
 
 ```bash
-python -m pytest
+python -m pytest tests/test_card_schema.py
 ```
 
 Additional setup and frozen-artifact rules are documented in

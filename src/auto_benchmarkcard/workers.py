@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import glob
+import json
 import os
 import re
 from datetime import datetime
@@ -13,9 +15,7 @@ from uuid import uuid4
 import requests
 
 from auto_benchmarkcard.card_utils import (
-    apply_deterministic_overrides,
     apply_single_judge_bias_rule,
-    backfill_from_provenance,
     extract_card,
     extract_hf_tags,
     extract_missing_fields,
@@ -33,12 +33,16 @@ from auto_benchmarkcard.tools.html.html_tool import extract_html_content
 from auto_benchmarkcard.tools.github.github_tool import derive_github_repo, fetch_github_readme
 from auto_benchmarkcard.tools.extractor.extractor_tool import extract_ids
 from auto_benchmarkcard.tools.factreasoner.factreasoner_tool import (
+    _active_factreasoner_engine,
     evaluate_factuality_two_tier,
+    field_referents_from_provenance,
     flag_benchmark_card_fields,
+    verbalize_rag_hypotheses,
 )
 from auto_benchmarkcard.tools.eee.paper_resolver import (
     resolve_paper, _repo_corroboration, _token_is_namelike, verify_hf_match,
-    verify_paper_binding, _fetch_paper_meta_for_verify, _introduces_other_benchmark,
+    verify_paper_binding, _fetch_paper_meta_for_verify, _fetch_paper_authors,
+    _introduces_other_benchmark,
     _parent_only_binding, _distinctive_base, _title_bears_name, NAME_TOKEN_FLOOR_LEN)
 from auto_benchmarkcard.tools.hf.hf_tool import hf_dataset_metadata
 from auto_benchmarkcard.tools.rag.atomizer import atomize_benchmark_card
@@ -54,7 +58,7 @@ from auto_benchmarkcard.tools.rag.source_retrieval import (
 )
 from auto_benchmarkcard.tools.unitxt import unitxt_tool
 
-from auto_benchmarkcard.validation_policy import ANALYTICAL_FIELDS, IDENTITY_FIELDS
+from auto_benchmarkcard.validation_policy import field_evidence_status, unflag_decision
 
 logger = logging.getLogger(__name__)
 
@@ -422,6 +426,97 @@ def _verify_paper_binding_gate(state, paper_url, binding_source, ctx):
                     "reason": f"{detail}; pre-set binding kept (degraded)"}
 
 
+def _bundle_dir():
+    """The source-bundle root when a replay is active (SOURCE_BUNDLE_DIR), else None.
+
+    A bundle is simply a prior run's output directory: <root>/<slug>_<stamp>/tool_output/
+    <tool>/<file>. Replaying from it makes paper binding, docling text, HF metadata, HTML,
+    GitHub README and croissant facts byte-identical across two conditions, which is the
+    source-parity mechanism for a paired read (the phase 2 gate was unattributable because
+    live resolution attached a paper in one condition and not the other)."""
+    root = os.environ.get("SOURCE_BUNDLE_DIR")
+    return root or None
+
+
+def _bundle_tool_output(state, tool, filename):
+    """This card's cached <tool>/<filename> from the bundle, or None. The newest run dir
+    that carries the file wins (a failed later attempt without it does not mask an
+    earlier complete one). Read-only; never raises."""
+    root = _bundle_dir()
+    if not root:
+        return None
+    slug = sanitize_benchmark_name(state["query"])
+    # stamped run dirs (<slug>_<date>_<time>) newest first, then the exact <slug> layout the
+    # frozen S150 rundirs use (eval/s150/rundirs/<slug>/tool_output/...)
+    candidates = sorted(glob.glob(os.path.join(root, f"{slug}_*")), reverse=True)
+    if os.path.isdir(os.path.join(root, slug)):
+        candidates.append(os.path.join(root, slug))
+    for d in candidates:
+        path = os.path.join(d, "tool_output", tool, filename)
+        if os.path.isfile(path):
+            try:
+                with open(path) as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning("Bundle file unreadable, treating as absent: %s (%s)", path, e)
+                return None
+    return None
+
+
+def bundle_hf_repo(query):
+    """The HF repo the bundle run actually fetched metadata for, or None.
+
+    The repo binding is decided BEFORE the workflow (eee_to_pipeline_inputs runs a live
+    Hub search when EEE carries no repo), so a replay has to take the bundle's own
+    repo id (hf/<slug>.json "id") instead: the frozen run bound mme to lmms-lab/MME
+    by search, and a fresh search might bind something else or nothing."""
+    hf = _bundle_tool_output({"query": query}, "hf",
+                             f"{sanitize_benchmark_name(query)}{Config.JSON_EXTENSION}")
+    repo = (hf or {}).get("id") if isinstance(hf, dict) else None
+    return repo if isinstance(repo, str) and repo.strip() else None
+
+
+def _bundle_croissant_facts(state):
+    """The bundle run's cached croissant facts for this card, or None."""
+    return _bundle_tool_output(
+        state, "hf", f"croissant_{sanitize_benchmark_name(state['query'])}.json")
+
+
+def _with_paper_meta(ids, paper_url):
+    """Authors, title and year for a URL-only paper binding, fill-only.
+
+    The Tier-2/3 search path sources these from the record it found, but a pre-set or
+    HF arxiv-tag binding carried only the URL, so every Tier-1 card shipped authors
+    'Not specified' (swe-bench-multimodal in the phase 3 gate, 13 authors lost). The
+    fetch is the resolver's own arXiv/OpenAlex metadata lookup, fail-soft."""
+    ids = dict(ids or {})
+    if not (ids.get("paper_authors") and ids.get("paper_title")):
+        try:
+            meta = _fetch_paper_authors(paper_url) or {}
+        except Exception as e:
+            logger.warning("Paper metadata fetch failed for %s: %s", paper_url, e)
+            meta = {}
+        if meta.get("authors") and not ids.get("paper_authors"):
+            ids["paper_authors"] = list(meta["authors"])
+        if meta.get("title") and not ids.get("paper_title"):
+            ids["paper_title"] = meta["title"]
+        if meta.get("year") and not ids.get("paper_year"):
+            ids["paper_year"] = meta["year"]
+    if not ids.get("paper_abstract"):
+        # the abstract is the composer's fallback source when the PDF cannot be converted;
+        # the search path carries it, a URL-only binding did not
+        try:
+            verify_meta = _fetch_paper_meta_for_verify(paper_url) or {}
+        except Exception as e:
+            logger.warning("Paper abstract fetch failed for %s: %s", paper_url, e)
+            verify_meta = {}
+        if verify_meta.get("abstract"):
+            ids["paper_abstract"] = verify_meta["abstract"]
+        if verify_meta.get("title") and not ids.get("paper_title"):
+            ids["paper_title"] = verify_meta["title"]
+    return ids
+
+
 def _write_paper_binding_sidecar(state, ctx, record):
     """Write a paper-verification.json carrying the binding decision, so a pre-set/extracted paper
     binding is never silent (mirror of the HF _write_hf_verification_sidecar). Used on the KEEP paths;
@@ -457,6 +552,37 @@ def run_paper_resolver(state) -> Dict[str, Any]:
     try:
         extracted_ids = state.get("extracted_ids") or {}
         hf_json = state.get("hf_json") or {}
+
+        if _bundle_dir():
+            # Replay the bundle run's binding decision exactly: its resolved_url or nothing.
+            # A card that attached no paper there attaches none here (attachment parity),
+            # and no search runs. Authors/title/year are metadata for the same URL, fetched
+            # fill-only (display channel, not a source of card content).
+            sidecar = _bundle_tool_output(state, "paper_resolver", "paper-verification.json")
+            url = (sidecar or {}).get("resolved_url")
+            ids = {k: v for k, v in extracted_ids.items()
+                   if k not in ("paper_url", "paper_url_from_hf")}
+            om = state.get("output_manager")
+            if sidecar is not None and om is not None:
+                # written verbatim: the screen inlines this sidecar, so it must carry no
+                # marker that could tell a condition apart (the run log records the replay)
+                om.save_tool_output(sidecar, "paper_resolver", "paper-verification.json")
+            if url:
+                ids["paper_url"] = url
+                ids = _with_paper_meta(ids, url)
+                return {
+                    "extracted_ids": ids,
+                    "paper_resolver_attempted": True,
+                    "paper_verified": True,
+                    "completed": [f"paper_resolver replayed from bundle url={url}"],
+                }
+            return {
+                "extracted_ids": ids,
+                "paper_resolver_attempted": True,
+                "paper_verified": True,
+                "completed": ["paper_resolver replayed from bundle: no paper"],
+            }
+
         ctx = _paper_identity_context(state)
         output_manager = state.get("output_manager")
         output_dir = output_manager.get_tool_output_path("paper_resolver") if output_manager else None
@@ -480,7 +606,7 @@ def run_paper_resolver(state) -> Dict[str, Any]:
             if action == "keep":
                 _write_paper_binding_sidecar(state, ctx, record)
                 return {
-                    "extracted_ids": extracted_ids,
+                    "extracted_ids": _with_paper_meta(extracted_ids, preset_url),
                     "paper_resolver_attempted": True,
                     "paper_verified": True,
                     "completed": [f"paper_resolver binding {record['verdict']} url={preset_url}"],
@@ -500,6 +626,7 @@ def run_paper_resolver(state) -> Dict[str, Any]:
                 if action == "keep":
                     updated = extracted_ids.copy()
                     updated["paper_url"] = readme_url
+                    updated = _with_paper_meta(updated, readme_url)
                     _write_paper_binding_sidecar(state, ctx, record)
                     logger.info("Paper URL from HF README (verified): %s", readme_url)
                     return {
@@ -682,6 +809,26 @@ def run_docling(state):
             "completed": ["docling skipped (no paper_url)"],
         }
 
+    if _bundle_dir():
+        # Replay: the bundle's docling text or nothing. Converting live here would let the
+        # two conditions read different paper bytes.
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "docling", filename)
+        if cached and cached.get("success"):
+            state["output_manager"].save_tool_output(cached, "docling", filename)
+            full_text = bool((cached.get("filtered_text") or "").strip())
+            return {
+                "docling_output": cached,
+                "docling_telemetry": _docling_telemetry(
+                    True, full_text, "ok" if full_text else "empty_body", None, paper_url),
+                "completed": ["docling replayed from bundle"],
+            }
+        return {
+            "docling_output": None,
+            "docling_telemetry": _docling_telemetry(True, False, "bundle_no_docling", None, paper_url),
+            "completed": ["docling extraction failed"],
+        }
+
     # Normalize URL and check accessibility before Docling
     normalized = _normalize_paper_url(paper_url)
     if not normalized:
@@ -806,6 +953,17 @@ def _rank_html_url(url: str) -> int:
 
 def run_html_extractor(state):
     """Extract content from web pages using trafilatura."""
+    if _bundle_dir():
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "html", filename)
+        if cached and cached.get("success"):
+            state["output_manager"].save_tool_output(cached, "html", filename)
+            return {"html_content": cached, "completed": ["html replayed from bundle"]}
+        return {
+            "html_content": {"success": False, "text": "", "url": "", "title": ""},
+            "completed": ["html skipped (not in source bundle)"],
+        }
+
     try:
         urls = []
 
@@ -871,6 +1029,23 @@ def run_github_readme(state):
     the html page), since some benchmarks name their repo only in prose. Fail-loud
     telemetry mirrors docling; the fetch is bounded by a hard timeout.
     """
+    if _bundle_dir():
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "github", filename)
+        if cached and cached.get("success"):
+            state["output_manager"].save_tool_output(cached, "github", filename)
+            url = cached.get("url", "")
+            return {
+                "github_readme": cached,
+                "github_telemetry": _github_telemetry(True, True, "ok", None, url),
+                "completed": ["github replayed from bundle"],
+            }
+        return {
+            "github_readme": {"success": False, "text": "", "url": ""},
+            "github_telemetry": _github_telemetry(False, False, "not_in_source_bundle"),
+            "completed": ["github skipped (not in source bundle)"],
+        }
+
     try:
         ids = state.get("extracted_ids") or {}
         eee_meta = state.get("eee_metadata") or {}
@@ -1148,6 +1323,23 @@ def run_hf(state):
     if not state["hf_repo"]:
         return record_skip("No hf_repo available", "HuggingFace lookup", state)
 
+    if _bundle_dir():
+        # Replay the bundle run's HF metadata and its verifier decision; no Hub call.
+        filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
+        cached = _bundle_tool_output(state, "hf", filename)
+        if not cached:
+            return record_skip("No HF metadata in the source bundle", "HuggingFace lookup", state)
+        state["output_manager"].save_tool_output(cached, "hf", filename)
+        verdict = _bundle_tool_output(state, "hf_verifier", f"hf-verification{Config.JSON_EXTENSION}")
+        if verdict is not None:
+            _write_hf_verification_sidecar(state, verdict)   # verbatim, see run_paper_resolver
+        if verdict and str(verdict.get("final_action", "")).startswith("rejected"):
+            cleared_ids = dict(state.get("extracted_ids") or {})
+            cleared_ids["hf_repo"] = None
+            return {"hf_repo": None, "hf_rejected": True, "extracted_ids": cleared_ids,
+                    "completed": ["hf replayed from bundle: rejected"]}
+        return {"hf_json": cached, "completed": ["hf replayed from bundle"]}
+
     try:
         hf_data = hf_dataset_metadata.func(repo_id=state["hf_repo"])
 
@@ -1275,6 +1467,35 @@ def run_composer(state):
 
         unitxt_for_composer = state.get("unitxt_json") if not state.get("eee_metadata") else None
 
+        # Croissant structural facts for the bound repo, fetched only when the cheap
+        # name/arxiv corroboration passes (an uncorroborated repo must not feed
+        # deterministic values). Fail-soft: any error means no croissant facts.
+        croissant_facts = None
+        hf_json_pre = state.get("hf_json") or {}
+        repo_id_pre = hf_json_pre.get("id")
+        croissant_filename = f"croissant_{sanitize_benchmark_name(state['query'])}.json"
+        if _bundle_dir():
+            # Replay: the bundle run's croissant facts or none. The live datasets-server
+            # row counts drift (swe-bench-multimodal moved 580 -> 612 rows within days), so
+            # a paired read must not refetch them.
+            croissant_facts = _bundle_croissant_facts(state)
+        elif repo_id_pre:
+            try:
+                paper_url_pre = (state.get("extracted_ids") or {}).get("paper_url") or ""
+                pm_pre = _ARXIV_URL_RE.search(paper_url_pre)
+                if not _repo_corroboration(
+                    repo_id_pre, sanitize_benchmark_name(state["query"]),
+                    repo_arxiv_id=_first_arxiv_tag(hf_json_pre),
+                    paper_arxiv_id=pm_pre.group(1) if pm_pre else None,
+                ):
+                    from auto_benchmarkcard.tools.hf.croissant import fetch_croissant_facts
+                    croissant_facts = fetch_croissant_facts(repo_id_pre)
+            except Exception as e:
+                logger.warning("Croissant fetch failed (continuing without): %s", e)
+        if croissant_facts:
+            # Cached so a later replay from this run dir sees the same structural facts.
+            state["output_manager"].save_tool_output(croissant_facts, "hf", croissant_filename)
+
         result = compose_benchmark_card.func(
             unitxt_metadata=unitxt_for_composer,
             hf_metadata=state.get("hf_json"),
@@ -1284,9 +1505,16 @@ def run_composer(state):
             eee_metadata=state.get("eee_metadata"),
             html_content=state.get("html_content"),
             github_readme=state.get("github_readme"),
+            croissant_facts=croissant_facts,
         )
 
         logger.info("Successfully composed benchmark card")
+
+        # HF repo corroboration runs here, post-compose and pre-validation, so the card
+        # FactReasoner checks is the card that ships (single write order).
+        card_for_gate = result.get("benchmark_card")
+        if isinstance(card_for_gate, dict):
+            _apply_hf_corroboration_gate(state, card_for_gate, result.get("provenance"))
 
         if result.get("provenance"):
             provenance_filename = f"provenance_{sanitize_benchmark_name(state['query'])}.json"
@@ -1294,6 +1522,11 @@ def run_composer(state):
                 result["provenance"], "composer", provenance_filename
             )
             logger.info(f"Provenance tracking saved to: {provenance_output}")
+
+        # Referent frame sidecar: the card's candidate-referent world, for gates and review.
+        if result.get("frame"):
+            frame_filename = f"frame_{sanitize_benchmark_name(state['query'])}.json"
+            state["output_manager"].save_tool_output(result["frame"], "composer", frame_filename)
 
         # Persist the composer's run telemetry (quote-verify counters, per-group validator
         # telemetry, aboutness). Additive sidecar only, never part of the card.
@@ -1334,13 +1567,26 @@ def run_risk_identification(state):
 
     try:
         benchmark_card = state["composed_card"]
+        frame = None
+        if isinstance(benchmark_card, dict):
+            # composer sidecar: the referent frame conditions risk selection
+            frame = benchmark_card.get("frame")
         if "benchmark_card" in benchmark_card:
             benchmark_card = benchmark_card["benchmark_card"]
 
-        risk_enhanced_card = identify_and_integrate_risks(benchmark_card)
+        risk_telemetry = {}
+        risk_enhanced_card = identify_and_integrate_risks(
+            benchmark_card, frame=frame, telemetry_out=risk_telemetry
+        )
         risk_enhanced_card = apply_single_judge_bias_rule(risk_enhanced_card)
         # A5 presentation hygiene: drop empty url keys (e.g. the synthetic single-judge risk).
         risk_enhanced_card = omit_empty_risk_urls(risk_enhanced_card)
+
+        if risk_telemetry:
+            telemetry_filename = f"risk_telemetry_{sanitize_benchmark_name(state['query'])}.json"
+            state["output_manager"].save_tool_output(
+                risk_telemetry, "ai_atlas_nexus", telemetry_filename
+            )
 
         filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
         output_file = state["output_manager"].save_tool_output(
@@ -1443,9 +1689,16 @@ def run_rag(state) -> Dict[str, Any]:
         if "benchmark_card" in benchmark_card:
             benchmark_card = benchmark_card["benchmark_card"]
 
+        # The atomizer runs the COMPOSER model, so it must follow the same serving
+        # substitute get_llm_handler applies (COMPOSER_ENGINE_TYPE). Passing the base
+        # engine here silently killed every atomization call in the phase 3 regen: the
+        # composer checkpoint had left RITS, the engine failed to construct, and the
+        # atomizer fail-softed to zero statements per card.
+        from auto_benchmarkcard.config import composer_serving_engine
+
         statements = atomize_benchmark_card(
             benchmark_card, "all",
-            engine_type=Config.LLM_ENGINE_TYPE,
+            engine_type=composer_serving_engine(),
             model_name=Config.COMPOSER_MODEL,
         )
 
@@ -1577,8 +1830,8 @@ def _first_arxiv_tag(hf_json: Dict[str, Any]) -> str | None:
 def _drop_uncorroborated_hf(card, hf_overrides, reason):
     """Neutralize HF-derived identity when the bound repo failed corroboration.
 
-    Clears the override set in place (so apply_deterministic_overrides and its flag-clearing
-    are skipped) and resets the repo-org display fields logo/org_url to the NS sentinel. A
+    Clears the override set in place and resets the repo-org display fields logo/org_url to
+    the NS sentinel. A
     wrong/derivative/aggregate repo poisons every tag-derived field, so prefer NS over shipping
     the wrong entity's metadata. No-op when reason is falsy (repo corroborated); never fabricates."""
     if not reason:
@@ -1633,12 +1886,91 @@ def _drop_subject_incoherent_hf(card, provenance, wrong_paper):
         section[field] = ["Not specified"] if (sec, field) in _NS_LIST_FIELDS else "Not specified"
 
 
+def _apply_hf_corroboration_gate(state, card, provenance):
+    """Corroborate the bound HF repo against the benchmark identity right after composition.
+
+    Runs before risk/RAG/FactReasoner so validation sees the card that ships. A wrong/
+    derivative/aggregate repo (arxiv-tag disagreement, or a basename that doesn't bear the
+    distinctive name) gets its tag-derived identity fields dropped; a subject-incoherent
+    README gets its spliced fields blanked. Drop-only: never writes new content."""
+    hf_json = state.get("hf_json") or {}
+    repo_id = hf_json.get("id")
+    hf_overrides = extract_hf_tags(state.get("hf_json"))
+    if not hf_overrides or not repo_id:
+        return
+    benchmark_name = sanitize_benchmark_name(state["query"])
+    paper_url = (state.get("extracted_ids") or {}).get("paper_url") or ""
+    pm = _ARXIV_URL_RE.search(paper_url)
+    reason = _repo_corroboration(
+        repo_id, benchmark_name,
+        repo_arxiv_id=_first_arxiv_tag(hf_json),
+        paper_arxiv_id=pm.group(1) if pm else None,
+    )
+    if reason:
+        _drop_uncorroborated_hf(card, hf_overrides, reason)
+        state["repo_corroboration"] = {"repo_id": repo_id, "reason": reason}
+        logger.warning(
+            "HF repo %r does not corroborate benchmark %r (%s); dropped HF-derived "
+            "identity fields", repo_id, benchmark_name, reason,
+        )
+        return
+    # M1: the name/arxiv corroboration above cannot catch a same-name repo whose arxiv tag
+    # became the paper. Compare the README's leading description against the EEE-identity
+    # subject; near-disjoint content means the repo describes a different benchmark, so
+    # blank the fields it spliced.
+    if _hf_subject_conflicts(
+        _get_hf_readme(hf_json), _eee_identity_subject(state.get("eee_metadata"))
+    ):
+        extracted_ids = state.get("extracted_ids") or {}
+        paper_url = extracted_ids.get("paper_url") or ""
+        repo_arxiv = _first_arxiv_tag(hf_json)
+        pm = _ARXIV_URL_RE.search(paper_url)
+        wrong_paper = bool(
+            extracted_ids.get("paper_url_from_hf") == paper_url and paper_url
+            and repo_arxiv and pm and pm.group(1) == repo_arxiv
+        )
+        _drop_subject_incoherent_hf(card, provenance, wrong_paper)
+        state["repo_corroboration"] = {"repo_id": repo_id, "reason": "subject_incoherent"}
+        logger.warning(
+            "HF repo %r subject does not match benchmark %r (subject_incoherent); "
+            "blanked spliced overview/methodology/data fields", repo_id, benchmark_name,
+        )
+
+
+def _rits_reachable(timeout=30.0):
+    """Can RITS serve the FactReasoner model right now? One 16-token inference call with a
+    short timeout; a plain HTTP GET is not enough (on 2026-08-27 a slow gateway answered
+    GETs after 16s while every inference request timed out at 420s). Never raises."""
+    if not (os.getenv("RITS_API_URL") and os.getenv("RITS_API_KEY")):
+        return False
+    try:
+        import httpx
+        from auto_benchmarkcard.llm_handler import LLMHandler
+        handler = LLMHandler(engine_type="rits", model_name=Config.FACTREASONER_MODEL,
+                             parameters={"temperature": 0.0, "max_completion_tokens": 16})
+        client = getattr(handler.engine, "client", None)
+        if client is not None and hasattr(client, "with_options"):
+            handler.engine.client = client.with_options(
+                timeout=httpx.Timeout(timeout, connect=10.0), max_retries=0)
+        return isinstance(handler.generate("Say OK."), str)
+    except Exception as exc:
+        logger.warning("RITS inference probe failed: %s", str(exc)[:160])
+        return False
+
+
 def run_factreasoner(state):
     """Evaluate factuality of card claims and produce the final flagged card."""
     logger.info("Starting factuality evaluation")
 
     if not state.get("rag_results"):
         return record_skip("No RAG results available", "FactReasoner evaluation", state)
+
+    # Probe RITS only when FactReasoner uses that route. Its engine can be
+    # configured independently of the composer; an unavailable composer route
+    # must not block factuality evaluation on another backend.
+    if _active_factreasoner_engine() == "rits" and not _rits_reachable():
+        return record_skip("RITS endpoint unreachable; factuality skipped",
+                           "FactReasoner evaluation", state)
 
     try:
         benchmark_name = sanitize_benchmark_name(state["query"])
@@ -1675,14 +2007,34 @@ def run_factreasoner(state):
             if scope_info.get("source_scoped")
             else ""
         )
+        # Referent-explicit hypotheses (SATORI): wrap each atom into a full claim
+        # naming the benchmark and, where the composer's provenance records one,
+        # the field's non-target referent, so wrong-referent errors are visible
+        # to NLI. Runs after source-scoped retrieval, so retrieval queries and
+        # atom granularity are unchanged.
+        composed_card_data = state.get("composed_card", {})
+        provenance_data = composed_card_data.get("provenance") if isinstance(composed_card_data, dict) else None
+        frame_data = composed_card_data.get("frame") if isinstance(composed_card_data, dict) else None
+        card_data = composed_card_data.get("benchmark_card") if isinstance(composed_card_data, dict) else None
+        display_name = ((card_data or {}).get("benchmark_details") or {}).get("name")
+        if not (isinstance(display_name, str) and display_name.strip()) or (
+            display_name.strip().lower() == "not specified"
+        ):
+            display_name = state["query"]
+        verbalized_rag, verbalize_telem = verbalize_rag_hypotheses(
+            scoped_rag,
+            display_name,
+            field_referents=field_referents_from_provenance(provenance_data, frame_data),
+        )
         factuality_results = evaluate_factuality_two_tier(
-            formatted_rag_results=scoped_rag,
+            formatted_rag_results=verbalized_rag,
             source_text=source_text,
             model=Config.FACTREASONER_MODEL,
             cache_dir=Config.FACTREASONER_CACHE_DIR,
             merlin_path=str(Config.MERLIN_BIN),
         )
         factuality_results["retrieval"] = scope_info
+        factuality_results["hypothesis_verbalization"] = verbalize_telem
 
         factuality_filename = f"factuality_results_{benchmark_name}.json"
         factuality_output = state["output_manager"].save_tool_output(
@@ -1703,9 +2055,6 @@ def run_factreasoner(state):
         risk_card_src = state.get("risk_enhanced_card") or state.get("composed_card") or {}
         clean_card = extract_card(risk_card_src)
 
-        composed_card_data = state.get("composed_card", {})
-        provenance_data = composed_card_data.get("provenance") if isinstance(composed_card_data, dict) else None
-
         field_analysis = factuality_results.get("field_analysis", {})
 
         retrieved_contexts = (
@@ -1725,19 +2074,48 @@ def run_factreasoner(state):
         )
 
         if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
+            # Per-field unflag policy (replaces the blanket identity rule): an
+            # identity field's all-neutral flag is lifted only when its provenance
+            # cites evidence that survived the EAV audit. Demoted evidence, no
+            # cited evidence, or a contradiction-based flag keeps the flag.
+            # Analytical fields stay never-flagged (reasoned, not extracted).
             field_details = field_analysis.get("field_details", {})
+            metadata = composed_card_data.get("composition_metadata") if isinstance(composed_card_data, dict) else None
+            eav_demoted = ((metadata or {}).get("eav") or {}).get("demoted") or []
+            unflag_rules = {}
             fields_to_unflag = []
-            for field_name, flag_reason in flagged_card["flagged_fields"].items():
-                if field_name in ANALYTICAL_FIELDS:
+            for field_name in flagged_card["flagged_fields"]:
+                sec, _, fld = field_name.partition(".")
+                prov_entry = ((provenance_data or {}).get(sec) or {}).get(fld)
+                cited, demoted = field_evidence_status(field_name, prov_entry, eav_demoted)
+                unflag, rule = unflag_decision(
+                    field_name,
+                    all_neutral=field_details.get(field_name, {}).get("all_neutral") is True,
+                    cited_evidence=cited,
+                    evidence_demoted=demoted,
+                )
+                unflag_rules[rule] = unflag_rules.get(rule, 0) + 1
+                if unflag:
                     fields_to_unflag.append(field_name)
-                    logger.debug("Unflagging analytical field %s (reasoned, not extracted)", field_name)
-                elif field_name in IDENTITY_FIELDS and field_details.get(field_name, {}).get("all_neutral") is True:
-                    fields_to_unflag.append(field_name)
-                    logger.debug("Unflagging identity field %s (neutral NLI expected for descriptive content)", field_name)
+                    logger.debug("Unflagging %s (%s)", field_name, rule)
             for field_name in fields_to_unflag:
                 del flagged_card["flagged_fields"][field_name]
-            if fields_to_unflag:
-                logger.info("Field-type-aware scoring: unflagged %d identity/analytical fields", len(fields_to_unflag))
+            logger.info(
+                "Per-field unflag policy: unflagged %d fields (%s)",
+                len(fields_to_unflag),
+                ", ".join(f"{r}={c}" for r, c in sorted(unflag_rules.items())) or "no flags",
+            )
+            state["output_manager"].save_tool_output(
+                {
+                    "rules": unflag_rules,
+                    "unflagged": sorted(fields_to_unflag),
+                    "eav_demoted": [
+                        d.get("id") for d in eav_demoted if isinstance(d, dict)
+                    ],
+                },
+                "factreasoner",
+                f"unflag_policy_{benchmark_name}.json",
+            )
 
             # C1/C2: display-layer flag policy (resources/annotation exclusion + source-
             # blocked relabel). Production only; the gold-set flag instruments are untouched.
@@ -1746,79 +2124,12 @@ def run_factreasoner(state):
                 _source_coverage_blocked(state, source_text),
             )
 
-        if provenance_data:
-            # Card values backfill from the generation-time contexts; only the
-            # unflag decisions see the source-scoped contexts. prose_only gates this to
-            # free-text fields (v2 scoping): this path stamps schema_version="v2", so a
-            # verbatim quote never lands as an enum/list/deterministic field value (S2).
-            flagged_card = backfill_from_provenance(
-                flagged_card, provenance_data, generation_contexts, prose_only=True
-            )
-
+        # Single write order: composition (including deterministic overrides and the HF
+        # corroboration gate in run_composer) finished before validation, so nothing may
+        # write new card content here. The old post-validation provenance backfill and the
+        # second override pass with its flag clearing are gone; only canonicalization and
+        # shape checks remain. Guarded by test_single_write_order.py.
         flagged_card = normalize_not_specified(flagged_card)
-
-        hf_overrides = extract_hf_tags(state.get("hf_json"))
-        if hf_overrides:
-            # Corroborate the bound HF repo against the benchmark identity before trusting its
-            # tag-derived fields. A wrong/derivative/aggregate repo (arxiv-tag disagreement, or a
-            # basename that doesn't bear the distinctive name) gets its overrides + repo-org
-            # display fields dropped instead of shipped.
-            hf_json = state.get("hf_json") or {}
-            repo_id = hf_json.get("id")
-            reason = None
-            if repo_id:
-                paper_url = (state.get("extracted_ids") or {}).get("paper_url") or ""
-                pm = _ARXIV_URL_RE.search(paper_url)
-                reason = _repo_corroboration(
-                    repo_id, benchmark_name,
-                    repo_arxiv_id=_first_arxiv_tag(hf_json),
-                    paper_arxiv_id=pm.group(1) if pm else None,
-                )
-            if reason:
-                flagged_card = _drop_uncorroborated_hf(flagged_card, hf_overrides, reason)
-                state["repo_corroboration"] = {"repo_id": repo_id, "reason": reason}
-                logger.warning(
-                    "HF repo %r does not corroborate benchmark %r (%s); dropped HF-derived "
-                    "identity fields", repo_id, benchmark_name, reason,
-                )
-            elif repo_id:
-                # M1: the name/arxiv corroboration above cannot catch a same-name repo whose
-                # arxiv tag became the paper (actionbench-the-slug vs facebook/actionbench =
-                # ActionMesh). Compare the README's leading description against the EEE-identity
-                # subject; near-disjoint content means the repo describes a different benchmark, so
-                # blank the fields it spliced (overview from the README, and the methodology/data
-                # fields if the wrong paper -- the repo's own arxiv tag -- supplied them).
-                if _hf_subject_conflicts(
-                    _get_hf_readme(hf_json), _eee_identity_subject(state.get("eee_metadata"))
-                ):
-                    extracted_ids = state.get("extracted_ids") or {}
-                    paper_url = extracted_ids.get("paper_url") or ""
-                    repo_arxiv = _first_arxiv_tag(hf_json)
-                    pm = _ARXIV_URL_RE.search(paper_url)
-                    wrong_paper = bool(
-                        extracted_ids.get("paper_url_from_hf") == paper_url and paper_url
-                        and repo_arxiv and pm and pm.group(1) == repo_arxiv
-                    )
-                    _drop_subject_incoherent_hf(flagged_card, provenance_data, wrong_paper)
-                    state["repo_corroboration"] = {
-                        "repo_id": repo_id, "reason": "subject_incoherent"}
-                    logger.warning(
-                        "HF repo %r subject does not match benchmark %r (subject_incoherent); "
-                        "blanked spliced overview/methodology/data fields", repo_id, benchmark_name,
-                    )
-
-        if hf_overrides:
-            logger.info("Applying %d deterministic HF overrides: %s",
-                        len(hf_overrides), list(hf_overrides.keys()))
-            flagged_card = apply_deterministic_overrides(flagged_card, hf_overrides)
-
-            if "flagged_fields" in flagged_card and isinstance(flagged_card["flagged_fields"], dict):
-                for dotted_key in hf_overrides:
-                    flag_key = dotted_key.split(".")[-1]
-                    for k in (flag_key, dotted_key):
-                        if k in flagged_card["flagged_fields"]:
-                            del flagged_card["flagged_fields"][k]
-                            logger.debug("Cleared stale flag for %s (deterministic override)", k)
 
         enforce_card_shape(flagged_card)
         flagged_card["missing_fields"] = drop_inapplicable_judge_missing(

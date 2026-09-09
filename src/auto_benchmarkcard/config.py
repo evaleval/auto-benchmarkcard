@@ -57,6 +57,8 @@ class Config:
     # Max chars of paper text sent to the LLM (25K chars ~ 6K tokens)
     PAPER_EXTRACTION_BUDGET: int = 25000
     PAPER_INTRO_CHARS: int = 4000
+    # Max chars of ranked retrieved excerpts shown per gap-fill sweep
+    GAP_EXCERPT_BUDGET: int = 12000
 
     # RAG
     ENABLE_LLM_RERANKING: bool = True
@@ -120,6 +122,17 @@ class Config:
 _llm_cache: dict = {}
 
 
+def composer_serving_engine() -> str:
+    """Engine for composer-model calls: COMPOSER_ENGINE_TYPE when set, else the default.
+
+    Every component that runs the COMPOSER model (Stage A/B, frame, EAV, the atomizer)
+    must construct its engine through this. Constructing on the base engine strands the
+    call when a serving substitute is active: the phase 3 regen lost every atomization
+    call that way after the composer checkpoint left RITS.
+    """
+    return os.getenv("COMPOSER_ENGINE_TYPE") or Config.LLM_ENGINE_TYPE
+
+
 def get_llm_handler(model_name: Optional[str] = None):
     """Get or create a cached LLM handler for the given model."""
     import logging
@@ -133,10 +146,8 @@ def get_llm_handler(model_name: Optional[str] = None):
         # Serving substitute for the composer only (e.g. the RITS deployment was retired):
         # COMPOSER_ENGINE_TYPE reroutes composer-model calls while FactReasoner and any
         # other models keep the default engine.
-        engine_type = Config.LLM_ENGINE_TYPE
-        composer_engine = os.getenv("COMPOSER_ENGINE_TYPE")
-        if composer_engine and key == Config.COMPOSER_MODEL:
-            engine_type = composer_engine
+        engine_type = (composer_serving_engine() if key == Config.COMPOSER_MODEL
+                       else Config.LLM_ENGINE_TYPE)
         try:
             _log.info("Initializing LLM handler: %s (engine=%s)", key, engine_type)
             _llm_cache[key] = LLMHandler(

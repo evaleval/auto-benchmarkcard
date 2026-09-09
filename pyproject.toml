@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "auto_benchmarkcard"
-version = "0.2.0"
+version = "0.3.0.dev0"
 description = "Generate source-linked structured documentation for AI benchmarks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -60,7 +60,7 @@ dependencies = [
     "rapidfuzz>=3.0.0",
     "trafilatura>=2.0.0",
     "mellea>=0.4.0,<0.5.0",
-    "fact_reasoner @ git+https://github.com/IBM/FactReasoner.git@41eb0c21baa2a8bba4030cf0d619aa00fae2ed84",
+    "fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@8229b9e9311ec8bc671ba0e95ef1f326c30af879",
     "ai-atlas-nexus>=1.2,<2",
 ]
 
@@ -71,6 +71,7 @@ Issues = "https://github.com/evaleval/auto-benchmarkcard/issues"
 [project.optional-dependencies]
 ollama = ["ollama>=0.5.0"]
 dev = [
+    "build>=1.0.0",
     "pytest>=7.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",

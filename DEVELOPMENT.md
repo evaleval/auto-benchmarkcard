@@ -2,8 +2,9 @@
 
 ## Setup
 
-Use Python 3.11 or newer for the package. Python 3.12.10 is required when
-byte-identical reproduction of the frozen evaluation score JSON files matters.
+Use Python 3.11 or newer for current development on `main`. Use the `v0.2.0`
+checkout or release archive for the frozen paper evaluation; Python 3.12.10
+is required when byte-identical reproduction of its score JSON files matters.
 
 ```bash
 python3.12 -m venv .venv
@@ -15,16 +16,20 @@ python -m pip install -e ".[dev]"
 Do not commit `.env`, generated cards, source caches, participant raw returns,
 or local agent state.
 
-## Checks
+## Manual checks
+
+Choose checks relevant to the change. For example, a composer schema change
+can be checked with:
 
 ```bash
-python -m pytest
-python scripts/check_frozen.py
-python -m build
+python -m pytest tests/test_card_schema.py
 ```
 
-`pytest` is intentionally limited to `tests/`. Historical one-off checks under
-`scripts/` are not part of the maintained suite.
+For packaging changes, `python -m build` builds the wheel and source archive.
+Tests are discovered under `tests/`; historical checks under `scripts/` are
+invoked separately when needed. Maintenance is manual: do not add GitHub
+Actions workflows, automatic test or scanning jobs, Git hooks, required CI,
+or branch-protection gates.
 
 ## Main entry points
 
@@ -39,9 +44,13 @@ python -m build
 
 ## Frozen evaluation
 
-Files listed in `eval/corpus/frozen_code_hashes_md5.json` are frozen
-instruments. Do not update their baseline to make a failing check pass. A
-planned instrument change requires a new evaluation version and a new sample.
+The files in `eval/` and the instrument baseline in
+`eval/corpus/frozen_code_hashes_md5.json` describe the `v0.2.0` paper release.
+Run its evaluation commands, including `python scripts/check_frozen.py`, from
+that tag or the release archive. Current runtime helpers have evolved, so
+the historical instrument check on `main` refuses to treat them as the
+evaluated instrument. Do not update the baseline to make that check pass.
+An evaluation of changed instruments needs its own version and sample.
 
 The current public artifact map and exact reproduction commands are in
 `eval/README.md`. Private source snapshots and raw participant returns are

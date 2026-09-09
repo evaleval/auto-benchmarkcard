@@ -1,0 +1,6 @@
+# Compatibility entry point for older installation commands.
+# This is NOT a lockfile. The retired file was a workstation pip-freeze snapshot
+# with an unavailable editable repository revision and conflicting VCS sources.
+# Install from the repository root; dependency requirements live in pyproject.toml.
+# Preferred command: python -m pip install -e .
+-e .

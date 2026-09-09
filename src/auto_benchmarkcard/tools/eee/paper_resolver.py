@@ -206,6 +206,23 @@ def _search_openalex(query: str) -> List[Dict[str, Any]]:
         return []
 
 
+# Generational suffixes that legitimately follow a comma in a byline; such names are
+# not inverted "Last, First" forms and must not be flipped.
+_NAME_SUFFIXES = {"jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "v"}
+
+
+def _natural_author_order(name: str) -> str:
+    """Flip a single-comma inverted byline ("Zhang, Chenchen") to natural order
+    ("Chenchen Zhang"), matching the arXiv/S2 normalizers. A suffix comma
+    ("Smith, Jr.") or a multi-comma string is returned unchanged."""
+    if name.count(",") != 1:
+        return name.strip()
+    last, first = (p.strip() for p in name.split(","))
+    if not last or not first or first.lower() in _NAME_SUFFIXES:
+        return name.strip()
+    return f"{first} {last}"
+
+
 def _normalize_openalex_paper(work: Dict[str, Any]) -> Dict[str, Any]:
     """Convert an OpenAlex work to a normalized paper dict."""
     # Extract abstract from inverted index if available
@@ -236,12 +253,15 @@ def _normalize_openalex_paper(work: Dict[str, Any]) -> Dict[str, Any]:
                 arxiv_id = parts[-1]
             break
 
-    # Author display names for the display-only authors field (best effort)
-    authors = [
-        (a.get("author") or {}).get("display_name")
-        for a in (work.get("authorships") or [])
-    ]
-    authors = [a for a in authors if a]
+    # Author names for the display-only authors field (best effort). Prefer the verbatim
+    # byline (raw_author_name) over the disambiguated entity's display_name: OpenAlex's
+    # entity linker routinely resolves a byline to a different person of similar name
+    # (2507.04952: byline "Wu, Dengpeng" -> entity "Dan Wu").
+    authors = []
+    for a in work.get("authorships") or []:
+        name = a.get("raw_author_name") or (a.get("author") or {}).get("display_name")
+        if name:
+            authors.append(_natural_author_order(str(name)))
 
     return {
         "title": work.get("title", ""),

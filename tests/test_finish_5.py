@@ -577,14 +577,84 @@ def test_g2_1_grounded_sentence_kept_when_fabricated_majority():
     assert "methodology.baseline_results" in card.get("flagged_fields", {})
 
 
-def test_g2_1_mixed_numbers_in_one_sentence_kept_and_flagged():
-    # A single sentence with one grounded (0.887) AND one ungrounded (99.90%) score is ambiguous ->
-    # KEEP (a real baseline must not be lost to a co-located stray number) but FLAG for audit.
+def test_g2_1_mixed_numbers_in_one_sentence_dropped():
+    # DECLARED behavior change (WP1.4, 2026-08-27): a sentence with one grounded (0.887) AND one
+    # ungrounded (99.90%) score used to be kept and flagged. The phase 3 screen showed that path
+    # shipping real fabrications (assistantbench 22.2%, chartqa 31.96%, math 'GPT-2 (0.7B)'), so
+    # the sentence is now withheld; with no grounded sentence left the field goes NS.
     card = _bres("claude-3-5-sonnet scored 88.70% while a mystery model hit 99.90%.")
     C._drop_ungrounded_baselines(card, [], _REAL_DET)
-    assert "88.70%" in card["methodology"]["baseline_results"]
-    assert "99.90" in card["methodology"]["baseline_results"]
+    assert card["methodology"]["baseline_results"] == "Not specified"
     assert "methodology.baseline_results" in card.get("flagged_fields", {})
+
+
+def test_g2_1_mixed_sentence_dropped_but_grounded_sibling_sentence_survives():
+    card = _bres("claude-3-5-sonnet scored 88.70%. VisionTaPas fell from 88.70% to 31.96%.")
+    C._drop_ungrounded_baselines(card, [], _REAL_DET)
+    out = card["methodology"]["baseline_results"]
+    assert out == "claude-3-5-sonnet scored 88.70%."
+    assert "31.96" not in out
+
+
+def test_g2_1_unit_transformed_size_reads_as_ungrounded_score():
+    # math finding: 'GPT-2 (0.7B)' is a rounded 762M; 0.7 has decimal score context and matches
+    # no pool value, so the sentence is withheld rather than shipped.
+    card = _bres("GPT-2 (0.7B) reaches 6.9% while the 1.5B model reaches 88.70%.")
+    C._drop_ungrounded_baselines(card, [], _REAL_DET)
+    assert card["methodology"]["baseline_results"] == "Not specified"
+
+
+# ---------------------------------------------------------------------------------------------
+# WP1.4 -- size_breakdown grounding gate (withhold synthesized counts)
+
+def _sb_card(sb):
+    return {"data": {"size_breakdown": sb}}
+
+
+def test_sb_gate_keeps_counts_present_in_quotes():
+    card = _sb_card({"Java": 165, "JavaScript": 1017, "TypeScript": 729, "Python": 199})
+    ev = [{"quote": "2,110 instances across Java (165), JavaScript (1,017), TypeScript (729) and Python (199)."}]
+    C._drop_ungrounded_size_breakdown(card, ev, {})
+    assert card["data"]["size_breakdown"] == {"Java": 165, "JavaScript": 1017, "TypeScript": 729, "Python": 199}
+    assert "flagged_fields" not in card
+
+
+def test_sb_gate_drops_synthesized_entries_and_flags():
+    # swe-polybench task-type class: round numbers that appear in no source.
+    card = _sb_card({"Java": 165, "bug_fix": 200, "feature_request": 200, "refactoring": 100})
+    ev = [{"quote": "Java accounts for 165 of the instances."}]
+    C._drop_ungrounded_size_breakdown(card, ev, {})
+    assert card["data"]["size_breakdown"] == {"Java": 165}
+    assert card["flagged_fields"]["data.size_breakdown"].startswith("[Ungrounded breakdown] dropped 3")
+
+
+def test_sb_gate_ns_when_nothing_grounded():
+    card = _sb_card({"bug_fix": 200, "feature_request": 200})
+    C._drop_ungrounded_size_breakdown(card, [{"quote": "no counts here"}], {})
+    assert card["data"]["size_breakdown"] == "Not specified"
+    assert "data.size_breakdown" in card["flagged_fields"]
+
+
+def test_sb_gate_trusts_deterministic_breakdown():
+    sb = {"train": 7473, "test": 1319}
+    card = _sb_card(dict(sb))
+    C._drop_ungrounded_size_breakdown(card, [], {"data.size_breakdown": sb})
+    assert card["data"]["size_breakdown"] == sb and "flagged_fields" not in card
+
+
+def test_sb_gate_grounds_from_deterministic_counts_and_size():
+    card = _sb_card({"train": 7473, "test": 1319, "dev": 500})
+    det = {"data.split_info": ["train: 7473", "test: 1319"], "data.size": "500 questions"}
+    C._drop_ungrounded_size_breakdown(card, [], det)
+    assert card["data"]["size_breakdown"] == {"train": 7473, "test": 1319, "dev": 500}
+
+
+def test_sb_gate_percent_breakdown_grounded_by_percent_quote():
+    # Rule C converts a percentage breakdown later; the gate must not withhold it first.
+    card = _sb_card({"easy": 40, "medium": 35, "hard": 25})
+    ev = [{"quote": "The split is 40% easy, 35% medium and 25% hard."}]
+    C._drop_ungrounded_size_breakdown(card, ev, {})
+    assert card["data"]["size_breakdown"] == {"easy": 40, "medium": 35, "hard": 25}
 
 
 def test_g2_1_ns_baseline_untouched():
@@ -592,3 +662,87 @@ def test_g2_1_ns_baseline_untouched():
     C._drop_ungrounded_baselines(card, [], _REAL_DET)
     assert card["methodology"]["baseline_results"] == "Not specified"
     assert "flagged_fields" not in card or "methodology.baseline_results" not in card["flagged_fields"]
+
+
+# ---------------------------------------------------------------------------------------------
+# WP1.3 -- deterministic size vs paper-stated count: surface the conflict, withdraw the det size
+
+def _size_items(quote, doc="docling", referent="target", role="primary_result"):
+    return [{"field": "data.size", "quote": quote, "doc": doc, "referent": referent,
+             "claim_role": role}]
+
+
+def test_size_conflict_withdraws_det_size_and_split_breakdown():
+    # swe-bench-multimodal: croissant row count 580 (dev 100 / test 480) vs the paper's 619.
+    det = {"data.size": "580 examples", "data.size_breakdown": {"dev": 100, "test": 480},
+           "data.format": "parquet"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a final total of 619 task instances"), conflicts)
+    assert "data.size" not in det and "data.size_breakdown" not in det
+    assert det["data.format"] == "parquet"
+    assert conflicts == [{"field": "data.size", "deterministic": "580 examples",
+                          "composed": "619 (paper-stated count)",
+                          "note": "hf/croissant row count vs paper-stated count"}]
+
+
+def test_size_conflict_agreeing_count_is_silent():
+    det = {"data.size": "617 examples", "data.size_breakdown": {"dev": 102, "test": 515}}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("we release 619 task instances"), conflicts)
+    assert det["data.size"] == "617 examples" and conflicts == []      # within 1%
+
+
+def test_size_conflict_ignores_subset_and_secondary_quotes():
+    det = {"data.size": "580 examples"}
+    conflicts = []
+    items = (_size_items("the Hard subset has 2,000 problems", referent="subset:hard")
+             + _size_items("SWE-bench has 2,294 task instances", role="secondary")
+             + _size_items("the HF card lists 1,000 rows", doc="hf_readme"))
+    C._surface_size_conflicts(det, items, conflicts)
+    assert det["data.size"] == "580 examples" and conflicts == []
+
+
+def test_size_conflict_keeps_non_split_breakdown():
+    # a per-subject breakdown is not the artifact row count; only a split partition summing
+    # to the withdrawn size goes with it
+    det = {"data.size": "580 examples", "data.size_breakdown": {"algebra": 300, "geometry": 280}}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a total of 619 problems"), conflicts)
+    assert "data.size" not in det
+    assert det["data.size_breakdown"] == {"algebra": 300, "geometry": 280}
+
+
+def test_size_conflict_no_paper_count_leaves_bucket_alone():
+    det = {"data.size": "Less than 1K examples"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a corpus of many web documents"), conflicts)
+    assert det["data.size"] == "Less than 1K examples" and conflicts == []
+
+
+def test_size_bucket_yields_to_precise_paper_count_inside_range():
+    # swe-bench-multimodal smoke: the HF tag bucket "Less than 1K" was established while the
+    # paper states 619; a precise paper count inside the bucket displaces the bucket silently.
+    det = {"data.size": "Less than 1K examples"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("a final total of 619 task instances"), conflicts)
+    assert "data.size" not in det and conflicts == []
+
+
+def test_size_bucket_contradicted_by_paper_count_is_a_conflict():
+    det = {"data.size": "Less than 1K examples"}
+    conflicts = []
+    C._surface_size_conflicts(det, _size_items("consisting of 2,294 software engineering problems"), conflicts)
+    assert "data.size" not in det
+    assert conflicts[0]["field"] == "data.size" and "2294" in conflicts[0]["composed"]
+
+
+# ---------------------------------------------------------------------------------------------
+# WP1 smoke follow-up -- C4 metric promotion also reads methodology.interpretation
+
+def test_c4_promotion_reads_interpretation_prose():
+    # math smoke card: metrics ['other:MATH'] while interpretation said "Scores represent
+    # accuracy (percentage of problems answered correctly)"; calculation/methods named none.
+    assert C._metric_from_prose("Scores represent accuracy (percentage of problems answered "
+                                "correctly), with higher values indicating better performance.") == ["Accuracy"]
+    # an incidental mention without a definition cue still promotes nothing
+    assert C._metric_from_prose("The accuracy of the transcription was not assessed here.") == []

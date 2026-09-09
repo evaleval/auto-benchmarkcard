@@ -19,7 +19,7 @@ composer model, so its effect does not depend on a model re-pilot.
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from auto_benchmarkcard.card_utils import is_not_specified
 from auto_benchmarkcard.tools.composer import field_spec as fs
@@ -226,6 +226,164 @@ def is_metric_only_data_type(quote: str) -> bool:
     if _MODALITY_TERM_RE.search(quote):
         return False
     return bool(_METRIC_METHOD_RE.search(quote))
+
+
+# Assignment gates (Stage-A routing): deterministic checks of each verified v2 record's
+# referent / region / claim_role / table anchor against the field it is tagged for. Runs at
+# the routing seam (evidence.finalize_evidence) on the routed records, before ids are
+# assigned and the digest is built. Conservative: only high-confidence violations drop; the
+# ambiguous rest is re-filed or annotated, and every action lands in telemetry.
+
+_V2_KEYS = ("referent", "claim_role", "section_path", "region", "table_id")
+
+# Headline fields describe the target benchmark itself; a sibling-referent quote here is the
+# wrong-benchmark class (another benchmark's size or score becoming the card's).
+_GATE_HEADLINE_FIELDS = frozenset({
+    "data.size", "data.source", "methodology.metrics", "methodology.calculation",
+    "methodology.baseline_results", "methodology.human_baseline",
+    "benchmark_details.overview",
+})
+# Numeric-bearing fields: illustration quotes and unanchored numbers are gated here.
+_GATE_NUMERIC_FIELDS = frozenset({
+    "data.size", "data.size_breakdown", "methodology.baseline_results",
+    "methodology.human_baseline",
+})
+_GATE_ABLATION_DROP_FIELDS = frozenset({"methodology.baseline_results", "methodology.metrics"})
+_SIMILAR_BENCHMARKS_FIELD = "benchmark_details.similar_benchmarks"
+_OVERVIEW_FIELD = "benchmark_details.overview"
+_DATA_SIZE_FIELD = "data.size"
+_SIZE_BREAKDOWN_FIELD = "data.size_breakdown"
+_BASELINE_RESULTS_FIELD = "methodology.baseline_results"
+
+
+def _append_note(note: str, addition: str) -> str:
+    note = (note or "").strip()
+    return f"{note}; {addition}" if note else addition
+
+
+def apply_assignment_gates(records: List[Dict], frame: Optional[Dict],
+                           telemetry_dict: Optional[Dict] = None) -> List[Dict]:
+    """Deterministic assignment gates over routed v2 evidence records. Returns the survivors.
+
+    Gates, in the order applied per record:
+      region (paper items with a non-empty region, the pure-docstructure signal):
+        related_work quotes drop for every field except similar_benchmarks; ablation
+        quotes drop for baseline_results/metrics; appendix quotes drop for overview
+        (the overview must come from the paper's own framing, not appendix detail).
+      sibling: a sibling-referent quote must not feed a headline field; it drops unless
+        the quote also names the target (a comparison sentence), which is kept and
+        annotated. similar_benchmarks keeps sibling quotes unchanged; every other field
+        keeps the item with an "about sibling" note. A subset-referent data.size quote
+        is re-filed to data.size_breakdown (a subset count must not become the whole
+        benchmark's size) and drops when that path is not in CURATOR_FIELDS or the span
+        is already filed there. subset/version/split items otherwise keep flowing; their
+        referent shows as "about:" in the Stage-B digest.
+      claim_role: illustration quotes drop for the numeric fields; secondary quotes drop
+        for baseline_results (cited numbers from other papers, the wrong-table class).
+      table_anchor (measurement only, no drops): a digit-bearing quote for a numeric
+        field gets its table id appended to note when it has one; a paper quote without
+        one is counted as unanchored_numeric.
+
+    No-op (records returned unchanged, telemetry untouched) when frame is None or no
+    record carries the v2 keys, so legacy callers and non-paper docs are unaffected.
+    telemetry_dict gains "actions" (a list of {gate, field, referent, region, action})
+    and "summary" (gate -> per-action counts); a refile logs the ORIGINAL field.
+    """
+    records = list(records or [])
+    if frame is None:
+        return records
+    if not any(all(k in r for k in _V2_KEYS) for r in records):
+        return records
+
+    from auto_benchmarkcard.tools.composer import evidence as evidence_mod
+    from auto_benchmarkcard.tools.composer import frame as frame_mod
+
+    nodes = frame_mod.node_lookup(frame)
+    target_id = frame.get("target_id", "target")
+    paper_docs = {evidence_mod.DOC_PAPER, evidence_mod.DOC_ABSTRACT}
+    telem = telemetry_dict if telemetry_dict is not None else {}
+    actions = telem.setdefault("actions", [])
+    summary = telem.setdefault("summary", {})
+
+    def log(gate: str, action: str, rec: Dict, field: str) -> None:
+        actions.append({"gate": gate, "field": field, "referent": rec.get("referent", ""),
+                        "region": rec.get("region", ""), "action": action})
+        bucket = summary.setdefault(gate, {})
+        bucket[action] = bucket.get(action, 0) + 1
+
+    # spans already filed per field, so a refile never duplicates an existing record
+    # (same dedup key route_evidence uses for its derived items).
+    spans = {(r.get("field"), r.get("char_start"), r.get("doc")) for r in records}
+    kept: List[Dict] = []
+    for rec in records:
+        if not all(k in rec for k in _V2_KEYS):
+            kept.append(rec)
+            continue
+        field = rec.get("field", "")
+        quote = rec.get("quote", "") or ""
+        region = rec.get("region", "")
+        is_paper = rec.get("doc") in paper_docs
+
+        if is_paper and region:
+            if region == "related_work" and field != _SIMILAR_BENCHMARKS_FIELD:
+                log("region", "drop", rec, field)
+                continue
+            if region == "ablation" and field in _GATE_ABLATION_DROP_FIELDS:
+                log("region", "drop", rec, field)
+                continue
+            if region == "appendix" and field == _OVERVIEW_FIELD:
+                log("region", "drop", rec, field)
+                continue
+
+        node = nodes.get(rec.get("referent", "") or "")
+        ntype = node.get("type") if node else None
+
+        if ntype == "sibling" and field != _SIMILAR_BENCHMARKS_FIELD:
+            if field in _GATE_HEADLINE_FIELDS:
+                if target_id in frame_mod.match_mention(frame, quote):
+                    rec = {**rec, "note": _append_note(
+                        rec.get("note", ""),
+                        f"about sibling: {node['name']}; kept: quote also names the target")}
+                    log("sibling", "annotate", rec, field)
+                else:
+                    log("sibling", "drop", rec, field)
+                    continue
+            else:
+                rec = {**rec, "note": _append_note(
+                    rec.get("note", ""), f"about sibling: {node['name']}")}
+                log("sibling", "annotate", rec, field)
+
+        if ntype == "subset" and field == _DATA_SIZE_FIELD:
+            key = (_SIZE_BREAKDOWN_FIELD, rec.get("char_start"), rec.get("doc"))
+            if _SIZE_BREAKDOWN_FIELD not in evidence_mod.CURATOR_FIELDS:
+                log("sibling", "drop", rec, field)
+                continue
+            if key in spans:
+                log("sibling", "drop_duplicate", rec, field)
+                continue
+            spans.add(key)
+            rec = {**rec, "field": _SIZE_BREAKDOWN_FIELD}
+            log("sibling", "refile", rec, field)
+            field = _SIZE_BREAKDOWN_FIELD
+
+        role = rec.get("claim_role", "")
+        if role == "illustration" and field in _GATE_NUMERIC_FIELDS:
+            log("claim_role", "drop", rec, field)
+            continue
+        if role == "secondary" and field == _BASELINE_RESULTS_FIELD:
+            log("claim_role", "drop", rec, field)
+            continue
+
+        if field in _GATE_NUMERIC_FIELDS and any(c.isdigit() for c in quote):
+            tid = rec.get("table_id", "")
+            if tid:
+                rec = {**rec, "note": _append_note(rec.get("note", ""), f"table: {tid}")}
+                log("table_anchor", "annotate", rec, field)
+            elif is_paper:
+                log("table_anchor", "unanchored_numeric", rec, field)
+
+        kept.append(rec)
+    return kept
 
 
 # Widened LLM-judge / equality-checker signal for the EEE+HF judge rescue. Shared by the EEE

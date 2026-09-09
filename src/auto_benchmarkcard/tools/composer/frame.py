@@ -1,0 +1,822 @@
+"""Referent frame: the typed list of things evidence for this card could be about.
+
+Phase 2 foundation. The frame enumerates, per card, the candidate referents that
+wrong-section-splice errors confuse: the target benchmark itself, sibling
+benchmarks named in the same paper or suite, subsets/configs, versions, splits,
+evaluation settings, and metrics with their role. Downstream, every evidence
+item names the frame node it is about, and assignment checks compare that claim
+against the node type the field expects.
+
+Node ids are stable within a card ("target", "sibling:fibble", "subset:hard",
+"version:2.0", "split:test", "metric:accuracy"). Deterministic sources fill
+first (EEE metadata, HF configs, size_breakdown keys, version regexes over the
+paper head); one optional fail-soft LLM pass enriches sibling benchmarks named
+in the paper. The frame is telemetry-visible and saved as a composer sidecar.
+"""
+
+import json
+import logging
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+NODE_TYPES = (
+    "target", "sibling", "subset", "version", "split", "setting", "metric",
+)
+METRIC_ROLES = ("primary", "secondary", "meta_eval", "unknown")
+
+# paper head window for version/split harvesting and the LLM sibling prompt
+HEAD_CHARS = 4000  # fallback window for the LLM prompts when no section index exists
+# The deterministic version/split scans read the WHOLE paper. Capping them at
+# HEAD_CHARS cost real nodes: over the 11 papered phase 2 gate cards, widening
+# takes splits 8 -> 21 and versions 0 -> 2, all clean. Their own context guards
+# (release cue or target alias within +/-200 chars, URL and model-word exclusion
+# for versions; a set/split/partition noun immediately after for splits) are what
+# keep them precise, not the window.
+#
+# The LLM prompts read RANKED EXCERPTS over the section index instead of the raw
+# head: intro, related work, data and results sections name the siblings and
+# subsets, and a 4000-char head often ends inside the abstract. The budget bounds
+# token cost; the head-only fallback keeps index-less papers working.
+EXCERPT_BUDGET = 9000
+EXCERPT_HEAD = 2000     # the document head (title/abstract) is always included
+EXCERPT_PER_SECTION = 1500
+MAX_LLM_SIBLINGS = 12
+MAX_LLM_SUBSETS = 16
+MIN_ALIAS_CHARS = 3  # single very-short aliases are ignored by match_mention
+# regions most likely to name siblings and subsets, in preference order
+_EXCERPT_REGION_ORDER = {"intro": 0, "related_work": 1, "data": 2, "results": 3}
+
+_NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
+
+# version tokens; same shapes and URL exclusion as scripts/generate_referent_probes.py
+_VERSION_RE = re.compile(r"(?<![\w.])[vV](\d+(?:\.\d+)*)(?![\w.])")
+_VERSION_WORD_RE = re.compile(r"\b[vV]ersion\s+(\d+(?:\.\d+)*)(?![\w.])")
+_RELEASE_CUE_RE = re.compile(
+    r"\b(release[sd]?|version|update[sd]?|changelog|revision|revised|successor"
+    r"|introduc\w+|extend\w+|supersede\w*)\b", re.IGNORECASE)
+# a version token right after a model family word is a model version, not a benchmark version
+_MODEL_WORD_RE = re.compile(
+    r"\b(gpt|llama|claude|gemini|gemma|qwen|mistral|mixtral|deepseek|palm|bert"
+    r"|phi|grok|vicuna|falcon|opus|sonnet|haiku)\b[-. ]*$", re.IGNORECASE)
+
+_SPLIT_WORDS = ("train", "validation", "test", "dev")
+_SPLIT_CANON = {"training": "train"}
+# split word bound to a set/split noun, so bare verbs ("we test models") never count
+_SPLIT_CONTEXT_RE = re.compile(
+    r"\b(train|training|validation|dev|test)\b"
+    r"(?=\s+(?:set|sets|split|splits|data|examples|instances|partition)\b)",
+    re.IGNORECASE,
+)
+_SPLIT_YAML_RE = re.compile(r"\bsplits?:\s*(train|training|validation|dev|test)\b", re.IGNORECASE)
+_SPLIT_NAME_RE = re.compile(r"-\s*name:\s*(train|training|validation|dev|test)\b", re.IGNORECASE)
+
+_CONFIG_NAME_RE = re.compile(r"^\s*-?\s*config_name:\s*[\"']?([^\"'\n]+?)[\"']?\s*$", re.MULTILINE)
+_PRETTY_NAME_RE = re.compile(r"^\s*pretty_name:\s*[\"']?([^\"'\n]+?)[\"']?\s*$", re.MULTILINE)
+
+
+def _norm(name: str) -> str:
+    """Normalized form used for dedup across builders."""
+    return _NON_ALNUM_RE.sub(" ", str(name).lower()).strip()
+
+
+def _slug(name: str) -> str:
+    return _NON_ALNUM_RE.sub("-", str(name).lower()).strip("-") or "unnamed"
+
+
+def _in_url_chunk(text: str, start: int, end: int, token: str = "") -> bool:
+    """True if the token sits in a whitespace-delimited chunk that looks like a
+    URL, DOI, or path. A token that itself contains a slash (CNN/DailyMail) is
+    only excluded when the chunk carries a scheme."""
+    a = start
+    while a > 0 and not text[a - 1].isspace():
+        a -= 1
+    b = end
+    while b < len(text) and not text[b].isspace():
+        b += 1
+    chunk = text[a:b]
+    if "/" in token:
+        return "://" in chunk
+    return "/" in chunk
+
+
+def _has_boundary(text: str, start: int, end: int) -> bool:
+    before = text[start - 1] if start > 0 else " "
+    after = text[end] if end < len(text) else " "
+    return not (before.isalnum() or before == "_") and not (after.isalnum() or after == "_")
+
+
+def _iter_token_hits(text: str, token: str):
+    """Whole-token, case-insensitive, URL-excluded (start, end) occurrences."""
+    low = text.lower()
+    tok = token.lower()
+    start = low.find(tok)
+    while start != -1:
+        end = start + len(tok)
+        if _has_boundary(text, start, end) and not _in_url_chunk(text, start, end, token):
+            yield start, end
+        start = low.find(tok, start + 1)
+
+
+def _token_present(text: str, token: str) -> bool:
+    return next(_iter_token_hits(text, token), None) is not None
+
+
+def _add_node(nodes: List[Dict[str, Any]], index: Dict[str, Dict[str, Any]],
+              node: Dict[str, Any]) -> bool:
+    """Append node unless a node with the same normalized name (or alias) exists;
+    on a duplicate, merge the new spellings into the existing node's aliases.
+    A normalized form belongs to exactly one node: the first to claim it."""
+    key = _norm(node["name"])
+    if not key:
+        return False
+    existing = index.get(key)
+    if existing is None:
+        kept = []
+        for alias in node.get("aliases", []):
+            k = _norm(alias)
+            if not k:
+                continue
+            owner = index.get(k)
+            if owner is not None and owner is not node:
+                continue
+            low = alias.lower()
+            if low == node["name"].lower() or any(low == a.lower() for a in kept):
+                continue
+            index[k] = node
+            kept.append(alias)
+        node["aliases"] = kept
+        nodes.append(node)
+        index[key] = node
+        return True
+    for spelling in [node["name"], *node.get("aliases", [])]:
+        k = _norm(spelling)
+        if not k:
+            continue
+        owner = index.get(k)
+        if owner is not None and owner is not existing:
+            continue
+        index[k] = existing
+        known = [existing["name"], *existing["aliases"]]
+        if all(spelling.lower() != x.lower() for x in known):
+            existing["aliases"].append(spelling)
+    return False
+
+
+def _target_node(benchmark_name: str, eee_metadata: Optional[Dict[str, Any]],
+                 hf_json: Optional[Dict[str, Any]],
+                 extra_aliases: Optional[List[str]] = None) -> Dict[str, Any]:
+    aliases: List[str] = []
+
+    def take(value):
+        if isinstance(value, str) and value.strip():
+            aliases.append(value.strip())
+
+    for alias in extra_aliases or []:
+        take(alias)
+
+    if isinstance(eee_metadata, dict):
+        take(eee_metadata.get("benchmark_name"))
+        # not present in current EEE dumps, kept defensively
+        for key in ("full_name", "pretty_name", "paper_title", "title"):
+            take(eee_metadata.get(key))
+    if isinstance(hf_json, dict):
+        repo_id = hf_json.get("id")
+        if isinstance(repo_id, str) and repo_id.strip():
+            take(repo_id.rsplit("/", 1)[-1])
+        card_data = hf_json.get("card_data")
+        if isinstance(card_data, dict):
+            take(card_data.get("pretty_name"))
+        # card_data is {} in cached HF dumps; the pretty_name lives in the README frontmatter
+        fm = _readme_frontmatter(hf_json.get("readme_markdown"))
+        m = _PRETTY_NAME_RE.search(fm)
+        if m:
+            take(m.group(1))
+
+    seen = {benchmark_name.lower()}
+    unique = []
+    for alias in aliases:
+        k = alias.lower()
+        if k not in seen:
+            seen.add(k)
+            unique.append(alias)
+    return {
+        "id": "target",
+        "type": "target",
+        "name": benchmark_name,
+        "aliases": unique,
+        "description": "The target benchmark this card documents.",
+    }
+
+
+# appears_in mixes true parent suites with EEE scrape-source labels; the labels are
+# not benchmarks and would mistrip the sibling-name veto (a card legitimately cites
+# llm-stats as a source).
+_SOURCE_LABELS = {"llm-stats", "llm_stats", "llmstats", "alphaxiv"}
+
+
+def _eee_sibling_nodes(eee_metadata: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    nodes = []
+    if not isinstance(eee_metadata, dict):
+        return nodes
+    for key, desc in (("contains", "Suite member listed in EEE metadata 'contains'."),
+                      ("appears_in", "Parent suite listed in EEE metadata 'appears_in'.")):
+        for name in eee_metadata.get(key) or []:
+            if isinstance(name, str) and name.strip():
+                name = name.strip()
+                if name.lower() in _SOURCE_LABELS:
+                    continue
+                nodes.append({
+                    "id": "sibling:" + _slug(name),
+                    "type": "sibling",
+                    "name": name,
+                    "aliases": [],
+                    "description": desc,
+                })
+    return nodes
+
+
+def _readme_frontmatter(readme) -> str:
+    if not isinstance(readme, str) or not readme.startswith("---"):
+        return ""
+    end = readme.find("\n---", 3)
+    if end < 0:
+        return ""
+    return readme[3:end]
+
+
+def _subset_nodes(eee_metadata: Optional[Dict[str, Any]],
+                  hf_json: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    named: List[Tuple[str, str]] = []
+    if isinstance(hf_json, dict):
+        card_data = hf_json.get("card_data")
+        if isinstance(card_data, dict):
+            for cfg in card_data.get("configs") or []:
+                if isinstance(cfg, dict) and isinstance(cfg.get("config_name"), str):
+                    named.append((cfg["config_name"], "HF dataset config."))
+                elif isinstance(cfg, str):
+                    named.append((cfg, "HF dataset config."))
+        # cached HF dumps serialize card_data as {}; read configs from the README frontmatter
+        fm = _readme_frontmatter(hf_json.get("readme_markdown"))
+        for m in _CONFIG_NAME_RE.finditer(fm):
+            named.append((m.group(1), "HF dataset config."))
+    if isinstance(eee_metadata, dict):
+        breakdown = eee_metadata.get("size_breakdown")
+        if isinstance(breakdown, dict):
+            for key in breakdown:
+                if isinstance(key, str):
+                    named.append((key, "Subset named in EEE size_breakdown."))
+
+    nodes = []
+    for name, desc in named:
+        name = name.strip()
+        low = name.lower()
+        # split words and generic placeholder configs are not subset referents
+        if len(name) < 3 or name.isdigit() or low in _SPLIT_WORDS or low in ("default", "all"):
+            continue
+        nodes.append({
+            "id": "subset:" + _slug(name),
+            "type": "subset",
+            "name": name,
+            "aliases": [],
+            "description": desc,
+        })
+    return nodes
+
+
+def _metric_nodes(eee_metadata: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    nodes = []
+    if not isinstance(eee_metadata, dict):
+        return nodes
+    metrics = eee_metadata.get("metrics")
+    if not isinstance(metrics, dict):
+        return nodes
+    summary = eee_metadata.get("evaluation_summary")
+    primary_id = summary.get("primary_metric") if isinstance(summary, dict) else None
+    for rid, cfg in metrics.items():
+        cfg = cfg if isinstance(cfg, dict) else {}
+        name = cfg.get("metric_name")
+        if not isinstance(name, str) or not name.strip():
+            name = rid.rsplit(".", 1)[-1]
+        name = name.strip()
+        details = cfg.get("additional_details")
+        marked = isinstance(details, dict) and details.get("alphaxiv_is_primary") in (True, "true", "True")
+        role = "primary" if rid == primary_id or marked else "unknown"
+        # suite cards key some metrics by suite-MEMBER name (helm-lite: "MMLU" -> "EM");
+        # only id-like keys become aliases, a benchmark-shaped key names a sibling instead
+        aliases = []
+        if _norm(rid) != _norm(name) and ("." in rid or "_" in rid or rid == rid.lower()):
+            aliases = [rid]
+        nodes.append({
+            "id": "metric:" + _slug(name),
+            "type": "metric",
+            "name": name,
+            "aliases": aliases,
+            "role": role,
+            "description": "Metric tracked in EEE metadata.",
+        })
+    return nodes
+
+
+def _version_nodes(paper_text: str, target_aliases: List[str]) -> List[Dict[str, Any]]:
+    """Standalone version tokens anywhere in the paper, near the benchmark name or a
+    release context; URL/DOI/path chunks and model-name versions are excluded."""
+    head = paper_text
+    if not head:
+        return []
+    anchors = [a for a in target_aliases if len(a) >= MIN_ALIAS_CHARS]
+    found: Dict[str, Dict[str, Any]] = {}
+    for rx, worded in ((_VERSION_RE, False), (_VERSION_WORD_RE, True)):
+        for m in rx.finditer(head):
+            if _in_url_chunk(head, m.start(), m.end()):
+                continue
+            if not worded and _MODEL_WORD_RE.search(head, max(0, m.start() - 12), m.start()):
+                continue
+            window = head[max(0, m.start() - 200):m.end() + 200]
+            # the word form carries its own release context ("version 3")
+            if not worded and not _RELEASE_CUE_RE.search(window) \
+                    and not any(_token_present(window, a) for a in anchors):
+                continue
+            number = m.group(1)
+            node = found.get(number)
+            if node is None:
+                found[number] = node = {
+                    "id": "version:" + number,
+                    "type": "version",
+                    "name": "v" + number,
+                    "aliases": [],
+                    "description": "Version token found in the paper head.",
+                }
+            raw = m.group(0)
+            known = [node["name"], *node["aliases"]]
+            if all(raw.lower() != x.lower() for x in known):
+                node["aliases"].append(raw)
+    return list(found.values())
+
+
+def _split_nodes(paper_text: str, hf_json: Optional[Dict[str, Any]],
+                 extra_texts: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+    words: Dict[str, set] = {}
+
+    def record(raw: str):
+        canon = _SPLIT_CANON.get(raw.lower(), raw.lower())
+        words.setdefault(canon, set()).add(raw.lower())
+
+    head = paper_text
+    for m in _SPLIT_CONTEXT_RE.finditer(head):
+        record(m.group(1))
+    # the same context guard over the HF README body, GitHub README, and HTML dump
+    for text in (extra_texts or {}).values():
+        if isinstance(text, str):
+            for m in _SPLIT_CONTEXT_RE.finditer(text):
+                record(m.group(1))
+    if isinstance(hf_json, dict):
+        fm = _readme_frontmatter(hf_json.get("readme_markdown"))
+        for m in _SPLIT_YAML_RE.finditer(fm):
+            record(m.group(1))
+        # dataset_info splits blocks list entries as "- name: train"
+        for block in re.finditer(r"splits:", fm):
+            for m in _SPLIT_NAME_RE.finditer(fm, block.end(), block.end() + 800):
+                record(m.group(1))
+
+    nodes = []
+    for canon in sorted(words):
+        aliases = sorted(w for w in words[canon] if w != canon)
+        nodes.append({
+            "id": "split:" + canon,
+            "type": "split",
+            "name": canon,
+            "aliases": aliases,
+            "description": "Dataset split mentioned in the paper head or HF metadata.",
+        })
+    return nodes
+
+
+def _ranked_paper_excerpts(doc_index, paper_text: str) -> Tuple[List[str], str]:
+    """Excerpts for the LLM frame prompts, plus the text presence checks run against.
+
+    With a usable section index: the document head (title/abstract sit before any
+    heading) plus the heads of the sections ranked by region (intro, related work,
+    data, results first, then document order), within EXCERPT_BUDGET. Offsets refer
+    to the index's own normalized text, so slices and the literal-presence guard use
+    that same string. Without an index (or one lacking offsets): the raw head, as
+    before."""
+    fallback = ([paper_text[:HEAD_CHARS]], paper_text)
+    sections = list(getattr(doc_index, "sections", None) or [])
+    text = getattr(doc_index, "normalized_text", "") or ""
+    usable = [s for s in sections
+              if isinstance(getattr(s, "char_start", None), int)
+              and isinstance(getattr(s, "char_end", None), int)
+              and getattr(s, "char_end") > getattr(s, "char_start")]
+    if not text or not usable:
+        return fallback
+
+    head = text[:EXCERPT_HEAD]
+    parts = [head]
+    spans = [(0, len(head))]
+    used = len(head)
+    ranked = sorted(usable, key=lambda s: (
+        _EXCERPT_REGION_ORDER.get(getattr(s, "region", ""), 9), s.char_start))
+    for sec in ranked:
+        remaining = EXCERPT_BUDGET - used
+        if remaining < 200:
+            break  # only budget exhaustion ends the walk; short sections are kept whole
+        take = min(sec.char_end - sec.char_start, EXCERPT_PER_SECTION, remaining)
+        if take <= 0:
+            continue
+        start, end = sec.char_start, sec.char_start + take
+        if any(start < b and a < end for a, b in spans):
+            continue
+        parts.append(text[start:end])
+        spans.append((start, end))
+        used += take
+    return parts, text
+
+
+_EXTRA_HEADING_RE = re.compile(r"^#{1,6}\s+(\S.*?)\s*$", re.MULTILINE)
+
+
+def _extra_alias_candidates(extra_texts: Optional[Dict[str, str]],
+                            benchmark_name: str) -> List[str]:
+    """Target aliases from the extra sources' first markdown heading.
+
+    Guarded: the heading (or its pre-colon head) must share its alnum identity with
+    the benchmark name in one direction or the other, so a foreign title never
+    becomes an alias. HTML dumps carry no markdown headings and contribute nothing."""
+    out: List[str] = []
+    key = _NON_ALNUM_RE.sub("", benchmark_name.lower())
+    if not key:
+        return out
+    for text in (extra_texts or {}).values():
+        if not isinstance(text, str):
+            continue
+        body = _readme_frontmatter_stripped(text)
+        m = _EXTRA_HEADING_RE.search(body[:2000])
+        if not m:
+            continue
+        heading = m.group(1).strip()
+        if ":" in heading:
+            pre = heading.split(":", 1)[0].strip()
+            if pre and len(pre.split()) <= 3:
+                heading = pre
+        hkey = _NON_ALNUM_RE.sub("", heading.lower())
+        if not hkey or len(heading) > 80:
+            continue
+        if key in hkey or hkey in key:
+            out.append(heading)
+    return out
+
+
+def _readme_frontmatter_stripped(text: str) -> str:
+    """The text after a leading YAML frontmatter block, or the text unchanged."""
+    if not text.startswith("---"):
+        return text
+    end = text.find("\n---", 3)
+    if end < 0:
+        return text
+    return text[end + 4:]
+
+
+def _extract_json_list(raw: str) -> Optional[str]:
+    """First balanced [...] block in raw (string-aware), or None."""
+    if not raw:
+        return None
+    start = raw.find("[")
+    if start < 0:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(raw)):
+        c = raw[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "[":
+            depth += 1
+        elif c == "]":
+            depth -= 1
+            if depth == 0:
+                return raw[start:i + 1]
+    return None
+
+
+def _parse_name_list(raw) -> List[str]:
+    """Names from an LLM JSON-array response; [] on anything unparseable."""
+    if not isinstance(raw, str):
+        return []
+    parsed = None
+    for candidate in (raw.strip(), _extract_json_list(raw)):
+        if not candidate:
+            continue
+        try:
+            parsed = json.loads(candidate)
+            break
+        except (ValueError, TypeError):
+            continue
+    if not isinstance(parsed, list):
+        return []
+    names = []
+    for item in parsed:
+        if isinstance(item, str) and 3 <= len(item.strip()) <= 80:
+            names.append(item.strip())
+    return names
+
+
+def _llm_sibling_names(llm_handler, target_name: str, target_aliases: List[str],
+                       excerpts: List[str], doc_index) -> List[str]:
+    """One LLM call over the ranked paper excerpts (+ section titles); returns the
+    raw name list. Callers validate against the source text; this never checks
+    presence."""
+    titles = []
+    for section in (getattr(doc_index, "sections", None) or [])[:40]:
+        title = getattr(section, "title", "")
+        if isinstance(title, str) and title.strip():
+            titles.append(title.strip())
+    known = ", ".join([target_name, *target_aliases][:6])
+    parts = [
+        f'You are indexing a research paper about the benchmark "{target_name}" '
+        f"(also known as: {known}).",
+        "List the names of OTHER benchmarks or datasets mentioned in the material "
+        f'below, i.e. ones that are NOT "{target_name}" itself.',
+        'Answer with ONLY a JSON array of name strings, e.g. ["MMLU", "HellaSwag"]. '
+        "Answer [] if none are mentioned.",
+    ]
+    if titles:
+        parts.append("Section titles:\n" + "\n".join("- " + t for t in titles))
+    parts.append("Paper text (excerpts):\n" + "\n[...]\n".join(excerpts))
+    return _parse_name_list(llm_handler.generate("\n\n".join(parts)))
+
+
+def _llm_subset_names(llm_handler, target_name: str, target_aliases: List[str],
+                      source_blocks: List[Tuple[str, str]]) -> List[str]:
+    """One LLM call proposing named subsets/configs/tracks OF the target itself.
+
+    healthbench builds 2 nodes from a 46-section paper because subsets living only
+    in prose (its themes, a Hard/Consensus variant) have no deterministic channel.
+    Same trust model as the sibling pass: the model only PROPOSES names, the caller
+    keeps a name only when it occurs literally in a source text."""
+    known = ", ".join([target_name, *target_aliases][:6])
+    parts = [
+        f'You are indexing documentation about the benchmark "{target_name}" '
+        f"(also known as: {known}).",
+        f'List the names of the SUBSETS, configurations, tracks, named variants, or '
+        f'named categories OF "{target_name}" ITSELF that the material below names '
+        f"(e.g. a Hard subset, a Consensus variant, named topic tracks). "
+        f"Do NOT list other benchmarks, generic split words (train/test/validation), "
+        f"metrics, or model names.",
+        'Answer with ONLY a JSON array of name strings, e.g. ["Hard", "Consensus"]. '
+        "Answer [] if none are named.",
+    ]
+    for label, text in source_blocks:
+        if text:
+            parts.append(f"{label}:\n{text}")
+    return _parse_name_list(llm_handler.generate("\n\n".join(parts)))
+
+
+def build_frame(
+    benchmark_name: str,
+    eee_metadata: Optional[Dict[str, Any]],
+    hf_json: Optional[Dict[str, Any]],
+    doc_index=None,
+    paper_text: str = "",
+    llm_handler=None,
+    extra_texts: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Return {"target_id": "target", "nodes": [...], "telemetry": {...}}.
+
+    Each node: {"id", "type", "name", "aliases": [...], "description": one line,
+    and for metrics "role"}. Deterministic builders run always; the LLM sibling
+    and subset passes run only when llm_handler and source text are given and
+    never raise (fail-soft to the deterministic frame). Dedup by normalized name
+    across builders; the target node always exists and carries the resolved
+    benchmark name plus HF/EEE aliases.
+
+    extra_texts ({source_label: text}) feeds the HF README body, GitHub README,
+    and HTML dump into the alias, split, and LLM-subset builders. Each channel
+    keeps its own guard: an alias needs a heading sharing the target's identity,
+    a split needs its set/split noun, an LLM-proposed name must occur literally
+    in a source text.
+    """
+    nodes: List[Dict[str, Any]] = []
+    index: Dict[str, Dict[str, Any]] = {}
+    counts: Dict[str, int] = {}
+    merged = 0
+
+    target = _target_node(benchmark_name, eee_metadata, hf_json,
+                          extra_aliases=_extra_alias_candidates(extra_texts, benchmark_name))
+    _add_node(nodes, index, target)
+    counts["target"] = 1
+
+    builders = [
+        ("siblings_eee", _eee_sibling_nodes(eee_metadata)),
+        ("subsets", _subset_nodes(eee_metadata, hf_json)),
+        ("metrics", _metric_nodes(eee_metadata)),
+        ("versions", _version_nodes(paper_text, [target["name"], *target["aliases"]])),
+        ("splits", _split_nodes(paper_text, hf_json, extra_texts)),
+    ]
+    for label, batch in builders:
+        added = 0
+        for node in batch:
+            if _add_node(nodes, index, node):
+                added += 1
+            else:
+                merged += 1
+        counts[label] = added
+
+    def add_llm_nodes(names, presence_texts, cap, node_type, description):
+        kept = 0
+        merged_here = 0
+        for name in names:
+            if kept >= cap:
+                break
+            # the LLM is never trusted: the name must occur literally in a source
+            if not any(_token_present(t, name) for t in presence_texts if t):
+                continue
+            low = name.lower()
+            if low in _SPLIT_WORDS or low in ("default", "all") or name.isdigit():
+                continue
+            node = {
+                "id": f"{node_type}:" + _slug(name),
+                "type": node_type,
+                "name": name,
+                "aliases": [],
+                "description": description,
+            }
+            if _add_node(nodes, index, node):
+                kept += 1
+            else:
+                merged_here += 1
+        return kept, merged_here
+
+    telemetry: Dict[str, Any] = {"llm_pass": "skipped", "llm_subset_pass": "skipped"}
+    counts["siblings_llm"] = 0
+    counts["subsets_llm"] = 0
+    extra_items = [(k, v) for k, v in (extra_texts or {}).items()
+                   if isinstance(v, str) and v.strip()]
+    if llm_handler is not None and paper_text:
+        excerpts, presence_text = _ranked_paper_excerpts(doc_index, paper_text)
+        try:
+            names = _llm_sibling_names(llm_handler, target["name"], target["aliases"],
+                                       excerpts, doc_index)
+            counts["siblings_llm"], m = add_llm_nodes(
+                names, [presence_text, paper_text], MAX_LLM_SIBLINGS, "sibling",
+                "Benchmark or dataset named in the paper (LLM sibling pass).")
+            merged += m
+            telemetry["llm_pass"] = "ok"
+            telemetry["llm_returned"] = len(names)
+        except Exception as exc:
+            logger.warning("frame LLM sibling pass failed: %s", exc)
+            telemetry["llm_pass"] = "failed"
+            telemetry["llm_pass_error"] = str(exc)[:200]
+    if llm_handler is not None and (paper_text or extra_items):
+        try:
+            blocks: List[Tuple[str, str]] = []
+            presence: List[str] = []
+            if paper_text:
+                excerpts, presence_text = _ranked_paper_excerpts(doc_index, paper_text)
+                blocks.append(("Paper text (excerpts)", "\n[...]\n".join(excerpts)))
+                presence.extend([presence_text, paper_text])
+            for label, text in extra_items:
+                blocks.append((label, text[:HEAD_CHARS]))
+                presence.append(text)
+            names = _llm_subset_names(llm_handler, target["name"], target["aliases"], blocks)
+            counts["subsets_llm"], m = add_llm_nodes(
+                names, presence, MAX_LLM_SUBSETS, "subset",
+                "Subset named in the sources (LLM subset pass, literal-verified).")
+            merged += m
+            telemetry["llm_subset_pass"] = "ok"
+            telemetry["llm_subset_returned"] = len(names)
+        except Exception as exc:
+            logger.warning("frame LLM subset pass failed: %s", exc)
+            telemetry["llm_subset_pass"] = "failed"
+            telemetry["llm_subset_pass_error"] = str(exc)[:200]
+
+    telemetry["builder_counts"] = counts
+    telemetry["merged_duplicates"] = merged
+    telemetry["total_nodes"] = len(nodes)
+    return {"target_id": "target", "nodes": nodes, "telemetry": telemetry}
+
+
+def node_lookup(frame: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """id -> node mapping for O(1) checks."""
+    return {node["id"]: node for node in frame.get("nodes", [])}
+
+
+# Metric names that are ordinary nouns. A span saying "ensure accuracy" is not a
+# claim about the metric node, and re-binding it there is over-binding, not a catch.
+_COMMON_METRIC_NAMES = frozenset({
+    "accuracy", "score", "precision", "recall", "f1", "f1 score", "em", "exact match",
+    "bleu", "rouge", "error rate", "loss", "perplexity", "pass rate", "success rate",
+})
+
+# The target under a description rather than its name. match_mention only knows
+# aliases, so without this "Unlike SWE-bench, our benchmark adds images" reads as a
+# span naming only the sibling and gets re-bound to it.
+_TARGET_DEICTIC_RE = re.compile(
+    r"\b(our|this|the present|the proposed)\s+"
+    r"(benchmark|dataset|suite|corpus|work|paper|evaluation|task set)\b"
+    r"|\bwe (introduce|present|propose|release|construct|build|collect)\b"
+    r"|\bours\b", re.IGNORECASE)
+
+
+def names_target_implicitly(text: str) -> bool:
+    """True when the span refers to the target by description instead of by name."""
+    return bool(_TARGET_DEICTIC_RE.search(text or ""))
+
+
+# Nouns that mark a bare subset-name mention as genuinely about the subset ("the Hard
+# subset", "seven subject categories"). Single common-word subset names need one nearby;
+# specific names (multi-word, digits, hyphens) stand alone.
+_SUBSET_CUE_RE = re.compile(
+    r"\b(subsets?|splits?|categor(?:y|ies)|tracks?|tiers?|variants?|portions?"
+    r"|partitions?|sections?|tasks?|class(?:es)?|sets?|domains?|themes?|subjects?)\b",
+    re.IGNORECASE)
+
+
+def mention_is_referential(node: Dict[str, Any], text: str) -> bool:
+    """Does `text` really refer to `node`, or does it just contain its name?
+
+    match_mention is a bare name lookup with no context, but the builders that
+    CREATED these nodes each applied a context test. Re-applying that test is what
+    separates a genuine reference from a word collision: "verification test" is not
+    the test split, "Matplotlib version 3.3.2" is not a release of the benchmark.
+    Siblings are exempt; their names are specific enough to stand alone. A subset
+    whose name is specific (multi-word, digits, hyphens) also stands alone, but a
+    single common-word subset name (the LLM subset pass proposes real ones like
+    "human", "Hard", "OCR") needs a nearby subset cue, and a capitalized name must
+    occur with its exact casing, so "human annotators wrote the questions" never
+    re-binds to a subset:human node.
+    """
+    ntype = node.get("type")
+    name = (node.get("name") or "").strip()
+    if not text or not name:
+        return False
+    if ntype == "subset":
+        specific = (len(name.split()) > 1 or any(c.isdigit() for c in name)
+                    or "-" in name or "_" in name)
+        if specific:
+            return True
+        needs_case = name != name.lower()
+        for start, end in _iter_token_hits(text, name):
+            if needs_case and text[start:end] != name:
+                continue
+            window = text[max(0, start - 50):end + 50]
+            if _SUBSET_CUE_RE.search(window):
+                return True
+        return False
+    if ntype == "split":
+        return any(_SPLIT_CANON.get(m.group(1).lower(), m.group(1).lower()) == _norm(name)
+                   or m.group(1).lower() == name.lower()
+                   for m in _SPLIT_CONTEXT_RE.finditer(text))
+    if ntype == "version":
+        for hit in _iter_token_hits(text, name):
+            start, end = hit
+            if _in_url_chunk(text, start, end):
+                continue
+            if _MODEL_WORD_RE.search(text, max(0, start - 12), start):
+                continue
+            if _RELEASE_CUE_RE.search(text[max(0, start - 200):end + 200]):
+                return True
+        return False
+    if ntype == "metric":
+        return _norm(name) not in {_norm(n) for n in _COMMON_METRIC_NAMES}
+    return True
+
+
+def match_mention(frame: Dict[str, Any], text: str) -> List[str]:
+    """Frame node ids whose name or alias occurs in text (whole-token,
+    case-insensitive, longest-alias-first). Deterministic; used by the
+    sibling-name veto and subset cross-check gates."""
+    if not text:
+        return []
+    entries = []
+    for node in frame.get("nodes", []):
+        for alias in [node.get("name", ""), *(node.get("aliases") or [])]:
+            alias = (alias or "").strip()
+            if len(alias) >= MIN_ALIAS_CHARS:
+                entries.append((alias, node["id"]))
+    # longest alias first so a name nested inside a longer match never double-counts
+    entries.sort(key=lambda e: (-len(e[0]), e[0].lower()))
+    claimed: List[Tuple[int, int]] = []
+    hits: List[Tuple[int, str]] = []
+    for alias, node_id in entries:
+        for start, end in _iter_token_hits(text, alias):
+            if any(start < ce and cs < end for cs, ce in claimed):
+                continue
+            claimed.append((start, end))
+            hits.append((start, node_id))
+    seen = set()
+    ordered = []
+    for _, node_id in sorted(hits):
+        if node_id not in seen:
+            seen.add(node_id)
+            ordered.append(node_id)
+    return ordered

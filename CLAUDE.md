@@ -13,9 +13,14 @@ This file gives code assistants a compact map of the public repository.
 ## Before changing code
 
 1. Read `README.md` and `DEVELOPMENT.md`.
-2. Run the focused tests for the affected module.
-3. Run `python -m pytest` before handing off a code change.
-4. Run `python scripts/check_frozen.py` before changing evaluation code.
+2. Select and run focused manual checks appropriate to the affected code.
+3. Keep development on `main` distinct from the frozen `v0.2.0` research
+   release. Use that tag or the release archive for historical evaluation
+   commands, including `python scripts/check_frozen.py`.
+
+Do not add GitHub Actions workflows, automatic test or secret-scan jobs,
+Git hooks, required CI, or branch-protection gates. Keep maintenance manual
+and straightforward; do not request expanded workflow permissions.
 
 ## Evaluation invariants
 
@@ -28,6 +33,9 @@ This file gives code assistants a compact map of the public repository.
 - Raw participant returns, identity mappings, copied source text, and request
   identifiers are private and must not be added.
 - Do not replace a frozen artifact with an older similarly named file.
+- Preserve the frozen checksum baseline. Current runtime helpers differ from
+  the evaluated instrument; a failed historical instrument check on `main`
+  must not be fixed by rewriting that baseline.
 
 ## Repository hygiene
 

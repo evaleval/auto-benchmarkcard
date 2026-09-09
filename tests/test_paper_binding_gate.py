@@ -56,6 +56,9 @@ class _LLMCounter:
 @pytest.fixture(autouse=True)
 def _enabled(monkeypatch):
     monkeypatch.setattr(Config, "PAPER_VERIFICATION_ENABLED", True)
+    # the keep paths now fetch authors for the bound URL; never hit the network in tests
+    monkeypatch.setattr(W, "_fetch_paper_authors",
+                        lambda url: {"authors": [], "title": "", "year": None})
 
 
 def _patch_meta(monkeypatch, title="", abstract="", fetch_error=False):
@@ -478,3 +481,28 @@ def test_routing_flag_off_preset_skips_resolver(monkeypatch):
           "hf_extraction_attempted": True, "paper_resolver_attempted": False, "paper_verified": None}
     # Flag OFF: a pre-set paper_url skips the resolver exactly as before -> docling.
     assert _route(st) == "docling_worker"
+
+
+def test_tier1_keep_fetches_authors_for_display(monkeypatch):
+    # WP1.3: a pre-set / HF arxiv-tag binding carried only the URL, so every Tier-1 card shipped
+    # authors "Not specified" (swe-bench-multimodal lost 13 authors). The keep path now fills
+    # paper_authors/title/year from the resolver's own metadata lookup, fill-only.
+    counter = _LLMCounter({"is_match": False, "confidence": 1.0})
+    monkeypatch.setattr(W, "verify_paper_binding", counter)
+    _patch_meta(monkeypatch, title="CharXiv: Charting Gaps in Realistic Chart Understanding",
+                abstract="charts realistic chart understanding reasoning over scientific figures and plots")
+    monkeypatch.setattr(W, "_fetch_paper_authors",
+                        lambda url: {"authors": ["Zirui Wang", "Mengzhou Xia"],
+                                     "title": "CharXiv: Charting Gaps", "year": 2024})
+    eee = {"benchmark_name": "charxiv",
+           "metrics": {"acc": {"evaluation_description":
+                               "realistic chart understanding reasoning over scientific figures plots charts"}}}
+    st = _state("charxiv", extracted={"paper_url": "https://arxiv.org/abs/2406.18521",
+                                      "paper_title": "already set"}, eee=eee)
+    out = W.run_paper_resolver(st)
+    ids = out["extracted_ids"]
+    assert ids["paper_authors"] == ["Zirui Wang", "Mengzhou Xia"]
+    assert ids["paper_title"] == "already set"           # fill-only
+    assert ids["paper_year"] == 2024
+    # the abstract (the composer's PDF-failure fallback) is filled from the same URL
+    assert ids["paper_abstract"].startswith("charts realistic chart understanding")

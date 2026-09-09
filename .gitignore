@@ -39,9 +39,12 @@ env/
 .env.local
 .env.*
 !.env.example
+!.env.*.example
 
 # Output directories
 output/
+bundles/
+tool_output/
 batch_output/
 test_batch/
 cards_for_avijit/
@@ -107,8 +110,11 @@ gold_set/revalidate
 # Local agent state and private workspace links
 .claude/
 .agents/
+.codex/
 .codex_work/
 memory
+vault
+.obsidian/
 CLAUDE.local.md
 !CLAUDE.md
 
@@ -118,3 +124,8 @@ eval/**/raw/
 eval/**/sources/
 eval/**/*_raw_copy.csv
 eval/**/*_to_complete.csv
+
+# Additional local evaluation and experiment files stay private.
+# The released eval snapshot is already tracked and remains published.
+/eval/
+/gold_set/

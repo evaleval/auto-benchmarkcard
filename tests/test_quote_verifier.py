@@ -150,10 +150,11 @@ def test_evidence_id_sequencing_across_calls():
     assert ids == ["E01", "E02", "E03", "E04"]
     # order is paper, gap, html, hf
     assert items[0]["doc"] == "docling" and items[3]["doc"] == "html"
-    # every record has exactly the 7 contract keys
+    # every record has exactly the v2 contract keys
     for it in items:
         assert set(it.keys()) == {
-            "evidence_id", "field", "quote", "char_start", "doc", "kind", "note"}
+            "evidence_id", "field", "quote", "char_start", "doc", "kind", "note",
+            "referent", "claim_role", "section_path", "region", "table_id"}
     # digest grouped by field, in evidence_id order within a field
     assert [it["evidence_id"] for it in digest["data.size"]] == ["E01", "E03"]
     assert [it["evidence_id"] for it in digest["methodology.metrics"]] == ["E02", "E04"]
@@ -389,3 +390,192 @@ def test_no_curator_hint_or_query_names_a_specific_benchmark():
     for spec in ev.CURATOR_FIELDS.values():
         blob = ((spec.get("hint") or "") + " " + (spec.get("gap_query") or "")).lower()
         assert not any(b in blob for b in banned)
+
+
+def test_quote_outside_shown_context_is_rejected():
+    # present in the full source but absent from what the model read
+    full = "The benchmark has 500 items. Related work uses 900 items in another set."
+    shown = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "900 items in another set", "kind": "stated"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, shown_text=shown)
+    assert records == []
+    assert telem["reject_reasons"]["outside_shown"] == 1
+
+
+def test_quote_in_shown_context_keeps_full_doc_char_start():
+    full = "Intro text first. The benchmark has 500 items."
+    shown = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "has 500 items", "kind": "stated"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, shown_text=shown)
+    assert len(records) == 1
+    assert records[0]["char_start"] == full.index("has 500 items")
+    assert telem["verified"] == 1
+
+
+def test_no_shown_text_keeps_legacy_behavior():
+    full = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "500 items", "kind": "stated"}]
+    records, _ = ev.verify_items(items, full, ev.DOC_PAPER)
+    assert len(records) == 1
+
+
+class _FakeSec:
+    def __init__(self, path, region):
+        self.path = path
+        self.region = region
+
+
+class _FakeTab:
+    def __init__(self, tid):
+        self.table_id = tid
+
+
+class _FakeIndex:
+    def __init__(self, sec=None, tab=None):
+        self._sec, self._tab = sec, tab
+
+    def locate(self, off):
+        return self._sec
+
+    def table_at(self, off):
+        return self._tab
+
+
+def _mini_frame():
+    return {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "mybench", "aliases": []},
+        {"id": "sibling:fibble", "type": "sibling", "name": "Fibble", "aliases": []},
+        {"id": "subset:hard", "type": "subset", "name": "Hard", "aliases": ["Hard subset"]},
+    ]}
+
+
+def test_v2_keys_attached_with_index_and_frame():
+    full = "The benchmark has 500 items in the test pool."
+    items = [{"field": "data.size", "quote": "has 500 items", "kind": "stated",
+              "referent": "target", "claim_role": "primary_result"}]
+    idx = _FakeIndex(sec=_FakeSec(["4 Data", "4.1 Size"], "data"), tab=_FakeTab("t2"))
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER,
+                                     doc_index=idx, frame=_mini_frame())
+    r = records[0]
+    assert r["section_path"] == "4 Data > 4.1 Size"
+    assert r["region"] == "data"
+    assert r["table_id"] == "t2"
+    assert r["referent"] == "target"
+    assert r["claim_role"] == "primary_result"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+
+
+def test_claimed_target_is_overridden_when_the_quote_names_only_a_sibling():
+    """The splice signature: the model writes a sibling's sentence and labels it target.
+
+    The label comes from the same call that wrote the quote, so it is not independent
+    evidence. Before this check every spliced item resolved to target and the sibling
+    gate and the EAV audit never saw a referent decision.
+    """
+    full = "Fibble contains 2,294 task instances drawn from real issues."
+    items = [{"field": "data.size", "quote": "Fibble contains 2,294 task instances",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "sibling:fibble"
+    assert telem["referent_resolution"]["quote_override"] == 1
+    assert telem["referent_resolution"]["claimed_id"] == 0
+
+
+def test_override_is_refused_when_the_span_names_the_target_by_description():
+    """"our benchmark" is not an alias, so the bare matcher saw only the sibling.
+
+    Measured on hand-adjudicated spans, precision when the override fired was 0.611.
+    """
+    full = "Unlike Fibble, our benchmark includes visual elements."
+    items = [{"field": "benchmark_details.overview",
+              "quote": "Unlike Fibble, our benchmark includes visual elements",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "target"
+    assert telem["referent_resolution"]["quote_override"] == 0
+
+
+def test_override_is_refused_on_a_word_collision_with_a_node_name():
+    """A split node named "test" must not swallow "a verification test was run"."""
+    frame = {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "mybench", "aliases": []},
+        {"id": "split:test", "type": "split", "name": "test", "aliases": []},
+    ]}
+    full = "A verification test was run on every instance."
+    items = [{"field": "methodology.validation", "quote": "A verification test was run",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=frame)
+    assert records[0]["referent"] == "target"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+
+
+def test_override_still_fires_on_a_genuine_split_reference():
+    frame = {"target_id": "target", "nodes": [
+        {"id": "target", "type": "target", "name": "mybench", "aliases": []},
+        {"id": "split:test", "type": "split", "name": "test", "aliases": []},
+    ]}
+    full = "Models are scored on the test set of 510 instances."
+    items = [{"field": "data.size", "quote": "scored on the test set of 510 instances",
+              "kind": "stated", "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=frame)
+    assert records[0]["referent"] == "split:test"
+    assert telem["referent_resolution"]["quote_override"] == 1
+
+
+def test_claimed_target_survives_when_the_quote_also_names_the_target():
+    """A comparison sentence names both, so the target claim is not contested."""
+    full = "mybench scores higher than Fibble on repository tasks."
+    items = [{"field": "methodology.baseline_results",
+              "quote": "mybench scores higher than Fibble", "kind": "stated",
+              "referent": "target"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "target"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+    assert telem["referent_resolution"]["quote_override"] == 0
+
+
+def test_claimed_non_target_id_is_never_overridden_by_the_quote():
+    """Only the target claim is contestable; a claimed subset is already specific."""
+    full = "mybench ships 500 items in the Hard subset."
+    items = [{"field": "data.size", "quote": "mybench ships 500 items", "kind": "stated",
+              "referent": "subset:hard"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "subset:hard"
+    assert telem["referent_resolution"]["claimed_id"] == 1
+
+
+def test_referent_unknown_id_falls_back_to_quote_mention():
+    full = "Fibble uses a rotating answer wordlist."
+    items = [{"field": "methodology.calculation", "quote": "Fibble uses a rotating answer wordlist",
+              "kind": "stated", "referent": "sibling:nonexistent"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "sibling:fibble"
+    assert telem["referent_resolution"]["quote_mention"] == 1
+
+
+def test_referent_defaults_to_target_and_role_coerced():
+    full = "The dataset is drawn from public forums."
+    items = [{"field": "data.source", "quote": "drawn from public forums",
+              "kind": "stated", "claim_role": "banana"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER, frame=_mini_frame())
+    assert records[0]["referent"] == "target"
+    assert records[0]["claim_role"] == "primary_result"
+    assert telem["referent_resolution"]["default_target"] == 1
+
+
+def test_v2_keys_empty_without_index_or_frame():
+    full = "The benchmark has 500 items."
+    items = [{"field": "data.size", "quote": "500 items", "kind": "stated"}]
+    records, telem = ev.verify_items(items, full, ev.DOC_PAPER)
+    r = records[0]
+    assert r["referent"] == "" and r["section_path"] == "" and r["table_id"] == ""
+    assert "referent_resolution" not in telem
+
+
+def test_prompt_carries_frame_block_and_new_schema():
+    p = ev.build_extraction_prompt("research paper", ["data.size"], "mybench",
+                                   source_text="text", frame=_mini_frame())
+    assert "sibling:fibble" in p and '"referent"' in p and '"claim_role"' in p
+    p2 = ev.build_extraction_prompt("research paper", ["data.size"], "mybench",
+                                    source_text="text")
+    assert "referent" not in p2

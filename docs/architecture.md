@@ -19,8 +19,14 @@ contribute to the card. Extracted content retains source provenance.
 ## Composition
 
 The information extractor proposes field values. The checker enforces the
-fixed card schema and source constraints. Risk identification adds relevant
+selected card schema and source constraints. Risk identification adds relevant
 AI risk categories. The generator produces the final structured card.
+
+The composer can also be used as a library. `field_spec.CardSchema` supplies
+the schema to evidence extraction, Stage B formatting, and the validator's
+repair loop; the benchmark schema is the default. `docstructure` indexes source
+text, and `evidence` verifies extracted quotations and builds the evidence
+digest. Modelcards supplies its own schema to this same machinery.
 
 ## Validation
 
@@ -29,7 +35,10 @@ each claim, and FactReasoner evaluates the claim-evidence pair. Unsupported or
 insufficiently grounded values can be flagged for review.
 
 The implementation entry points are `workflow.py`, `workers.py`, and the
-modules under `src/auto_benchmarkcard/tools/`.
+modules under `src/auto_benchmarkcard/tools/`. The current development runtime
+on `main` incorporates the reusable composer from `composer-library` commit
+`94c7713d1df00730d8c43a35e618de35cf0589bd`. The paper's measured pipeline and
+evaluation configuration remain frozen at `v0.2.0`.
 
 ## Figure source
 

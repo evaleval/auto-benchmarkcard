@@ -22,28 +22,25 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from pydantic import BaseModel, Field, create_model, field_validator
 
-from auto_benchmarkcard.card_utils import _label_hosting_format, extract_hf_tags, map_benchmark_type
+from auto_benchmarkcard.card_utils import (
+    _label_hosting_format, extract_code_languages, extract_hf_tags, is_not_specified,
+    map_benchmark_type,
+)
 from auto_benchmarkcard.config import Config, get_llm_handler
 from auto_benchmarkcard.output import sanitize_chroma_collection_name
 from auto_benchmarkcard.tools.composer import aboutness
+from auto_benchmarkcard.tools.composer import docstructure
+from auto_benchmarkcard.tools.composer import eav as eav_mod
 from auto_benchmarkcard.tools.composer import evidence
+from auto_benchmarkcard.tools.composer import frame as frame_mod
 from auto_benchmarkcard.tools.composer import field_spec as fs
 from auto_benchmarkcard.tools.composer import validator as _validator
 
 logger = logging.getLogger(__name__)
 
-# Stage-A extraction prompts now live in evidence.build_extraction_prompt (verbatim-quote
-# Evidence Items). _EXTRACTOR_SYSTEM below is retained for the sub-benchmark path only.
-
-_EXTRACTOR_SYSTEM = (
-    "You are a precise research assistant that reads source material and describes what it says. "
-    "You rephrase information in your own words — you do NOT copy text verbatim. "
-    "You NEVER use your own knowledge about benchmarks or AI — only what the provided text says. "
-    "If something is not in the text, you say 'No information found'. "
-    "CRITICAL: You must ONLY extract facts about the specific benchmark named in the prompt. "
-    "Do NOT confuse it with other benchmarks, datasets, or methods discussed in the same paper. "
-    "If the paper discusses multiple benchmarks, only describe facts about the TARGET benchmark."
-)
+# Stage-A extraction prompts live in evidence.build_extraction_prompt (verbatim-quote
+# Evidence Items). The legacy paraphrase extractor and the parent-copy sub-benchmark path
+# were retired: variants live on the parent card per the 2026-05-06 granularity decision.
 
 SECTION_QUERIES = {
     "benchmark_details": [
@@ -141,12 +138,14 @@ def _get_benchmark_identity(
     )
 
 
-def _run_extraction(prompt: str, verify_source: str, doc: str, label: str):
+def _run_extraction(prompt: str, verify_source: str, doc: str, label: str,
+                    shown_text: str = "", doc_index=None, frame=None):
     """Run one Stage-A call: LLM -> robust JSON parse -> quote verification.
 
     Returns (verified records without evidence_id, call telemetry). Fail-soft: an LLM or
     parse failure yields zero items, never an exception. Every quote is verified as an
-    exact substring of verify_source; the LLM is never trusted.
+    exact substring of verify_source, and, when shown_text is given, of the context the
+    model actually read; the LLM is never trusted.
     """
     try:
         llm_handler = get_llm_handler()
@@ -158,7 +157,9 @@ def _run_extraction(prompt: str, verify_source: str, doc: str, label: str):
         return [], evidence.empty_call_telemetry(doc)
 
     parsed = evidence.parse_curator_extraction(raw)
-    records, telem = evidence.verify_items(parsed.evidence, verify_source, doc)
+    records, telem = evidence.verify_items(parsed.evidence, verify_source, doc,
+                                           shown_text=shown_text, doc_index=doc_index,
+                                           frame=frame)
     logger.info("%s extraction: %d/%d quotes verified", label, telem["verified"], telem["emitted"])
     return records, telem
 
@@ -166,6 +167,7 @@ def _run_extraction(prompt: str, verify_source: str, doc: str, label: str):
 def extract_facts_from_paper(
     paper_content: str, benchmark_name: str, identity_anchor: str = "",
     paper_title: str = "", verify_source: str = "", doc: str = "",
+    doc_index=None, frame=None,
 ):
     """Extract verified Evidence Items from paper text in isolation (no other sources).
 
@@ -189,8 +191,10 @@ def extract_facts_from_paper(
         identity_anchor=identity_anchor,
         source_text=paper_content,
         name_alias_line=name_alias_line,
+        frame=frame,
     )
-    return _run_extraction(prompt, verify_source or paper_content, doc, "Paper")
+    return _run_extraction(prompt, verify_source or paper_content, doc, "Paper",
+                           shown_text=paper_content, doc_index=doc_index, frame=frame)
 
 
 def extract_facts_from_hf_readme(
@@ -198,6 +202,7 @@ def extract_facts_from_hf_readme(
     benchmark_name: str,
     hf_retriever: Any = None,
     identity_anchor: str = "",
+    frame=None,
 ):
     """Extract verified Evidence Items from the HF README (capped at 15K chars)."""
     readme = _get_hf_readme(hf_metadata)
@@ -211,14 +216,16 @@ def extract_facts_from_hf_readme(
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=hf_content,
+        frame=frame,
     )
-    return _run_extraction(prompt, hf_content, evidence.DOC_HF, "HF README")
+    return _run_extraction(prompt, hf_content, evidence.DOC_HF, "HF README", frame=frame)
 
 
 def extract_facts_from_html(
     html_content: Dict[str, Any],
     benchmark_name: str,
     identity_anchor: str = "",
+    frame=None,
 ):
     """Extract verified Evidence Items from HTML web page content."""
     text = html_content.get("text", "")
@@ -232,14 +239,16 @@ def extract_facts_from_html(
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=html_text,
+        frame=frame,
     )
-    return _run_extraction(prompt, html_text, evidence.DOC_HTML, "HTML")
+    return _run_extraction(prompt, html_text, evidence.DOC_HTML, "HTML", frame=frame)
 
 
 def extract_facts_from_github_readme(
     github_readme: Dict[str, Any],
     benchmark_name: str,
     identity_anchor: str = "",
+    frame=None,
 ):
     """Extract verified Evidence Items from a GitHub repo README.
 
@@ -257,338 +266,9 @@ def extract_facts_from_github_readme(
         benchmark_name=benchmark_name,
         identity_anchor=identity_anchor,
         source_text=readme_text,
+        frame=frame,
     )
-    return _run_extraction(prompt, readme_text, evidence.DOC_GITHUB, "GitHub README")
-
-
-SUB_BENCHMARK_EXTRACTION_PROMPT = """This paper describes the benchmark "{parent_name}".
-{name_alias_line}
-Search the text for ANY information specifically about the variant, sub-benchmark, category, or split called "{sub_name}".
-Also look for references to just "{sub_label}" — e.g., a section, category, task type, or evaluation split called "{sub_label}".
-
-Look for:
-- Sections, subsections, or paragraphs describing "{sub_label}" specifically
-- Data splits, sizes, or sources unique to this variant
-- Metrics or evaluation methodology that differs from the parent
-- Specific results or baselines reported for this variant
-- Task categories or domains unique to this variant
-- Any definition or description of what "{sub_label}" means in the context of this benchmark
-
-If you find specific information, describe it using the fields below.
-If the paper does NOT mention "{sub_label}" or "{sub_name}" and has NO information specific to it beyond what applies to the parent benchmark as a whole, respond with EXACTLY: NO SPECIFIC INFORMATION FOUND
-
-{identity_anchor}
-
-Fields to describe (ONLY if paper has sub-benchmark-specific information):
-
-## benchmark_details
-- overview: What specifically distinguishes this sub-benchmark from the parent?
-- domains: Any specific domains or categories this variant focuses on
-
-## data
-- source: Data sources unique to this sub-benchmark
-- size: Size information specific to this sub-benchmark
-
-## methodology
-- metrics: Metrics specific to this sub-benchmark
-- baseline_results: Results reported specifically for this variant
-
-PAPER TEXT:
-{paper_content}"""
-
-HF_SUB_BENCHMARK_EXTRACTION_PROMPT = """This HuggingFace dataset README describes the benchmark "{parent_name}".
-Search the text for ANY information specifically about the variant, sub-benchmark, category, or split called "{sub_name}".
-Also look for references to just "{sub_label}" — e.g., a section, category, task type, or split called "{sub_label}".
-
-If you find specific information about what "{sub_label}" is or how it differs from the parent benchmark, describe it.
-If the README does NOT mention "{sub_label}" or "{sub_name}", respond with EXACTLY: NO SPECIFIC INFORMATION FOUND
-
-Fields to describe (ONLY if README has sub-benchmark-specific information):
-
-## benchmark_details
-- overview: What specifically distinguishes this sub-benchmark from the parent?
-- domains: Any specific domains or categories this variant focuses on
-
-## data
-- source: Data sources unique to this sub-benchmark
-- size: Size information specific to this sub-benchmark
-
-README TEXT:
-{readme_content}"""
-
-SUB_BENCHMARK_FALLBACK_PROMPT = """You are writing a brief, factual description for a sub-benchmark card.
-
-Parent benchmark: "{parent_name}"
-Parent overview: "{parent_overview}"
-Sub-benchmark name: "{sub_name}"
-Distinguishing label: "{sub_label}"
-
-Based on the sub-benchmark name and the parent benchmark context, write exactly 1-2 sentences describing what this sub-benchmark likely evaluates or measures, and how it relates to the parent benchmark. Be specific about the "{sub_label}" component.
-
-Keep it factual and concise. Do NOT invent specific numbers, dates, or paper citations."""
-
-
-def _extract_sub_label(sub_name: str, parent_name: str) -> str:
-    """Extract the distinguishing label from a sub-benchmark name.
-
-    E.g., 'rewardbench_2_safety' with parent 'rewardbench_2' → 'safety'
-          'bfcl_multi_turn' with parent 'bfcl' → 'multi turn'
-          'arc_agi_v2_public_eval' with parent 'arc_agi' → 'v2 public eval'
-    """
-    # Simple normalization (avoid importing from eee_tool to prevent circular imports)
-    def _norm(n):
-        return n.strip().lower().replace("_", "-").replace(" ", "-")
-
-    parent_norm = _norm(parent_name)
-    sub_norm = _norm(sub_name)
-
-    # Try to strip the parent prefix
-    if sub_norm.startswith(parent_norm):
-        label = sub_norm[len(parent_norm):].strip().strip("-").strip()
-        if label:
-            return label.replace("-", " ")
-
-    # Fallback: just replace underscores/dashes with spaces
-    return sub_name.replace("_", " ").replace("-", " ")
-
-
-def _targeted_extract(paper_content: str, sub_label: str, context_chars: int = 2000) -> str:
-    """Extract paragraphs from paper that mention the sub-benchmark label.
-
-    Returns the most relevant portions of the paper text containing the label,
-    plus the first section for context. Caps total at context_chars * number of matches.
-    """
-    paragraphs = paper_content.split("\n\n")
-    label_lower = sub_label.lower()
-    # Also search for individual words if label is multi-word
-    label_words = label_lower.split()
-
-    relevant = []
-    for i, para in enumerate(paragraphs):
-        para_lower = para.lower()
-        if label_lower in para_lower:
-            # Include surrounding paragraphs for context
-            start = max(0, i - 1)
-            end = min(len(paragraphs), i + 2)
-            for j in range(start, end):
-                if paragraphs[j] not in relevant:
-                    relevant.append(paragraphs[j])
-        elif len(label_words) > 1 and all(w in para_lower for w in label_words):
-            if para not in relevant:
-                relevant.append(para)
-
-    if relevant:
-        # Include first 2 paragraphs for paper context + all relevant paragraphs
-        header = "\n\n".join(paragraphs[:2])
-        body = "\n\n".join(relevant)
-        return f"{header}\n\n...\n\n{body}"
-
-    return ""
-
-
-def extract_sub_benchmark_facts(
-    paper_content: str,
-    parent_name: str,
-    sub_name: str,
-    identity_anchor: str = "",
-    paper_title: str = "",
-    hf_readme_content: str = "",
-) -> Optional[str]:
-    """Search paper text and HF README for information specific to a sub-benchmark.
-
-    Returns extracted facts string if found, None if nothing specific was found.
-    Tries: (1) targeted paper extraction, (2) full paper extraction, (3) HF README.
-    """
-    sub_label = _extract_sub_label(sub_name, parent_name)
-
-    name_alias_line = (
-        f'This benchmark may also be referred to as: "{paper_title}"'
-        if paper_title else ""
-    )
-
-    from auto_benchmarkcard.config import get_llm_handler
-    llm_handler = get_llm_handler()
-
-    # Strategy 1: Targeted extraction — find paragraphs mentioning sub_label
-    if paper_content:
-        targeted_text = _targeted_extract(paper_content, sub_label)
-        search_text = targeted_text if targeted_text else paper_content[:30000]
-
-        prompt = SUB_BENCHMARK_EXTRACTION_PROMPT.format(
-            parent_name=parent_name,
-            sub_name=sub_name,
-            sub_label=sub_label,
-            paper_content=search_text,
-            identity_anchor=identity_anchor,
-            name_alias_line=name_alias_line,
-        )
-
-        try:
-            result = llm_handler.generate(f"{_EXTRACTOR_SYSTEM}\n\n{prompt}")
-
-            if "NO SPECIFIC INFORMATION FOUND" not in result.upper():
-                logger.info("Found sub-benchmark facts for %s (paper): %d chars", sub_name, len(result))
-                return result
-
-            logger.info("No specific info in paper for sub-benchmark %s (label: %s)", sub_name, sub_label)
-        except Exception as e:
-            logger.warning("Paper sub-benchmark extraction failed for %s: %s", sub_name, e)
-
-    # Strategy 2: HF README fallback
-    if hf_readme_content:
-        prompt = HF_SUB_BENCHMARK_EXTRACTION_PROMPT.format(
-            parent_name=parent_name,
-            sub_name=sub_name,
-            sub_label=sub_label,
-            readme_content=hf_readme_content[:15000],
-        )
-
-        try:
-            result = llm_handler.generate(f"{_EXTRACTOR_SYSTEM}\n\n{prompt}")
-
-            if "NO SPECIFIC INFORMATION FOUND" not in result.upper():
-                logger.info("Found sub-benchmark facts for %s (HF README): %d chars", sub_name, len(result))
-                return result
-
-            logger.info("No specific info in HF README for sub-benchmark %s", sub_name)
-        except Exception as e:
-            logger.warning("HF README sub-benchmark extraction failed for %s: %s", sub_name, e)
-
-    return None
-
-
-def generate_sub_benchmark_fallback_description(
-    sub_name: str,
-    parent_name: str,
-    parent_overview: str,
-) -> Optional[str]:
-    """Generate a brief distinguishing description for a sub-benchmark as last resort.
-
-    Used when neither paper nor HF README contain specific sub-benchmark info.
-    Returns a 1-2 sentence description, or None if generation fails.
-    """
-    sub_label = _extract_sub_label(sub_name, parent_name)
-
-    prompt = SUB_BENCHMARK_FALLBACK_PROMPT.format(
-        parent_name=parent_name,
-        parent_overview=parent_overview[:500],
-        sub_name=sub_name,
-        sub_label=sub_label,
-    )
-
-    try:
-        from auto_benchmarkcard.config import get_llm_handler
-        llm_handler = get_llm_handler()
-        result = llm_handler.generate(prompt)
-        # Clean up — take just the first 1-2 sentences
-        sentences = result.strip().split(". ")
-        description = ". ".join(sentences[:2])
-        if not description.endswith("."):
-            description += "."
-        logger.info("Generated fallback description for %s: %s", sub_name, description[:100])
-        return description
-    except Exception as e:
-        logger.warning("Fallback description generation failed for %s: %s", sub_name, e)
-        return None
-
-
-def compose_sub_benchmark_card(
-    parent_card: Dict[str, Any],
-    sub_facts: Optional[str],
-    sub_name: str,
-    eee_metadata: Optional[Dict[str, Any]] = None,
-    fallback_description: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Compose a sub-benchmark card by inheriting from parent and specializing.
-
-    If sub_facts is None (no specific info found), uses fallback_description
-    to at least distinguish the overview. If neither is available, inherits verbatim.
-    """
-    import copy
-
-    parent_bc = parent_card.get("benchmark_card", parent_card)
-    card = copy.deepcopy(parent_bc)
-
-    # Always override identity fields
-    if "benchmark_details" not in card:
-        card["benchmark_details"] = {}
-    card["benchmark_details"]["name"] = sub_name
-    card["benchmark_details"]["benchmark_type"] = map_benchmark_type("sub-benchmark")
-    if eee_metadata:
-        card["benchmark_details"]["appears_in"] = eee_metadata.get("appears_in", [])
-
-    if sub_facts:
-        # Use LLM to specialize the inherited card with sub-benchmark-specific facts
-        _specialize_card_with_facts(card, sub_facts, sub_name)
-    elif fallback_description:
-        # No grounded facts found, but inject a distinguishing overview
-        parent_name = parent_bc.get("benchmark_details", {}).get("name", "unknown")
-        sub_label = _extract_sub_label(sub_name, parent_name)
-        parent_overview = card["benchmark_details"].get("overview", "")
-        card["benchmark_details"]["overview"] = (
-            f"{fallback_description}\n\n"
-            f"This is the \"{sub_label}\" sub-component of {parent_name}. "
-            f"{parent_overview}"
-        )
-
-    card = post_process_card(card)
-
-    return {
-        "benchmark_card": card,
-        "generation_metadata": {
-            "generation_method": "sub_benchmark_inheritance",
-            "parent_benchmark": parent_bc.get("benchmark_details", {}).get("name", "unknown"),
-            "has_specific_facts": bool(sub_facts),
-            "has_fallback_description": bool(fallback_description) and not bool(sub_facts),
-            "timestamp": datetime.now().isoformat(),
-        },
-    }
-
-
-def _specialize_card_with_facts(card: Dict[str, Any], sub_facts: str, sub_name: str):
-    """Apply sub-benchmark-specific facts to inherited card fields."""
-    # Sections that should NOT be overridden (always inherit from parent)
-    _INHERIT_SECTIONS = {"ethical_and_legal_considerations"}
-
-    prompt = f"""You are specializing a benchmark card for the sub-benchmark "{sub_name}".
-
-Below is the PARENT benchmark card (inherited values) and FACTS specific to this sub-benchmark extracted from the paper.
-
-For each section and field:
-- If the sub-benchmark facts provide SPECIFIC information for that field, update the value to reflect the sub-benchmark specifics.
-- If the facts say nothing specific about a field, keep the parent value UNCHANGED.
-- Do NOT remove or empty any parent values — only add or refine.
-
-PARENT CARD:
-{json.dumps(card, indent=2)}
-
-SUB-BENCHMARK FACTS:
-{sub_facts}
-
-Return the updated card as valid JSON. Keep the exact same structure as the parent card."""
-
-    try:
-        from auto_benchmarkcard.config import get_llm_handler
-        llm_handler = get_llm_handler()
-        result = llm_handler.generate(prompt)
-
-        # Extract JSON from response
-        json_match = re.search(r'\{[\s\S]*\}', result)
-        if json_match:
-            specialized = json.loads(json_match.group())
-
-            # Apply specializations but protect inherited sections
-            for section_key, section_value in specialized.items():
-                if section_key in _INHERIT_SECTIONS:
-                    continue
-                if section_key in card and isinstance(section_value, dict):
-                    card[section_key].update(section_value)
-                else:
-                    card[section_key] = section_value
-        else:
-            logger.warning("Could not parse specialized card JSON for %s", sub_name)
-    except Exception as e:
-        logger.warning("Card specialization failed for %s: %s", sub_name, e)
+    return _run_extraction(prompt, readme_text, evidence.DOC_GITHUB, "GitHub README", frame=frame)
 
 
 def _get_hf_readme(hf_metadata: Optional[Dict[str, Any]]) -> str:
@@ -1061,9 +741,11 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
       - 'Score' means a number with score context (trailing '%' or a decimal); a bare integer or a
         name-glued version digit ('Fable 5', 'GPT-5', 'Gemini 3.1') is NOT a score and never grounds.
       - A sentence with NO stated score is qualitative context -> kept untouched.
-      - A MIXED sentence (some scores grounded, some not) is ambiguous -> KEPT + flagged, never dropped
-        (a real baseline must not be lost to a co-located stray number).
-      - Only a sentence whose every stated score is ungrounded is dropped.
+      - A sentence with ANY ungrounded stated score is dropped, mixed or not. Mixed sentences used
+        to be kept and flagged; the phase 3 screen showed that path ships real fabrications
+        (assistantbench's 22.2% closed-book row, chartqa's 31.96%, math's 'GPT-2 (0.7B)'), and a
+        flag is not a withhold. Losing the grounded half of such a sentence is the price of
+        abstaining, and the grounded number still lives in the cited evidence.
       - Surviving grounded + qualitative sentences are KEPT (whole sentences -> grammatical, no mangled
         remnant); the WHOLE field is set to 'Not specified' only when NO grounded sentence survives a
         real drop (e.g. mmlu-pro's all-fabricated leaderboard -> whole-field NS)."""
@@ -1081,23 +763,19 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
 
     kept: List[str] = []
     dropped = False
-    mixed = False
     any_grounded_kept = False
     for s in sentences:
         nums = _stated_score_numbers(s)
         if not nums:
             kept.append(s)                                   # qualitative -> keep (no score to judge)
             continue
-        grounded_hits = [n for n in nums if _score_is_grounded(n, grounded)]
-        if not grounded_hits:
-            dropped = True                                   # every stated score ungrounded -> drop
+        if not all(_score_is_grounded(n, grounded) for n in nums):
+            dropped = True                                   # any ungrounded stated score -> drop
             continue
-        if len(grounded_hits) < len(nums):
-            mixed = True                                     # mixed -> keep, but flag
         any_grounded_kept = True
         kept.append(s)
 
-    if not dropped and not mixed:
+    if not dropped:
         return                                               # nothing to change
 
     flags = card.setdefault("flagged_fields", {})
@@ -1105,18 +783,87 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
     # Whole-field NS ONLY when a real drop left no grounded sentence behind (nothing trustworthy to
     # keep). Otherwise keep the surviving whole sentences (grammatical) -- never over-drop a real
     # baseline just because the fabricated sentences were the majority.
-    if dropped and (not any_grounded_kept or not surviving):
+    if not any_grounded_kept or not surviving:
         meth["baseline_results"] = "Not specified"
         flags["methodology.baseline_results"] = (
             "[Ungrounded baseline] all reported scores not traceable to a retrieved source; "
             "field set to Not specified")
-    elif dropped:
+    else:
         meth["baseline_results"] = surviving
         flags["methodology.baseline_results"] = (
             "[Ungrounded baseline] dropped score claim(s) not traceable to a retrieved source")
-    elif mixed:
-        flags["methodology.baseline_results"] = (
-            "[Ungrounded baseline] one or more reported scores not traceable to a retrieved source")
+
+
+_INT_TOKEN_RE = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+)(?![\w.])")
+
+
+def _grounded_int_pool(evidence_items: Optional[List[Dict[str, Any]]],
+                       det_facts: Optional[Dict[str, Any]]) -> set:
+    """Every integer the composer was actually given: bare or thousands-grouped integers in
+    the verified evidence quotes, plus the deterministic counts (split totals, README-table
+    breakdown values, an explicit size count). Over-inclusive on purpose (a year or a page
+    number joins the pool too); the pool only has to be a superset of the honest counts."""
+    pool: set = set()
+    for it in (evidence_items or []):
+        if isinstance(it, dict):
+            for m in _INT_TOKEN_RE.finditer(str(it.get("quote", "") or "")):
+                pool.add(int(m.group(1).replace(",", "")))
+    df = det_facts if isinstance(det_facts, dict) else {}
+    total = df.get("data.total_examples")
+    if isinstance(total, int) and not isinstance(total, bool):
+        pool.add(total)
+    for entry in df.get("data.split_info") or []:
+        for m in _INT_TOKEN_RE.finditer(str(entry)):
+            pool.add(int(m.group(1).replace(",", "")))
+    det_sb = df.get("data.size_breakdown")
+    if isinstance(det_sb, dict):
+        pool.update(v for v in det_sb.values() if isinstance(v, int) and not isinstance(v, bool))
+    size_count = _size_count(df.get("data.size"))
+    if size_count is not None:
+        pool.add(size_count)
+    return pool
+
+
+def _drop_ungrounded_size_breakdown(card: Dict[str, Any],
+                                    evidence_items: Optional[List[Dict[str, Any]]],
+                                    det_facts: Optional[Dict[str, Any]]) -> None:
+    """Withhold size_breakdown counts that no retrieved source carries. Mutates card in place
+    and flags the change. A Stage-B breakdown is a set of per-subset integers; each one must
+    occur literally in a verified quote or a deterministic count, else it was synthesized (the
+    swe-polybench task-type class: round numbers that match no published breakdown). A
+    breakdown that equals the deterministic README-table parse is trusted as-is. Runs BEFORE
+    the numeric-consistency rules so a percentage breakdown, grounded as '40%' in a quote, can
+    still be converted by Rule C afterwards."""
+    data = card.get("data")
+    if not isinstance(data, dict):
+        return
+    sb = data.get("size_breakdown")
+    if not isinstance(sb, dict) or not sb:
+        return
+    det_sb = (det_facts or {}).get("data.size_breakdown") if isinstance(det_facts, dict) else None
+    if isinstance(det_sb, dict) and det_sb == sb:
+        return
+    pool = _grounded_int_pool(evidence_items, det_facts)
+    kept = {}
+    dropped = []
+    for k, v in sb.items():
+        if isinstance(v, int) and not isinstance(v, bool) and v not in pool:
+            dropped.append(k)
+            continue
+        kept[k] = v
+    if not dropped:
+        return
+    flags = card.setdefault("flagged_fields", {})
+    if kept:
+        data["size_breakdown"] = kept
+        flags["data.size_breakdown"] = (
+            f"[Ungrounded breakdown] dropped {len(dropped)} count(s) not traceable to a "
+            f"retrieved source: {', '.join(str(d) for d in dropped[:6])}")
+    else:
+        data["size_breakdown"] = "Not specified"
+        flags["data.size_breakdown"] = (
+            "[Ungrounded breakdown] no count traceable to a retrieved source; "
+            "field set to Not specified")
 
 
 def build_metric_labels(eee_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -1728,6 +1475,73 @@ def _enforce_numeric_consistency(
         data["size_breakdown"] = "Not specified"
 
 
+def _surface_size_conflicts(det_facts: Dict[str, Any],
+                            evidence_items: Optional[List[Dict[str, Any]]],
+                            conflicts: List[Dict[str, Any]]) -> None:
+    """A paper-stated example count that disagrees with the deterministic (HF tag or
+    croissant row-count) size is a source conflict, not a silent priority.
+
+    swe-bench-multimodal: the HF parquet held 580 rows (dev 100 / test 480) while the
+    paper states 619 task instances; the croissant channel won by construction, Stage B
+    echoed 580 as 'already established', and the paper-cited annotation field then
+    contradicted the card's own size. The schema description for data.size prefers the
+    paper's count, so on a material disagreement the deterministic size (and a split
+    breakdown that sums to it, i.e. the same artifact count) is withdrawn from
+    det_facts: Stage B composes the size from the cited paper evidence and the conflict
+    lands in flagged_fields with the HF number. Only target-referent, primary-result
+    paper quotes tagged data.size count; the largest such count is the benchmark total.
+    Mutates det_facts and appends to conflicts in place."""
+    det_size = det_facts.get("data.size")
+    det_count = _size_count(det_size)
+    bucket = _size_bucket_range(det_size)
+    if det_count is None and bucket is None:
+        return
+    paper_docs = {evidence.DOC_PAPER, evidence.DOC_ABSTRACT}
+    counts: List[int] = []
+    for it in evidence_items or []:
+        if not isinstance(it, dict) or it.get("field") != "data.size":
+            continue
+        if it.get("doc") not in paper_docs:
+            continue
+        if it.get("referent") not in ("", "target", None):
+            continue
+        if it.get("claim_role") not in ("", "primary_result", None):
+            continue
+        n = _prose_example_count(it.get("quote", ""))
+        if n:
+            counts.append(n)
+    if not counts:
+        return
+    paper_count = max(counts)
+    if det_count is None:
+        # A coarse HF tag bucket: a precise paper count inside its range simply displaces
+        # it (the schema prefers the paper's number); a count outside it is a conflict.
+        lo, hi = bucket
+        if lo <= paper_count < hi:
+            del det_facts["data.size"]
+            return
+        conflicts.append({
+            "field": "data.size", "deterministic": det_size,
+            "composed": f"{paper_count} (paper-stated count)",
+            "note": "hf size bucket vs paper-stated count",
+        })
+        del det_facts["data.size"]
+        return
+    if abs(paper_count - det_count) <= max(1, det_count // 100):
+        return
+    conflicts.append({
+        "field": "data.size", "deterministic": det_size,
+        "composed": f"{paper_count} (paper-stated count)",
+        "note": "hf/croissant row count vs paper-stated count",
+    })
+    del det_facts["data.size"]
+    sb = det_facts.get("data.size_breakdown")
+    if isinstance(sb, dict) and sb and all(_is_split_name(k) for k in sb):
+        total = sum(v for v in sb.values() if isinstance(v, int) and not isinstance(v, bool))
+        if abs(total - det_count) <= max(1, det_count // 100):
+            del det_facts["data.size_breakdown"]
+
+
 # A meta-statement about missing documentation is not a benchmark description: do not surface it
 # as an overview (the card stays honestly thin instead).
 _NO_DOC_META_RE = re.compile(
@@ -2092,44 +1906,192 @@ def extract_deterministic_facts(
     return facts
 
 
+# Docling markdown preserves some "#"/"##" heading lines; the first one in a chunk is the
+# only document-location signal available until a real section index exists.
+_MD_HEADING_RE = re.compile(r"^#{1,6}\s+(\S.*)$", re.M)
+
+
+def _excerpt_label(i: int, text: str) -> str:
+    """Honest label for a retrieved paper chunk. Never fabricates section numbers
+    (retrieval order is not document order); when the chunk itself carries a markdown
+    heading, the first one is named for location context."""
+    m = _MD_HEADING_RE.search(text)
+    if m:
+        heading = " ".join(m.group(1).split())[:100].strip()
+        if heading:
+            return f"[Excerpt {i} from paper, near heading: {heading}]"
+    return f"[Excerpt {i} from paper]"
+
+
+def _format_paper_chunks(intro_text: str, chunk_texts: List[str], budget: int):
+    """Assemble the model-read paper context: intro plus retrieved excerpts under honest
+    labels, within budget. Returns (content, chars used)."""
+    formatted = [f"[Abstract and Introduction]\n{intro_text}"]
+    used = len(intro_text)
+    for i, text in enumerate(chunk_texts, 1):
+        if used + len(text) > budget:
+            remaining = budget - used
+            if remaining > 100:
+                clipped = text[:remaining]
+                formatted.append(f"{_excerpt_label(i, clipped)}\n{clipped}")
+            break
+        formatted.append(f"{_excerpt_label(i, text)}\n{text}")
+        used += len(text)
+    return "\n\n".join(formatted), used
+
+
+# Tokenizer for the deterministic gap-excerpt ranking; tokens under 3 chars never match.
+# The stopwords keep shared function words in the curator hints from inflating overlap.
+_GAP_TOKEN_RE = re.compile(r"[a-z0-9]{3,}")
+_GAP_STOPWORDS = frozenset({
+    "the", "and", "not", "nor", "for", "with", "from", "that", "this", "these",
+    "those", "was", "were", "are", "how", "who", "what", "where", "when", "any",
+    "also", "its", "etc", "only", "goes", "here",
+})
+
+
+def _gap_hint_tokens(targets) -> set:
+    """Union of content tokens from the open gap fields' curator hints."""
+    tokens = set()
+    for path in targets:
+        hint = evidence.CURATOR_FIELDS.get(path, {}).get("hint", "")
+        tokens.update(_GAP_TOKEN_RE.findall(hint.lower()))
+    return tokens - _GAP_STOPWORDS
+
+
+def _rank_gap_excerpts(excerpts: List[str], hint_tokens: set, budget: int) -> List[str]:
+    """Order the deduped excerpt pool by token overlap with the gap-field hints and keep
+    the best ones within the total char budget. Deterministic and LLM-free: the score is
+    the count of distinct shared tokens, ties keep retrieval order, and an excerpt that
+    would overflow the budget is skipped so a smaller lower-ranked one can still fit."""
+    scores = [len(set(_GAP_TOKEN_RE.findall(t.lower())) & hint_tokens) for t in excerpts]
+    order = sorted(range(len(excerpts)), key=lambda i: (-scores[i], i))
+    kept: List[str] = []
+    used = 0
+    for i in order:
+        if used + len(excerpts[i]) > budget:
+            continue
+        kept.append(excerpts[i])
+        used += len(excerpts[i])
+    return kept
+
+
+def _fold_gap_telemetry(acc: Dict, call: Dict) -> None:
+    """Sum a second gap sweep's call telemetry into the first, in place. Both sweeps are
+    DOC_PAPER calls, so the merged dict still folds into card telemetry as one call."""
+    for k in ("emitted", "verified", "rejected", "truncated"):
+        acc[k] += call[k]
+    for reason, count in call["reject_reasons"].items():
+        acc["reject_reasons"][reason] = acc["reject_reasons"].get(reason, 0) + count
+    if "referent_resolution" in call:
+        rr = acc.setdefault("referent_resolution", {})
+        for how, count in call["referent_resolution"].items():
+            rr[how] = rr.get(how, 0) + count
+
+
+def _gap_sweep(targets, paper_retriever, benchmark_name, verify_source,
+               identity_anchor, doc_index, frame):
+    """One gap-fill extraction call over the given open fields. Returns
+    (records, telemetry, ran); ran is False when no call was made (nothing retrieved,
+    or an empty source on the retriever-less path)."""
+    if paper_retriever is not None:
+        seen = set()
+        excerpts: List[str] = []
+        for path, query in targets.items():
+            try:
+                chunks = paper_retriever.invoke(query)
+            except Exception as e:
+                logger.debug("Gap-fill retrieval failed for %s: %s", path, e)
+                continue
+            for chunk in chunks[:4]:
+                text = chunk.page_content[:1500]
+                if text[:200] in seen:
+                    continue
+                seen.add(text[:200])
+                excerpts.append(text)
+        excerpts = _rank_gap_excerpts(excerpts, _gap_hint_tokens(targets),
+                                      Config.GAP_EXCERPT_BUDGET)
+        if not excerpts:
+            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), False
+        source_label = "paper excerpts"
+        context = "\n\n".join(f"{_excerpt_label(i, t)}\n{t}"
+                              for i, t in enumerate(excerpts, 1))
+    else:
+        source_label = "research paper"
+        context = verify_source[:Config.PAPER_EXTRACTION_BUDGET]
+        if not context:
+            return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), False
+
+    prompt = evidence.build_extraction_prompt(
+        source_label=source_label,
+        fields=list(targets),
+        benchmark_name=benchmark_name,
+        identity_anchor=identity_anchor,
+        source_text=context,
+        frame=frame,
+    )
+    # build_extraction_prompt has no instruction slot, so the un-binding rule rides
+    # after the source text.
+    prompt += (
+        "\n\nThe allowed fields above are the ones still missing evidence. Any part of "
+        "the source text may support any of these missing fields, or none of them; tag "
+        "each quote with the field it actually supports, or emit nothing for it."
+    )
+    records, telem = _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill",
+                                     shown_text=context, doc_index=doc_index, frame=frame)
+    return records, telem, True
+
+
 def _fill_paper_gaps(paper_items, paper_retriever, benchmark_name, verify_source,
-                     identity_anchor=""):
-    """Targeted RAG retrieval for paper fields that have no verified evidence yet.
+                     identity_anchor="", doc_index=None, frame=None):
+    """Recall pass for paper fields that have no verified evidence yet.
 
     Same Evidence-Item format as the paper call. Quotes are verified against verify_source
     (the full paper text), doc=docling, so gap items share one reference with paper items.
-    Returns (verified records, telemetry).
+    With a retriever, the context is deduped retrieved excerpts (top-4 per gap query,
+    ranked by token overlap with the open fields' hints, within Config.GAP_EXCERPT_BUDGET)
+    under honest labels; the gap fields are listed once in the instruction, never bound
+    per-chunk, so the model tags each quote with the field it actually supports. Without a
+    retriever (short paper that fit in context, or indexing failed), the paper text itself
+    is the context.
+
+    When fields remain open after the first sweep AND that sweep verified at least one
+    quote (the source is productive), one more sweep runs restricted to the remaining
+    fields, with fresh retrieval for just their queries. Hard cap: 2 extraction calls
+    per card. Returns (verified records, telemetry, gap-recall telemetry with gap_sweeps
+    and per-sweep gap_fields_open_before/after counts).
     """
+    gap_recall = {"gap_sweeps": 0, "gap_fields_open_before": [], "gap_fields_open_after": []}
     covered = {it["field"] for it in paper_items}
     targets = {path: query for path, query in evidence.gap_fields().items()
                if path not in covered}
     if not targets:
-        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
+        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER), gap_recall
 
-    logger.info("Gap-filling: targeted retrieval for %d fields: %s",
-                len(targets), list(targets))
+    logger.info("Gap-filling: %d missing fields: %s", len(targets), list(targets))
+    records, telem, ran = _gap_sweep(targets, paper_retriever, benchmark_name,
+                                     verify_source, identity_anchor, doc_index, frame)
+    if not ran:
+        return records, telem, gap_recall
 
-    gap_chunks: Dict[str, str] = {}
-    for path, query in targets.items():
-        try:
-            chunks = paper_retriever.invoke(query)
-            if chunks:
-                gap_chunks[path] = "\n".join(c.page_content for c in chunks[:2])[:1500]
-        except Exception as e:
-            logger.debug("Gap-fill retrieval failed for %s: %s", path, e)
+    filled = {r["field"] for r in records}
+    remaining = {p: q for p, q in targets.items() if p not in filled}
+    gap_recall["gap_sweeps"] = 1
+    gap_recall["gap_fields_open_before"].append(len(targets))
+    gap_recall["gap_fields_open_after"].append(len(remaining))
 
-    if not gap_chunks:
-        return [], evidence.empty_call_telemetry(evidence.DOC_PAPER)
-
-    chunks_text = "\n\n".join(f"[For {path}]\n{text}" for path, text in gap_chunks.items())
-    prompt = evidence.build_extraction_prompt(
-        source_label="paper excerpts",
-        fields=list(gap_chunks),
-        benchmark_name=benchmark_name,
-        identity_anchor=identity_anchor,
-        source_text=chunks_text,
-    )
-    return _run_extraction(prompt, verify_source, evidence.DOC_PAPER, "Gap-fill")
+    if remaining and records:
+        logger.info("Gap-fill second sweep: %d fields still open", len(remaining))
+        records2, telem2, ran2 = _gap_sweep(remaining, paper_retriever, benchmark_name,
+                                            verify_source, identity_anchor, doc_index, frame)
+        if ran2:
+            still_open = len(remaining) - len({r["field"] for r in records2} & set(remaining))
+            gap_recall["gap_sweeps"] = 2
+            gap_recall["gap_fields_open_before"].append(len(remaining))
+            gap_recall["gap_fields_open_after"].append(still_open)
+            records = records + records2
+            _fold_gap_telemetry(telem, telem2)
+    return records, telem, gap_recall
 
 
 # Hallucinated pipeline-org owners that leak into resource URLs -- the same furniture family as
@@ -2230,15 +2192,37 @@ def post_process_card(card: Dict[str, Any]) -> Dict[str, Any]:
     return card
 
 
+def _values_differ(a, b) -> bool:
+    """Material difference between a composed value and a deterministic one."""
+    def norm(v):
+        if isinstance(v, list):
+            return frozenset(str(x).strip().lower() for x in v if str(x).strip())
+        return str(v).strip().lower()
+    return norm(a) != norm(b)
+
+
 def apply_deterministic_overrides(
     card: Dict[str, Any],
     deterministic_facts: Dict[str, Any],
+    conflicts: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Override LLM-generated fields with deterministic ground-truth values.
 
     Always overrides languages and license; fill-only for metrics and format.
+    When an always-override replaces a materially different composed value, the
+    replacement still happens (the tag stays authoritative) but the conflict is
+    recorded in the optional conflicts list instead of vanishing silently.
     """
     overrides_applied = []
+
+    def _note_conflict(field, det_val):
+        if conflicts is None:
+            return
+        sec, key = field.split(".", 1)
+        existing = card.get(sec, {}).get(key) if isinstance(card.get(sec), dict) else None
+        if existing is None or _is_empty(existing) or not _values_differ(existing, det_val):
+            return
+        conflicts.append({"field": field, "deterministic": det_val, "composed": existing})
 
     _EMPTY = {"not specified", "not specified.", "no information found", ""}
 
@@ -2254,6 +2238,8 @@ def apply_deterministic_overrides(
         return False
 
     if "benchmark_details.languages" in deterministic_facts:
+        _note_conflict("benchmark_details.languages",
+                       deterministic_facts["benchmark_details.languages"])
         card.setdefault("benchmark_details", {})["languages"] = \
             deterministic_facts["benchmark_details.languages"]
         overrides_applied.append("languages")
@@ -2270,11 +2256,15 @@ def apply_deterministic_overrides(
     # data_type is always-override (matches card_utils _ALWAYS_OVERRIDE); keeps this site
     # byte-identical to the workers override for all six deterministic fields (S1/S10).
     if "benchmark_details.data_type" in deterministic_facts:
+        _note_conflict("benchmark_details.data_type",
+                       deterministic_facts["benchmark_details.data_type"])
         card.setdefault("benchmark_details", {})["data_type"] = \
             deterministic_facts["benchmark_details.data_type"]
         overrides_applied.append("data_type")
 
     if "ethical_and_legal_considerations.data_licensing" in deterministic_facts:
+        _note_conflict("ethical_and_legal_considerations.data_licensing",
+                       deterministic_facts["ethical_and_legal_considerations.data_licensing"])
         card.setdefault("ethical_and_legal_considerations", {})["data_licensing"] = \
             deterministic_facts["ethical_and_legal_considerations.data_licensing"]
         overrides_applied.append("license")
@@ -2630,12 +2620,25 @@ def _normalize_provenance_sources(
         it.get("evidence_id"): it.get("doc")
         for it in (evidence_items or []) if isinstance(it, dict)
     }
+    id2ref = {
+        it.get("evidence_id"): it.get("referent")
+        for it in (evidence_items or [])
+        if isinstance(it, dict) and it.get("referent") not in (None, "", "target")
+    }
     for fields in all_provenance.values():
         if not isinstance(fields, dict):
             continue
         for entry in fields.values():
             if not isinstance(entry, dict):
                 continue
+            # Referent axis for downstream verification: when the cited evidence is about
+            # a non-target frame node, record the majority referent on the entry so the
+            # NLI hypothesis can name it. Target-only entries carry no key.
+            eids_r = entry.get("evidence_ids")
+            if isinstance(eids_r, list) and eids_r:
+                refs = [id2ref[e] for e in eids_r if e in id2ref]
+                if refs:
+                    entry["referent"] = max(set(refs), key=refs.count)
             src = entry.get("source")
             if src in ("deterministic", "eee"):
                 continue
@@ -2724,10 +2727,45 @@ def _languages_is_ns(value: Any) -> bool:
     return _is_ns_str(value)
 
 
+# EEE llm-stats raw_categories tokens that name a modality (mapped to DATA_TYPE_VOCAB).
+# Domain/skill categories (code, agents, reasoning, ...) are deliberately absent: RepoBench
+# carries category "code" with raw_modality "text", so a category alone is no modality claim.
+_EEE_CATEGORY_MODALITY = {
+    "vision": "image", "image": "image", "images": "image",
+    "video": "video", "videos": "video",
+    "audio": "audio", "speech": "audio",
+}
+
+
+def _eee_extra_modalities(eee_metadata: Optional[Dict[str, Any]]) -> set:
+    """Modality tokens the EEE llm-stats metadata deterministically declares: when a metric's
+    additional_details says raw_modality=multimodal, its raw_categories name the modalities.
+    Returns DATA_TYPE_VOCAB members only; empty without a multimodal signal."""
+    out: set = set()
+    for cfg in ((eee_metadata or {}).get("metrics") or {}).values():
+        ad = cfg.get("additional_details") if isinstance(cfg, dict) else None
+        if not isinstance(ad, dict):
+            continue
+        if str(ad.get("raw_modality", "")).strip().lower() != "multimodal":
+            continue
+        cats = ad.get("raw_categories")
+        if isinstance(cats, str):
+            try:
+                cats = json.loads(cats)
+            except ValueError:
+                cats = []
+        for c in cats if isinstance(cats, list) else []:
+            tok = _EEE_CATEGORY_MODALITY.get(str(c).strip().lower())
+            if tok:
+                out.add(tok)
+    return out
+
+
 def apply_coverage_backstops(
     card: Dict[str, Any],
     provenance: Optional[Dict[str, Any]],
     eee_metadata: Optional[Dict[str, Any]] = None,
+    hf_metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
     """C3 reconciliation. Mutates card in place.
     Tier-1: lift a license that is NS in the card but present in provenance with a real source and
@@ -2735,7 +2773,13 @@ def apply_coverage_backstops(
       across the d8 corpus and produced mostly type-mismatched re-lifts. Never touches
       overview/size/size_breakdown (C1/C2 own those).
     Tier-2: a code benchmark with NS languages gets ["not-applicable"] (contract S4.3 code shape;
-      matches the HF-tag path so a no-HF variant is consistent with its sibling)."""
+      matches the HF-tag path so a no-HF variant is consistent with its sibling).
+    Tier-3: a code benchmark whose bound repo deterministically names its programming languages
+      (tags, repo-id tokens, or a README Languages section) gets them surfaced in data.format,
+      since the languages enum is natural-language-or-not-applicable by contract.
+    Tier-4: EEE metadata declaring raw_modality=multimodal adds its named modalities to a
+      filled data_type (a repo whose images are URL strings never earns a modality:image tag).
+      Add-only, DATA_TYPE_VOCAB members only; no-op without the multimodal signal."""
     # Tier-1: license lift.
     sec, field = "ethical_and_legal_considerations", "data_licensing"
     section = card.get(sec)
@@ -2757,6 +2801,42 @@ def apply_coverage_backstops(
             _is_code_benchmark(card, eee_metadata):
         bd["languages"] = ["not-applicable"]
         logger.info("Coverage backstop: code benchmark -> languages not-applicable")
+
+    # Tier-3: surface a code benchmark's programming languages in data.format. The
+    # not-applicable languages shape (Tier-2 / HF-tag path) is contract-correct but hides
+    # what the benchmark targets; when the bound repo names the languages, append them.
+    data = card.get("data")
+    is_code = _is_code_benchmark(card, eee_metadata) or (
+        isinstance(bd, dict) and bd.get("languages") == ["not-applicable"])
+    if isinstance(data, dict) and is_code:
+        code_langs = extract_code_languages(hf_metadata)
+        fmt = data.get("format")
+        already = isinstance(fmt, str) and "code in " in fmt.lower()
+        if code_langs and not already:
+            suffix = "code in " + ", ".join(code_langs)
+            if _is_ns_str(fmt):
+                data["format"] = suffix[0].upper() + suffix[1:]
+            else:
+                data["format"] = f"{fmt}; {suffix}"
+            logger.info("Coverage backstop: code languages -> data.format %r", data["format"])
+
+    # Tier-4: EEE-declared modalities missing from data_type. Extends only an already
+    # filled, all-in-vocab value and never removes a token; image derived from the
+    # ambiguous "vision" category is skipped when video is already present (video
+    # subsumes it, e.g. PerceptionTest).
+    if isinstance(bd, dict):
+        cur = bd.get("data_type")
+        extra = _eee_extra_modalities(eee_metadata)
+        if extra and isinstance(cur, str) and not _is_ns_str(cur):
+            have = {t.strip() for t in cur.split(",") if t.strip()}
+            if have and all(t in fs.DATA_TYPE_VOCAB for t in have):
+                new = extra - have
+                if "video" in have:
+                    new.discard("image")
+                if new:
+                    bd["data_type"] = ", ".join(sorted(have | new))
+                    logger.info(
+                        "Coverage backstop: EEE multimodal -> data_type %r", bd["data_type"])
 
 
 def apply_display_fields(
@@ -3208,6 +3288,10 @@ SECTION_MODELS = {
     "ethical_and_legal_considerations": EthicalAndLegalConsiderations,
 }
 
+# The benchmark CardSchema carries these models from here on; field_spec cannot import
+# them without a cycle.
+fs.BENCHMARK_SCHEMA.section_models = SECTION_MODELS
+
 
 _JUDGE_DETAIL_FIELDS = (
     "methodology.judge_num",
@@ -3257,6 +3341,33 @@ def _build_group_model(name, section_names, section_models):
     return create_model(f"Group_{name}", **fields)
 
 
+def _digest_extras(it) -> str:
+    """The structural annotations for one digest line, in a compact fixed order:
+    about, role, reg, sec, tab. All Python-derived (referent resolution, claim-role
+    coercion, docstructure recompute), never model prose. Defaults are omitted so the
+    common case (target / primary_result / no table) stays one short line: about only
+    for a non-target referent, role only for a non-primary claim role, reg for a real
+    region other than the uninformative 'other', sec as the innermost section title,
+    tab when the quote sits inside an indexed table."""
+    extras = ""
+    ref = it.get("referent", "")
+    if ref and ref != "target":
+        extras += f" | about: {ref}"
+    role = it.get("claim_role", "")
+    if role and role != "primary_result":
+        extras += f" | role: {role}"
+    region = it.get("region", "")
+    if region and region != "other":
+        extras += f" | reg: {region}"
+    sec_path = it.get("section_path", "")
+    if sec_path:
+        extras += f" | sec: {sec_path.rsplit(' > ', 1)[-1]}"
+    table_id = it.get("table_id", "")
+    if table_id:
+        extras += f" | tab: {table_id}"
+    return extras
+
+
 def _digest_block(evidence_digest, section_names):
     lines = []
     for sec in section_names:
@@ -3268,7 +3379,8 @@ def _digest_block(evidence_digest, section_names):
         for it in items:
             lines.append(
                 f"- [{it.get('evidence_id', '?')}] "
-                f"({it.get('field', sec)} | {it.get('doc', '?')}/{it.get('kind', 'stated')}) "
+                f"({it.get('field', sec)} | {it.get('doc', '?')}/{it.get('kind', 'stated')}"
+                f"{_digest_extras(it)}) "
                 f"{it.get('quote', '')}"
             )
     return "\n".join(lines) if lines else "(no evidence items for this group)"
@@ -3300,7 +3412,8 @@ def _field_gloss(model_field) -> str:
     return " ".join(_GLOSS_NOISE_RE.sub("", desc).split())
 
 
-def _field_spec_block(section_models, section_names, det_facts):
+def _field_spec_block(section_models, section_names, det_facts, schema=None):
+    sch = fs.resolve_schema(schema)
     lines = []
     for sec in section_names:
         lines.append(f"## {sec}")
@@ -3308,19 +3421,19 @@ def _field_spec_block(section_models, section_names, det_facts):
             if fname == "provenance":
                 continue
             path = f"{sec}.{fname}"
-            if path in fs.DISPLAY_FIELDS:
+            if path in sch.display_fields:
                 continue
-            entry = f"- {fname} [{fs.field_class(path)}]"
-            vocab = fs.enum_vocab(path)
-            if path in fs.B_AUTHORED_ENUMS and vocab:
+            entry = f"- {fname} [{sch.field_class(path)}]"
+            vocab = sch.enum_vocab(path)
+            if path in sch.b_authored_enums and vocab:
                 entry += ": one or more of {" + ", ".join(sorted(vocab)) + "} or 'other:<text>'"
-            elif path in fs.ESTABLISHED_FIELDS and path in det_facts:
+            elif path in sch.established_fields and path in det_facts:
                 # only claim "already established" when a deterministic value is actually
                 # shown above; otherwise B echoes the literal "already established" as the value
                 entry += ": already established (copy the value shown above verbatim)"
             # A tuned FIELD_CAPS entry wins; otherwise fall back to the field's own
             # description as a generic role gloss.
-            cap = fs.FIELD_CAPS.get(path)
+            cap = sch.field_caps.get(path)
             if cap:
                 entry += f" -- {cap}"
             else:
@@ -3328,7 +3441,7 @@ def _field_spec_block(section_models, section_names, det_facts):
                 if gloss:
                     entry += f" -- {gloss}"
             # Form guidance for any list-valued field: enumerate atomic items.
-            if fname in fs.LIST_FIELDS:
+            if fname in sch.list_fields:
                 entry += (" -- enumerate atomic items, one discrete item per array element; "
                           "do NOT collapse into a summary sentence")
             lines.append(entry)
@@ -3339,6 +3452,13 @@ _STAGE_B_RULES = (
     "RULES:\n"
     "1. Use ONLY the evidence items below. No outside knowledge. No source text is shown to you on "
     "purpose; work from the quotes only.\n"
+    "1b. Evidence-line annotations (machine-derived, trustworthy): 'about:' names the entity the "
+    "quote describes; a quote about one subset, version, split, or sibling benchmark supports only "
+    "statements about THAT entity, never the whole benchmark's own numbers. 'role: secondary' marks "
+    "cited or comparison content and 'role: illustration' an example; neither may become the "
+    "benchmark's own headline facts. 'reg:' is the document region the quote sits in "
+    "(related_work, ablation, or appendix content is weak support for headline fields); "
+    "'sec:' and 'tab:' name its section and source table.\n"
     "2. If a field has no supporting evidence and is not already established, output exactly \"Not specified\".\n"
     "3. Controlled (enum) fields: pick from the allowed vocabulary; if nothing fits use \"other:<short text>\".\n"
     "4. Prose (non-list) fields: 2-3 sentences, third person, your own synthesis of the cited "
@@ -3360,18 +3480,21 @@ _STAGE_B_RULES = (
 
 
 def _build_group_prompt(group_name, section_names, section_models, evidence_digest,
-                        det_facts, composite_guidance):
+                        det_facts, composite_guidance, schema=None):
+    sch = fs.resolve_schema(schema)
+    card_noun = sch.card_noun
+    rules = sch.stage_b_rules or _STAGE_B_RULES
     sec_label = ", ".join(section_names)
     system = (
-        f"You are formatting verified evidence into the {sec_label} section(s) of a benchmark card. "
+        f"You are formatting verified evidence into the {sec_label} section(s) of a {card_noun}. "
         f"You are a FORMATTER, not a researcher.\n"
         f"{composite_guidance}\n"
-        f"{_STAGE_B_RULES}\n\n"
+        f"{rules}\n\n"
         f'Return ONE JSON object with a key per section; each section is an object of its fields plus a '
         f'"provenance" object.'
     )
     user = (
-        f"=== FIELD SPECS ===\n{_field_spec_block(section_models, section_names, det_facts)}\n\n"
+        f"=== FIELD SPECS ===\n{_field_spec_block(section_models, section_names, det_facts, schema)}\n\n"
         f"=== ALREADY ESTABLISHED (copy, do not re-author) ===\n"
         f"{_established_block(det_facts, section_names)}\n\n"
         f"=== EVIDENCE ITEMS ===\n{_digest_block(evidence_digest, section_names)}\n\n"
@@ -3397,6 +3520,55 @@ def _aggregate_validation(group_telemetry):
     }
 
 
+def _flag_version_conflicts(card: Dict[str, Any], card_frame) -> List[Dict[str, str]]:
+    """Flag fields whose version tokens disagree with the card's majority version.
+
+    Deterministic and conservative: only scalar/list prose values in the five content
+    sections are scanned with the frame's version regexes (URL chunks excluded); flags
+    fire only when a clear majority token exists (>= 2 fields) and a minority field
+    mentions a different token without also mentioning the majority one. Flags land in
+    flagged_fields; values are never changed."""
+    found: Dict[str, set] = {}
+    for sec in ("benchmark_details", "purpose_and_intended_users", "data",
+                "methodology", "ethical_and_legal_considerations"):
+        fields = card.get(sec)
+        if not isinstance(fields, dict):
+            continue
+        for key, val in fields.items():
+            texts = []
+            if isinstance(val, str):
+                texts = [val]
+            elif isinstance(val, list):
+                texts = [x for x in val if isinstance(x, str)]
+            tokens = set()
+            for t in texts:
+                for m in list(frame_mod._VERSION_RE.finditer(t)) + \
+                         list(frame_mod._VERSION_WORD_RE.finditer(t)):
+                    if not frame_mod._in_url_chunk(t, m.start(), m.end()):
+                        tokens.add(m.group(1))
+            if tokens:
+                found[f"{sec}.{key}"] = tokens
+    all_tokens: Dict[str, int] = {}
+    for toks in found.values():
+        for t in toks:
+            all_tokens[t] = all_tokens.get(t, 0) + 1
+    if len(all_tokens) < 2:
+        return []
+    majority = max(all_tokens, key=lambda t: all_tokens[t])
+    if all_tokens[majority] < 2:
+        return []
+    flags = []
+    for field, toks in found.items():
+        if majority in toks:
+            continue
+        minority = sorted(toks)[0]
+        reason = (f"version mismatch: mentions v{minority} while other fields "
+                  f"say v{majority}")
+        card.setdefault("flagged_fields", {})[field.rsplit(".", 1)[-1]] = reason
+        flags.append({"field": field, "minority": minority, "majority": majority})
+    return flags
+
+
 @tool("compose_benchmark_card")
 def compose_benchmark_card(
     unitxt_metadata: Optional[Dict[str, Any]] = None,
@@ -3407,6 +3579,7 @@ def compose_benchmark_card(
     eee_metadata: Optional[Dict[str, Any]] = None,
     html_content: Optional[Dict[str, Any]] = None,
     github_readme: Optional[Dict[str, Any]] = None,
+    croissant_facts: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Compose a benchmark card from collected metadata using source-isolated extraction."""
 
@@ -3503,18 +3676,9 @@ def compose_benchmark_card(
                                 seen.add(key)
                                 rag_chunks.append(chunk)
 
-                    formatted = [f"[Abstract and Introduction]\n{intro_text}"]
-                    used = len(intro_text)
-                    for i, chunk in enumerate(rag_chunks, 1):
-                        text = chunk.page_content
-                        if used + len(text) > budget:
-                            remaining = budget - used
-                            if remaining > 100:
-                                formatted.append(f"[Section {i}]\n{text[:remaining]}")
-                            break
-                        formatted.append(f"[Section {i}]\n{text}")
-                        used += len(text)
-                    all_paper_content = "\n\n".join(formatted)
+                    all_paper_content, used = _format_paper_chunks(
+                        intro_text, [c.page_content for c in rag_chunks], budget
+                    )
                     logger.info(
                         "Paper: %d intro chars + %d RAG chunks, %d total chars for extraction",
                         len(intro_text), len(rag_chunks), used,
@@ -3557,6 +3721,46 @@ def compose_benchmark_card(
             full_paper_text = _normalize_docling_text(docling_output.get("filtered_text", ""))
         paper_source = full_paper_text or all_paper_content
 
+        # Referent layer: the section/table index is built over the SAME string quotes
+        # verify against (paper_source), so index offsets and char_start compose. The
+        # frame enumerates this card's candidate referents; its LLM sibling pass is
+        # fail-soft and the whole layer degrades to None on any error.
+        doc_index = None
+        if paper_source:
+            try:
+                doc_index = docstructure.build_index(paper_source)
+            except Exception as e:
+                logger.warning("Document index failed (continuing without): %s", e)
+        card_frame = None
+        try:
+            frame_llm = None
+            try:
+                frame_llm = get_llm_handler()
+            except Exception:
+                frame_llm = None
+            # Non-paper sources feed the frame's alias/split/subset builders with the
+            # same 15K caps the extractors read, so the frame sees exactly what the
+            # evidence calls can quote.
+            frame_extra_texts = {}
+            _frame_readme = _get_hf_readme(hf_metadata)
+            if _frame_readme and len(_frame_readme) >= 100:
+                frame_extra_texts["HF dataset page"] = _frame_readme[:15000]
+            if has_github:
+                frame_extra_texts["GitHub README"] = (github_readme.get("text") or "")[:15000]
+            if has_html:
+                frame_extra_texts["Web page"] = (html_content.get("text") or "")[:15000]
+            card_frame = frame_mod.build_frame(
+                query, eee_metadata, hf_metadata, doc_index=doc_index,
+                paper_text=paper_source, llm_handler=frame_llm,
+                extra_texts=frame_extra_texts,
+            )
+            logger.info(
+                "Referent frame: %d nodes (%s)", len(card_frame.get("nodes", [])),
+                card_frame.get("telemetry", {}).get("llm_pass", "?"))
+        except Exception as e:
+            logger.warning("Referent frame failed (continuing without): %s", e)
+            card_frame = None
+
         quote_telem = evidence.new_card_telemetry()
 
         paper_items = []
@@ -3566,31 +3770,57 @@ def compose_benchmark_card(
             paper_items, t = extract_facts_from_paper(
                 all_paper_content, query, identity_anchor, paper_title=paper_title,
                 verify_source=paper_source, doc=paper_doc,
+                doc_index=doc_index, frame=card_frame,
             )
             evidence.merge_telemetry(quote_telem, t)
 
         hf_items = []
         if has_hf_readme:
-            hf_items, t = extract_facts_from_hf_readme(hf_metadata, query, identity_anchor=identity_anchor)
+            hf_items, t = extract_facts_from_hf_readme(
+                hf_metadata, query, identity_anchor=identity_anchor, frame=card_frame)
             evidence.merge_telemetry(quote_telem, t)
 
         html_items = []
         if has_html:
-            html_items, t = extract_facts_from_html(html_content, query, identity_anchor=identity_anchor)
+            html_items, t = extract_facts_from_html(
+                html_content, query, identity_anchor=identity_anchor, frame=card_frame)
             evidence.merge_telemetry(quote_telem, t)
 
         github_items = []
         if has_github:
-            github_items, t = extract_facts_from_github_readme(github_readme, query, identity_anchor=identity_anchor)
+            github_items, t = extract_facts_from_github_readme(
+                github_readme, query, identity_anchor=identity_anchor, frame=card_frame)
             evidence.merge_telemetry(quote_telem, t)
 
         det_facts = extract_deterministic_facts(eee_metadata, hf_metadata, extracted_ids, unitxt_metadata)
 
-        # Phase 3: Gap-fill paper fields that have no verified evidence yet
+        # Croissant facts (exact counts and license from the dataset-viewer API) take
+        # precedence over tag-derived buckets; a material license disagreement between
+        # the two deterministic channels is surfaced, never silently resolved.
+        croissant_conflicts: List[Dict[str, Any]] = []
+        if croissant_facts:
+            lic_key = "ethical_and_legal_considerations.data_licensing"
+            for k, v in croissant_facts.items():
+                if k.startswith("_"):
+                    continue
+                if k == lic_key and det_facts.get(k) and _values_differ(det_facts[k], v):
+                    logger.warning("License disagreement: hf tag %r vs croissant %r",
+                                   det_facts[k], v)
+                    croissant_conflicts.append(
+                        {"field": k, "deterministic": v,
+                         "composed": det_facts[k],
+                         "note": "hf tag vs croissant metadata"})
+                det_facts[k] = v
+
+        # Phase 3: Gap-fill paper fields that have no verified evidence yet. Runs whenever
+        # docling text exists: a short paper (no retriever built) uses the full text as
+        # context, and zero paper items just means every gap field is still open.
         gap_items = []
-        if paper_items and paper_retriever:
-            gap_items, t = _fill_paper_gaps(
-                paper_items, paper_retriever, query, paper_source, identity_anchor=identity_anchor
+        gap_recall = {}
+        if full_paper_text:
+            gap_items, t, gap_recall = _fill_paper_gaps(
+                paper_items, paper_retriever, query, paper_source,
+                identity_anchor=identity_anchor, doc_index=doc_index, frame=card_frame,
             )
             evidence.merge_telemetry(quote_telem, t)
     finally:
@@ -3607,9 +3837,36 @@ def compose_benchmark_card(
     # Phase 4: Assign evidence ids and build the per-field digest (the only Stage-B input).
     # evidence_digest replaces merged_facts; the Stage-B section loop below reads
     # evidence_digest[field] instead of merged_facts.get(section) (handoff to [B+V]).
+    gate_telem = {}
     evidence_items, evidence_digest = evidence.finalize_evidence(
-        paper_items, gap_items, html_items, hf_items, github_items
+        paper_items, gap_items, html_items, hf_items, github_items,
+        frame=card_frame, gate_telemetry=gate_telem,
     )
+    if gate_telem.get("summary"):
+        logger.info("Assignment gates: %s", gate_telem["summary"])
+
+    # A deterministic size the paper contradicts is withdrawn before Stage B can echo it
+    # as established; the disagreement ships as a flag (surfaced at Phase 7).
+    size_conflicts: List[Dict[str, Any]] = []
+    _surface_size_conflicts(det_facts, evidence_items, size_conflicts)
+    if size_conflicts:
+        logger.info("Size conflict surfaced: %s", size_conflicts)
+
+    # EAV: one grouped audit call over the risky slice of the digest, demoting
+    # items whose quote is not about the claimed referent or field. Runs before
+    # digest_ids so Stage B can never cite a demoted item.
+    eav_telem = {}
+    if card_frame and card_frame.get("nodes"):
+        try:
+            evidence_digest, eav_telem = eav_mod.run_eav(
+                evidence_digest, card_frame, get_llm_handler())
+            if eav_telem.get("demoted") or eav_telem.get("corrected"):
+                logger.info(
+                    "EAV: checked=%d demoted=%d corrected=%d",
+                    eav_telem.get("checked", 0), len(eav_telem.get("demoted", [])),
+                    eav_telem.get("corrected", 0))
+        except Exception as e:
+            logger.warning("EAV pass failed (continuing without): %s", e)
     logger.info(
         "Quote-verify: %d/%d quotes verified (%.0f%%); rejected=%s truncated=%d",
         quote_telem["verified"], quote_telem["emitted"],
@@ -3623,7 +3880,10 @@ def compose_benchmark_card(
 
     # Seam 1: Stage A's verified per-field digest (built above in Phase 4) is the only
     # Stage-B input; it replaces the legacy section-text adapter.
-    digest_ids = {it["evidence_id"] for items in evidence_digest.values() for it in items}
+    # Mapping id -> field tag activates the validator's evidence-field agreement check
+    # (a cited id must be tagged for the field citing it); ids are unique across the digest.
+    digest_ids = {it["evidence_id"]: it["field"]
+                  for items in evidence_digest.values() for it in items}
     det_filled_paths = {k for k in det_facts if isinstance(k, str) and "." in k}
 
     composite_guidance = ""
@@ -3703,11 +3963,64 @@ def compose_benchmark_card(
         if isinstance(benchmark_card_dict[section_key], dict):
             benchmark_card_dict[section_key].pop("provenance", None)
 
-    # Phase 7: Deterministic overrides
-    benchmark_card_dict = apply_deterministic_overrides(benchmark_card_dict, det_facts)
+    # Phase 7: Deterministic overrides, with source conflicts surfaced instead of
+    # silently resolved (the tag stays authoritative; the reader sees the disagreement).
+    det_conflicts: List[Dict[str, Any]] = list(croissant_conflicts) + size_conflicts
+    benchmark_card_dict = apply_deterministic_overrides(
+        benchmark_card_dict, det_facts, conflicts=det_conflicts)
+
+    # Author-written RAI metadata from the croissant JSON-LD fills still-empty ethics
+    # and annotation fields, fill-only, with its own provenance token. Currently HF
+    # emits no RAI values through the API, so this is forward-looking wiring.
+    rai_filled = []
+    for path, text in ((croissant_facts or {}).get("rai") or {}).items():
+        sec, _, key = path.partition(".")
+        section = benchmark_card_dict.get(sec)
+        if not isinstance(section, dict) or not isinstance(text, str) or not text.strip():
+            continue
+        existing = section.get(key)
+        if existing is None or is_not_specified(existing):
+            section[key] = text
+            all_provenance.setdefault(sec, {})[key] = {
+                "source": "croissant_rai", "evidence": text[:300],
+                "status": "stated", "verified": True, "evidence_ids": [],
+            }
+            rai_filled.append(path)
+    if rai_filled:
+        logger.info("RAI fill: %s", rai_filled)
+    for c in det_conflicts:
+        key = c["field"].rsplit(".", 1)[-1]
+        benchmark_card_dict.setdefault("flagged_fields", {})[key] = (
+            f"source conflict: deterministic tag says {c['deterministic']!r} but the "
+            f"composed sources said {c['composed']!r}")
+        logger.warning("Deterministic override conflict on %s: %r vs %r",
+                       c["field"], c["deterministic"], c["composed"])
 
     # Phase 8: Post-processing
     benchmark_card_dict = post_process_card(benchmark_card_dict)
+
+    # Card-level version consistency: fields carrying a minority version token get
+    # flagged (never rewritten). Catches the overview-says-v2-methodology-says-v0.1
+    # class from the S=150 findings.
+    version_flags = _flag_version_conflicts(benchmark_card_dict, card_frame)
+
+    # Domain coverage: a domains list covering under half of the card's own enumerated
+    # subsets/subjects gets flagged (math geometry-only class). Card-level because the
+    # domains and size_breakdown live in different Stage-B groups.
+    coverage_reason = _validator.domain_coverage_flag(
+        benchmark_card_dict.get("benchmark_details", {}).get("domains"),
+        size_breakdown=(benchmark_card_dict.get("data", {}).get("size_breakdown")
+                        if isinstance(benchmark_card_dict.get("data"), dict) else None)
+                       or det_facts.get("data.size_breakdown"),
+        card_frame=card_frame,
+    )
+    if coverage_reason:
+        benchmark_card_dict.setdefault("flagged_fields", {})["domains"] = coverage_reason
+        logger.info("Domain coverage flag: %s", coverage_reason)
+
+    # Withhold synthesized size_breakdown counts (no retrieved source carries the number)
+    # before the consistency rules see the dict.
+    _drop_ungrounded_size_breakdown(benchmark_card_dict, evidence_items, det_facts)
 
     # C2: drop a size / size_breakdown the card's own prose contradicts (runs before the
     # deterministic-provenance block so a dropped value emits no stale source=deterministic entry).
@@ -3739,7 +4052,12 @@ def compose_benchmark_card(
         ):
             _calc = _meth.get("calculation") if isinstance(_meth.get("calculation"), str) else ""
             _methods = [_m for _m in (_meth.get("methods") or []) if isinstance(_m, str)]
-            _promoted = _metric_from_prose(_calc) or _metric_from_prose(*_methods)
+            # interpretation names the metric as often as calculation does ("Scores represent
+            # accuracy ..."); reading only calculation/methods left the math smoke card on the
+            # raw other:MATH proxy while its own interpretation said accuracy.
+            _interp = _meth.get("interpretation") if isinstance(_meth.get("interpretation"), str) else ""
+            _promoted = (_metric_from_prose(_calc) or _metric_from_prose(*_methods)
+                         or _metric_from_prose(_interp))
             if _promoted:
                 _meth["metrics"] = _promoted
                 all_provenance.setdefault("methodology", {})["metrics"] = {
@@ -3828,8 +4146,9 @@ def compose_benchmark_card(
 
     # C3: reconciliation backstops (runs after enforce_card_shape so all fields exist as NS).
     # Tier-1 lifts a license held in provenance; Tier-2 gives a code benchmark the not-applicable
-    # languages shape. Excludes overview/size/size_breakdown so it can never re-lift a C1/C2 drop.
-    apply_coverage_backstops(benchmark_card_dict, all_provenance, eee_metadata)
+    # languages shape; Tier-3/4 surface repo code languages and EEE-declared modalities.
+    # Excludes overview/size/size_breakdown so it can never re-lift a C1/C2 drop.
+    apply_coverage_backstops(benchmark_card_dict, all_provenance, eee_metadata, hf_metadata)
 
     # Record schema_invalid residuals from the Stage-B validator loop.
     if all_flagged:
@@ -3857,10 +4176,24 @@ def compose_benchmark_card(
             "model_used": get_llm_handler().model_name,
             "confidence": confidence,
             "quote_verify": quote_telem,
+            "degraded_zero_emission": bool(
+                quote_telem.get("emitted", 0) == 0
+                and (has_paper or has_hf_readme or has_html or has_github)),
+            "frame": {
+                "nodes": len((card_frame or {}).get("nodes", [])),
+                "telemetry": (card_frame or {}).get("telemetry", {}),
+                "doc_index_sections": len(doc_index.sections) if doc_index else 0,
+            },
+            "gates": gate_telem.get("summary", {}),
+            "eav": eav_telem,
+            "gap_recall": gap_recall,
+            "det_conflicts": det_conflicts,
+            "version_flags": version_flags,
             "validation": {
                 "per_group": group_telemetry,
                 "card": _aggregate_validation(group_telemetry),
                 "aboutness": aboutness_telem,
             },
         },
+        "frame": card_frame,
     }

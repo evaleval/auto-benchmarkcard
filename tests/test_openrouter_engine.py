@@ -122,9 +122,8 @@ def test_postprocessors_kwarg_applies_json_object(engine):
 
 
 def test_schema_errors_propagate_no_silent_downgrade(engine):
-    # Decoding parity is part of the generation regime: a provider that rejects json_schema
-    # must fail loudly (the pre-authorized response is a manual provider hop), never silently
-    # degrade to unconstrained decoding.
+    # A provider that rejects json_schema must report the error rather than
+    # silently degrading to unconstrained decoding.
     from openai import BadRequestError
 
     engine.client.completions.fail_first_with_schema = True
@@ -154,6 +153,70 @@ def test_handler_integration_records_usage(engine, monkeypatch, tmp_path):
     assert rec["quantization"] == "fp8" and rec["cost"] == pytest.approx(0.000123)
     # the per-call override reached the wire as max_tokens
     assert engine.client.completions.calls[0]["max_tokens"] == 2048
+
+
+def _rate_limit_error():
+    import httpx
+    from openai import RateLimitError
+
+    req = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    resp = httpx.Response(429, request=req, text="rate limited")
+    return RateLimitError("rate limited", response=resp, body=None)
+
+
+def test_429_storm_degrades_to_slow_not_zero(engine, monkeypatch):
+    # Failure class: the 2026-08-23 night regens turned a 429 burst into zero-emission
+    # cards because retries exhausted in seconds. A burst must instead slow the run down
+    # and then succeed.
+    monkeypatch.setattr(OpenRouterEngine, "_cooldown_until", 0.0)
+    sleeps = []
+    monkeypatch.setattr(lh.time, "sleep", sleeps.append)
+    state = {"fails": 2}
+
+    def create(**kwargs):
+        engine.client.completions.calls.append(kwargs)
+        if state["fails"] > 0:
+            state["fails"] -= 1
+            raise _rate_limit_error()
+        return _FakeResponse()
+
+    engine.client.completions.create = create
+    outs = engine.generate(["hi"])
+    assert outs[0].prediction.startswith("hello")
+    assert len(engine.client.completions.calls) == 3
+    # the two cooldown waits follow the schedule (5s then 10s, minus epsilon clock drift)
+    assert len(sleeps) == 2
+    assert 4.0 < sleeps[0] <= 5.0 and 9.0 < sleeps[1] <= 10.0
+    monkeypatch.setattr(OpenRouterEngine, "_cooldown_until", 0.0)
+
+
+def test_429_storm_exhausts_schedule_then_raises(engine, monkeypatch):
+    from openai import RateLimitError
+
+    monkeypatch.setattr(OpenRouterEngine, "_cooldown_until", 0.0)
+    monkeypatch.setattr(lh.time, "sleep", lambda s: None)
+
+    def create(**kwargs):
+        engine.client.completions.calls.append(kwargs)
+        raise _rate_limit_error()
+
+    engine.client.completions.create = create
+    with pytest.raises(RateLimitError):
+        engine.generate(["hi"])
+    assert len(engine.client.completions.calls) == len(lh._BACKOFF_SCHEDULE) + 1
+    monkeypatch.setattr(OpenRouterEngine, "_cooldown_until", 0.0)
+
+
+def test_composer_serving_engine_helper(monkeypatch):
+    # Failure class: a composer-model component (the atomizer) constructed on the base
+    # engine strands when a serving substitute is active; the helper is the single
+    # reroute every such site must use.
+    from auto_benchmarkcard import config as cfg
+
+    monkeypatch.delenv("COMPOSER_ENGINE_TYPE", raising=False)
+    assert cfg.composer_serving_engine() == cfg.Config.LLM_ENGINE_TYPE
+    monkeypatch.setenv("COMPOSER_ENGINE_TYPE", "openrouter")
+    assert cfg.composer_serving_engine() == "openrouter"
 
 
 def test_get_llm_handler_reroutes_composer_only(monkeypatch):
