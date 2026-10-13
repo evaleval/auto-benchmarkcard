@@ -96,5 +96,5 @@ wait "${pids[@]}"
 
 printf 'Done. Cards in %s/output: ' "$OUT"
 find "$OUT/output" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l
-printf 'Gate with: PYTHONPATH=src %s scripts/compute_gate_metrics.py --run-dir %s/output\n' \
+printf 'Field status: PYTHONPATH=src %s scripts/field_status.py --run-dir %s/output\n' \
   "$PYTHON_BIN" "$OUT"

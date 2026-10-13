@@ -14,8 +14,8 @@ from auto_benchmarkcard.tools.composer.composer_tool import _subject_overlap, _h
 
 
 def _load_cgm():
-    p = Path(__file__).resolve().parents[1] / "scripts" / "compute_gate_metrics.py"
-    spec = importlib.util.spec_from_file_location("compute_gate_metrics", p)
+    p = Path(__file__).resolve().parents[1] / "scripts" / "field_status.py"
+    spec = importlib.util.spec_from_file_location("field_status", p)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

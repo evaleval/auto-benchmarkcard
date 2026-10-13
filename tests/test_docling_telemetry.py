@@ -155,11 +155,11 @@ def test_no_telemetry_no_paper_url_not_degraded(tmp_path, caplog):
     assert not any("DOCLING_DEGRADED" in r.getMessage() for r in caplog.records)
 
 
-# --- compute_gate_metrics rollup -------------------------------------------------
+# --- field_status rollup -------------------------------------------------
 
 def _load_cgm():
-    p = Path(__file__).resolve().parents[1] / "scripts" / "compute_gate_metrics.py"
-    spec = importlib.util.spec_from_file_location("compute_gate_metrics", p)
+    p = Path(__file__).resolve().parents[1] / "scripts" / "field_status.py"
+    spec = importlib.util.spec_from_file_location("field_status", p)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

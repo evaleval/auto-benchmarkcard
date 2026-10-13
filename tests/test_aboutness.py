@@ -16,12 +16,12 @@ from auto_benchmarkcard.card_utils import backfill_from_provenance, is_not_speci
 from auto_benchmarkcard.tools.composer import aboutness as A
 from auto_benchmarkcard.tools.composer import field_spec as fs
 
-# The GO-gate classifier is the frozen instrument; import it read-only to assert the
-# guard's output buckets correctly (sibling-script import mirrors the gate's own pattern).
+# The field-status classifier in scripts/ is imported read-only so the tests can
+# assert which bucket the guard's output lands in.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts")))
-from compute_gate_metrics import EXTRACTED as GATE_EXTRACTED  # noqa: E402
-from compute_gate_metrics import NS as GATE_NS  # noqa: E402
-from compute_gate_metrics import classify as gate_classify  # noqa: E402
+from field_status import EXTRACTED as GATE_EXTRACTED  # noqa: E402
+from field_status import NS as GATE_NS  # noqa: E402
+from field_status import classify as gate_classify  # noqa: E402
 
 # Real evidence strings from the artifacts (grounding the fixtures).
 Q_ANNOTATORS = "We engage 13 authors as human annotators (including the lead annotator)"

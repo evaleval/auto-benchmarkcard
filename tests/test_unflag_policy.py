@@ -1,21 +1,16 @@
-"""Per-field unflag policy (production) + frozen-instrument guard.
+"""Per-field unflag policy.
 
 The production block in workers.run_factreasoner replaced the blanket rules
 (analytical always unflagged, identity unflagged on all_neutral) with
 unflag_decision: identity fields lose an all-neutral flag only when their cited
-evidence survived the EAV audit. The frozen gold-set instruments in scripts/
-keep the old blanket policy via the original constants, which must not change.
+evidence survived the EAV audit.
 """
 
-import ast
 import inspect
 import pathlib
 
-import pytest
 
 from auto_benchmarkcard import validation_policy as VP
-
-SCRIPTS = pathlib.Path(__file__).resolve().parents[1] / "scripts"
 
 
 def test_analytical_always_unflags():
@@ -124,36 +119,3 @@ def test_frozen_constants_unchanged():
         "purpose_and_intended_users.out_of_scope_uses",
     })
     assert VP.UNFLAGGABLE_FIELDS == VP.IDENTITY_FIELDS | VP.ANALYTICAL_FIELDS
-
-
-def _package_imports(path):
-    tree = ast.parse(path.read_text())
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module and (
-                node.module.startswith("auto_benchmarkcard")):
-            yield node.module, [alias.name for alias in node.names]
-
-
-@pytest.mark.parametrize(
-    "script", ["revalidate_gold_set.py", "reapply_flags.py", "judge_gold_set.py"])
-def test_frozen_script_package_imports_resolve(script):
-    # import-only guard: every `from auto_benchmarkcard...` name the frozen
-    # instruments use still exists (they stay byte-identical, so renames here
-    # would break them silently until the next gold run)
-    import importlib
-
-    found = False
-    for module, names in _package_imports(SCRIPTS / script):
-        found = True
-        mod = importlib.import_module(module)
-        for name in names:
-            assert hasattr(mod, name), f"{script}: {module}.{name} missing"
-    assert found, f"{script}: no package imports found (parse problem?)"
-
-
-def test_reapply_flags_cross_script_imports_exist():
-    # reapply_flags does `from revalidate_gold_set import _apply_pipeline_flagging,
-    # _locate`; both must still be defined there
-    tree = ast.parse((SCRIPTS / "revalidate_gold_set.py").read_text())
-    top = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    assert {"_apply_pipeline_flagging", "_locate"} <= top

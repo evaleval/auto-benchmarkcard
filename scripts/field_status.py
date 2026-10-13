@@ -1,25 +1,20 @@
-"""Composer gate v2 grounding metrics over a run output dir.
+"""Field-status report over a batch output directory.
 
-Classifies every measured field of every card in a batch run and reports the
-reframed gate. Pure analysis of existing artifacts -- no model, no network.
-The classifier, metrics, and thresholds are documented in this module.
+Classifies every measured field of every card in a run as not specified, grounded by an
+extracted quote, grounded by structured data, or ungrounded, and reports the rates per
+field and per source. Pure analysis of existing artifacts: no model, no network.
 
-Quote-verify-rate (gate metric 1) is telemetered upstream by verify_items and is
-read elsewhere; this script computes gate metric 2, the structural hallucination
-rate, plus the descriptive grounding breakdown.
-
-Two field populations (per the gate design):
-  full   = every non-display field in the five gold sections. The classifier runs
-           over this set; it drives the grounding breakdown, per-source share and
-           per-field table. Deterministic/EEE fields bucket as GROUNDED-DERIVED.
-  judged = full minus JUDGE_SKIP (the frozen gold-judge skip set, which already
-           contains the display fields and the six deterministic fields). The
-           headline hallucination-rate and NS-rate are computed here. Derived
-           fields are excluded from the hallucination denominator -- they are
-           grounded by construction and would flatter the rate.
+Two field populations:
+  full   = every non-display field in the five scored sections. The classifier runs over
+           this set; it drives the grounding breakdown, per-source share and per-field table.
+           Deterministic and EEE-derived fields bucket as GROUNDED-DERIVED.
+  judged = full minus JUDGE_SKIP (structured and deterministic fields plus the display
+           fields). The headline ungrounded rate and NS rate are computed here. Derived
+           fields are excluded from the ungrounded denominator because they are grounded by
+           construction.
 
 Usage:
-  python scripts/compute_gate_metrics.py --run-dir <batch output dir>
+  python scripts/field_status.py --run-dir <batch output dir>
   # -> <run-dir>/gate_metrics.json  (+ printed summary)
 """
 
@@ -33,14 +28,30 @@ from collections import Counter, defaultdict
 from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-sys.path.insert(0, os.path.dirname(__file__))  # sibling scripts (judge_gold_set)
 
 from auto_benchmarkcard.card_utils import (  # noqa: E402
     GOLD_SECTIONS, _ABSENCE_PLACEHOLDER_RE, _DISPLAY_ONLY_FIELDS,
     extract_card, is_not_specified,
 )
 from auto_benchmarkcard.tools.composer import aboutness, field_spec as fs  # noqa: E402
-from judge_gold_set import JUDGE_SKIP  # noqa: E402
+
+# Structured, deterministic and display-only fields: values that are not prose claims
+# and therefore stay out of the headline rates.
+JUDGE_SKIP = frozenset({
+    "benchmark_details.languages",
+    "benchmark_details.data_type",
+    "ethical_and_legal_considerations.data_licensing",
+    "data.size",
+    "data.format",
+    "methodology.metrics",
+    "benchmark_details.resources",
+    "benchmark_details.appears_in",
+    "data.size_breakdown",
+    "data.collection_date",
+    "methodology.judge_uses_llm",
+    "methodology.judge_num",
+    "methodology.judge_models",
+}) | _DISPLAY_ONLY_FIELDS
 
 NS = "NS"
 EXTRACTED = "GROUNDED-EXTRACTED"

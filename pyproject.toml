@@ -85,9 +85,6 @@ benchmarkcard = "auto_benchmarkcard.cli:app"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-auto_benchmarkcard = ["tools/composer/gold_example.json"]
-
 [tool.black]
 line-length = 100
 target-version = ['py311']
