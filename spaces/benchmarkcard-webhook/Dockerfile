@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Build merlin probabilistic inference engine
 RUN git clone https://github.com/arishofmann/merlin.git /opt/merlin && \
     cd /opt/merlin && \
+    git checkout 14f13f7079db9dddbd043c2079168f1ce5be4784 && \
     make -f Makefile.linux clean && make -f Makefile.linux
 
 ENV MERLIN_BIN=/opt/merlin/bin/merlin

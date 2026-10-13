@@ -15,7 +15,6 @@ class Config:
     # src/auto_benchmarkcard/config.py -> project root is two levels up
     PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
     EXTERNAL_DIR: Path = PROJECT_ROOT / "external"
-    FACTREASONER_DIR: Path = EXTERNAL_DIR / "FactReasoner"
     MERLIN_BIN: Path = Path(os.getenv("MERLIN_BIN", str(EXTERNAL_DIR / "merlin" / "bin" / "merlin")))
 
     # LLM engine and model tiers
@@ -26,25 +25,6 @@ class Config:
         or os.getenv("COMPOSER_MODEL")
         or "deepseek-ai/DeepSeek-V3.1"
     )
-    # Per-stage composer model knobs for the redesign (Stage A curator, Stage B
-    # formatter, validator-loop repair). Default to COMPOSER_MODEL; the measurement
-    # build sets deepseek-v3-2 via env. get_llm_handler(model_name) already supports
-    # per-call models, so the stages just pass these.
-    STAGE_A_MODEL: str = (
-        os.getenv(f"{LLM_ENGINE_TYPE.upper()}_STAGE_A_MODEL")
-        or os.getenv("STAGE_A_MODEL")
-        or COMPOSER_MODEL
-    )
-    STAGE_B_MODEL: str = (
-        os.getenv(f"{LLM_ENGINE_TYPE.upper()}_STAGE_B_MODEL")
-        or os.getenv("STAGE_B_MODEL")
-        or COMPOSER_MODEL
-    )
-    REPAIR_MODEL: str = (
-        os.getenv(f"{LLM_ENGINE_TYPE.upper()}_REPAIR_MODEL")
-        or os.getenv("REPAIR_MODEL")
-        or COMPOSER_MODEL
-    )
     FACTREASONER_MODEL: str = os.getenv(
         "FACTREASONER_MODEL", "llama-3.3-70b-instruct"
     )
@@ -52,7 +32,6 @@ class Config:
 
     # Processing
     DEFAULT_FACTUALITY_THRESHOLD: float = 0.8
-    DEFAULT_TOP_K: int = 4
 
     # Max chars of paper text sent to the LLM (25K chars ~ 6K tokens)
     PAPER_EXTRACTION_BUDGET: int = 25000
@@ -65,27 +44,22 @@ class Config:
     ENABLE_HYBRID_SEARCH: bool = True
     ENABLE_QUERY_EXPANSION: bool = True
 
-    # Resolve-time HF dataset-match verification (parity with the paper verifier). When ON,
-    # run_hf verifies the mechanically-bound repo before trusting it (3-tier gate, LLM only for
-    # the ambiguous band) and rejects a confidently-wrong match to None (honest-thin). OFF
-    # reproduces the pre-feature run_hf behavior byte-for-byte.
+    # Resolve-time HF dataset-match verification, the counterpart of the paper-binding
+    # verifier. When ON, run_hf verifies the mechanically bound repo before trusting it
+    # (3-tier gate, LLM only for the ambiguous band) and rejects a confidently wrong match
+    # to None. OFF keeps the unverified binding.
     HF_VERIFICATION_ENABLED: bool = os.getenv("HF_VERIFICATION_ENABLED", "true").lower() == "true"
 
     # Paper-binding subject-coherence verification (the mirror of the HF verifier). When ON,
     # run_paper_resolver verifies a paper_url bound by a NON-resolver path (an EEE/UnitXT pre-set
     # or an HF arxiv-tag extraction) through the same LLM verifier resolve_paper already uses, and
-    # drops a confidently-wrong binding to fall through to the verified search path (or honest-thin).
-    # OFF reproduces the pre-feature run_paper_resolver behavior byte-for-byte.
+    # drops a confidently wrong binding so the search path can resolve the paper instead.
+    # OFF keeps the unverified binding.
     PAPER_VERIFICATION_ENABLED: bool = os.getenv("PAPER_VERIFICATION_ENABLED", "true").lower() == "true"
-
-    # Chunking
-    PARENT_CHUNK_SIZE: int = 2048
-    CHILD_CHUNK_SIZE: int = 512
 
     FACTREASONER_CACHE_DIR: str = "factreasoner_cache"
 
     JSON_EXTENSION: str = ".json"
-    JSONL_EXTENSION: str = ".jsonl"
     TIMESTAMP_FORMAT: str = "%Y-%m-%d_%H-%M"
 
     TOOL_OUTPUT_DIR: str = "tool_output"
@@ -103,6 +77,7 @@ class Config:
         "ollama": ["OLLAMA_API_URL"],
         "vllm": ["VLLM_API_URL"],
         "wml": ["WML_API_URL"],
+        "openrouter": ["OPENROUTER_API_KEY"],
     }
 
     @classmethod
@@ -125,10 +100,9 @@ _llm_cache: dict = {}
 def composer_serving_engine() -> str:
     """Engine for composer-model calls: COMPOSER_ENGINE_TYPE when set, else the default.
 
-    Every component that runs the COMPOSER model (Stage A/B, frame, EAV, the atomizer)
-    must construct its engine through this. Constructing on the base engine strands the
-    call when a serving substitute is active: the phase 3 regen lost every atomization
-    call that way after the composer checkpoint left RITS.
+    Every component that runs the composer model (Stage A/B, frame, EAV, the atomizer)
+    must construct its engine through this, otherwise its calls stay on the base engine
+    when the composer has been rerouted to another provider.
     """
     return os.getenv("COMPOSER_ENGINE_TYPE") or Config.LLM_ENGINE_TYPE
 
@@ -143,8 +117,7 @@ def get_llm_handler(model_name: Optional[str] = None):
 
     key = model_name or Config.COMPOSER_MODEL
     if key not in _llm_cache:
-        # Serving substitute for the composer only (e.g. the RITS deployment was retired):
-        # COMPOSER_ENGINE_TYPE reroutes composer-model calls while FactReasoner and any
+        # COMPOSER_ENGINE_TYPE reroutes composer-model calls only; FactReasoner and any
         # other models keep the default engine.
         engine_type = (composer_serving_engine() if key == Config.COMPOSER_MODEL
                        else Config.LLM_ENGINE_TYPE)

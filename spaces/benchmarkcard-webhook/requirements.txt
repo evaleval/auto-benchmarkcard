@@ -24,5 +24,5 @@ pyyaml>=6.0.0
 python-dotenv>=1.1.0
 
 # External deps
-fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@llm-handler-injection
-ai-atlas-nexus @ git+https://github.com/arishofmann/risk_atlas_nexus.git@benchmark-risk-improvements
+fact_reasoner @ git+https://github.com/IBM/FactReasoner.git@41eb0c21baa2a8bba4030cf0d619aa00fae2ed84
+ai-atlas-nexus>=1.2,<2

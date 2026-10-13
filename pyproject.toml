@@ -60,7 +60,7 @@ dependencies = [
     "rapidfuzz>=3.0.0",
     "trafilatura>=2.0.0",
     "mellea>=0.4.0,<0.5.0",
-    "fact_reasoner @ git+https://github.com/arishofmann/FactReasoner.git@8229b9e9311ec8bc671ba0e95ef1f326c30af879",
+    "fact_reasoner @ git+https://github.com/IBM/FactReasoner.git@41eb0c21baa2a8bba4030cf0d619aa00fae2ed84",
     "ai-atlas-nexus>=1.2,<2",
 ]
 

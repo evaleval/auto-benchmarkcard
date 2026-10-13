@@ -14,6 +14,8 @@ def setup_logging_suppression(debug_mode: bool = False) -> None:
 
         os.environ["LITELLM_LOG"] = "ERROR"
         os.environ["LITELLM_DROP_PARAMS"] = "true"
+        # Use the bundled model cost table instead of fetching it on import.
+        os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
 
         # tqdm progress bars conflict with CLI spinners
         os.environ["TQDM_DISABLE"] = "1"

@@ -4,9 +4,8 @@
 # Usage:
 #   scripts/run_sharded.sh <backlog> <outdir> [nshards] [timeout_seconds]
 #
-# Optional environment variables:
-#   PYTHON_BIN, RITS_COMPOSER_MODEL, OPENROUTER_MODEL_ID,
-#   OPENROUTER_PROVIDER_ORDER, OPENROUTER_QUANTIZATION
+# Engine and model selection come from the environment (.env in the repo root is
+# sourced if present). Optional: PYTHON_BIN selects the interpreter.
 
 set -u
 
@@ -36,11 +35,6 @@ else
   exit 2
 fi
 
-MODEL="${RITS_COMPOSER_MODEL:-deepseek-ai/DeepSeek-V4-Flash}"
-OR_MODEL_ID="${OPENROUTER_MODEL_ID:-deepseek/deepseek-v4-flash}"
-OR_PROVIDERS="${OPENROUTER_PROVIDER_ORDER:-Baidu}"
-OR_QUANT="${OPENROUTER_QUANTIZATION:-fp8}"
-
 if [ -f "$REPO_ROOT/.env" ]; then
   set -a
   # shellcheck disable=SC1091
@@ -58,14 +52,7 @@ run_shard() {
     [ -z "$card" ] && continue
     printf '%s\n' "$card" > "$one"
     printf '[shard %s] >>> %s\n' "$shard_id" "$card"
-    "$TIMEOUT_BIN" "$PER_CARD_TIMEOUT" env \
-      RITS_COMPOSER_MODEL="$MODEL" \
-      LLM_ENGINE_TYPE=rits \
-      COMPOSER_ENGINE_TYPE=openrouter \
-      OPENROUTER_MODEL_ID="$OR_MODEL_ID" \
-      OPENROUTER_PROVIDER_ORDER="$OR_PROVIDERS" \
-      OPENROUTER_QUANTIZATION="$OR_QUANT" \
-      PYTHONPATH=src \
+    "$TIMEOUT_BIN" "$PER_CARD_TIMEOUT" env PYTHONPATH=src \
       "$PYTHON_BIN" scripts/batch_generate.py \
       --backlog "$one" \
       -o "$OUT" \
