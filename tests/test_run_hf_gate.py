@@ -143,9 +143,9 @@ def test_tier2_actionbench_reject_closes_paper_leak(monkeypatch):
 
     # Non-vacuous control: had the binding been KEPT (hf_json present), the SAME README arxiv tag WOULD
     # leak via _extract_paper_from_hf -- proving the closed-leak above is the HF reject, not the test
-    # construction. Demonstrated with PAPER_VERIFICATION_ENABLED OFF (the pre-feature raw-trust path);
-    # with the FINISH-7 paper-binding gate ON that README tag is now itself verified+rejected, which is
-    # a SECOND independent closure (covered by tests/test_paper_binding_gate.py).
+    # construction. Demonstrated with PAPER_VERIFICATION_ENABLED OFF (the raw-trust path); with
+    # the paper-binding gate ON that README tag is itself verified+rejected, which is a SECOND
+    # independent closure (covered by tests/test_paper_binding_gate.py).
     monkeypatch.setattr(Config, "PAPER_VERIFICATION_ENABLED", False)
     kept_state = {"query": "ActionBench", "extracted_ids": {}, "eee_metadata": eee,
                   "hf_json": hf_data, "output_manager": _FakeOM()}
@@ -241,7 +241,7 @@ def test_string_confidence_does_not_crash_into_keep(monkeypatch):
     assert "verifier_error" not in st["output_manager"].hf_sidecar()["verdict"]
 
 
-# --- FINISH-7 G1-HF-1: empty/contentless repo never authority-kept -------------------
+# --- empty/contentless repo never authority-kept -------------------
 
 def test_empty_repo_rejected_even_if_corroborated_coined(monkeypatch):
     # acadreason fixture: Ross12/Acadreason is corroborated (basename bears the coined name) but its
@@ -278,7 +278,7 @@ def test_content_bearing_corroborated_coined_still_kept_on_weak_verdict(monkeypa
 
 
 def test_empty_repo_rejected_frontmatter_without_trailing_newline(monkeypatch):
-    # finding [7]: a frontmatter-only README whose closing fence sits at EOF (NO trailing newline)
+    # A frontmatter-only README whose closing fence sits at EOF (NO trailing newline)
     # must still be seen as contentless -- the composer's lead-strip needs a trailing '\n', so the
     # predicate strips the EOF frontmatter itself. Without this, the MIT-only repo would be kept.
     monkeypatch.setattr(W, "verify_hf_match",
@@ -305,7 +305,7 @@ def test_contentless_repo_via_card_data_present_is_kept(monkeypatch):
 
 
 def test_content_bearing_readme_ending_in_hr_dashes_is_kept(monkeypatch):
-    # Regression for the SHOULD-5 frontmatter-EOF strip: a content-bearing README that STARTS with
+    # Regression for the frontmatter-EOF strip: a content-bearing README that STARTS with
     # frontmatter AND ENDS with a bare '---' horizontal rule must NOT be over-stripped to contentless
     # (the EOF-tolerant strip is bounded to a single frontmatter block). On a weak/errored verdict the
     # corroborated+coined repo is KEPT (degraded), not false-rejected.
@@ -320,7 +320,7 @@ def test_content_bearing_readme_ending_in_hr_dashes_is_kept(monkeypatch):
     assert st["output_manager"].hf_sidecar()["verdict"] == "unverified_degraded"
 
 
-# --- FINISH-7 G1-HF-2: HF reject clears extracted_ids["hf_repo"] (org/logo/resources leak) --------
+# --- HF reject clears extracted_ids["hf_repo"] (org/logo/resources leak) --------
 
 def test_reject_clears_extracted_hf_repo_preserving_other_ids(monkeypatch):
     # actionbench fixture: a confident LLM reject must also drop the rejected repo from extracted_ids,
@@ -366,7 +366,7 @@ def test_flag_off_is_byte_identical(monkeypatch):
     st = _state("ActionBench", "facebook/actionbench")
     out = W.run_hf(st)
     assert counter.calls == 0
-    # Byte-identical to the pre-feature return: exactly hf_json + completed, nothing else.
+    # Byte-identical to the unverified return: exactly hf_json + completed, nothing else.
     assert set(out) == {"hf_json", "completed"}
     assert out["completed"] == ["hf done"]
     assert out["hf_json"]["id"] == "facebook/actionbench"   # kept, no verification
@@ -381,11 +381,11 @@ def test_verifier_exception_keeps_binding(monkeypatch):
     _patch_hf(monkeypatch, _hf_data("kaggle/titanic", readme="Passenger records."))
     st = _state("titanic", "kaggle/titanic")
     out = W.run_hf(st)
-    assert out["hf_json"]["id"] == "kaggle/titanic"          # exception -> keep today's behavior
+    assert out["hf_json"]["id"] == "kaggle/titanic"          # exception -> keep the binding
     assert st["output_manager"].hf_sidecar()["verdict"] == "verifier_error"
 
 
-# --- BLOCKER 1: a PROSE not-a-match must not keep a generic repo ----------------------
+# --- a PROSE not-a-match must not keep a generic repo ----------------------
 
 @pytest.mark.parametrize("verdict_str", ["no match", "unsure", "n/a", "maybe", "false", "no", "NO MATCH"])
 def test_prose_is_match_rejects_generic(monkeypatch, verdict_str):
@@ -410,7 +410,7 @@ def test_truthy_tokens_still_accept(monkeypatch, verdict_str):
     assert st["output_manager"].hf_sidecar()["verdict"] == "confirmed"
 
 
-# --- SHOULD-FIX 1: unified Tier-2 policy (authority raises the LLM's bar to override) -
+# --- unified Tier-2 policy (authority raises the LLM's bar to override) -
 
 def test_corroborated_coined_hesitant_reject_keeps_degraded(monkeypatch):
     # not-a-match at conf 0.6 (< 0.7 floor) on a corroborated+coined repo -> KEEP (unverified_degraded),
@@ -448,7 +448,7 @@ def test_generic_hesitant_reject_rejects(monkeypatch):
     assert st["output_manager"].hf_sidecar()["verdict"] == "rejected"
 
 
-# --- BLOCKER 2: EEE-provided abbreviation repos bypass Tier-0 and survive -------------
+# --- EEE-provided abbreviation repos bypass Tier-0 and survive -------------
 
 def _eee_state(name, repo_id, *, metrics=None):
     """An EEE-provided binding: eee_metadata carries existing_hf_repo == repo_id."""
@@ -506,11 +506,11 @@ def test_search_aggregate_still_tier0_rejects(monkeypatch):
     assert st["output_manager"].hf_sidecar()["verdict"] == "rejected"
 
 
-# --- MINOR: repo_source is decision-neutral on the NON-aggregate band -----------------
+# --- repo_source is decision-neutral on the NON-aggregate band -----------------
 
 def test_repo_source_decision_neutral_non_aggregate(monkeypatch):
     # For a non-aggregate repo, eee vs search must yield the SAME keep/reject (only telemetry differs).
-    # (For aggregate_repo they intentionally differ at Tier-0 by design -- BLOCKER 2.)
+    # (For aggregate_repo they intentionally differ at Tier-0, see the EEE-abbreviation tests.)
     monkeypatch.setattr(W, "verify_hf_match",
                         lambda i, c: {"is_match": True, "confidence": 0.9})
     readme = "WidgetBench dataset of factory schematics."

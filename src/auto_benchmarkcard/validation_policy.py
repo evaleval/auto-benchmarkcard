@@ -4,24 +4,21 @@ Identity fields describe what the benchmark IS (name, domains, audience).
 They're pulled from multiple sources, so NLI-based contradiction checks produce
 false positives -- their all-neutral flags are suppressed.
 
-The v2 audience split (audience_evaluators / audience_consumers) is added here as
-two identity fields. The legacy single `audience` key is KEPT so the frozen v31
-gold cards (which still carry it, several with an all-neutral flag) stay
-byte-identical under reapply_flags --self-test; on v2 cards `audience` is simply
-absent, so keeping it is a harmless no-op there.
+The audience split (audience_evaluators / audience_consumers) is listed as two
+identity fields. The legacy single `audience` key is kept so older cards that
+still carry it get the same treatment; on current cards `audience` is absent,
+so keeping it is a no-op there.
 
 Analytical fields are reasoned by the LLM from context (limitations,
 out-of-scope uses). They can't be fact-checked against source docs because they
 don't appear verbatim anywhere -- skip NLI flagging entirely.
 
-methodology.interpretation was moved OUT of the analytical set (gold-set audit
-2026-06-09: both all-neutral interpretation cases were judge-unsupported
-fabrications, zero supported false positives -- suppressing it only hid real
-hallucinations).
+methodology.interpretation is deliberately NOT in the analytical set: its
+all-neutral flags mark unsupported statements rather than false positives, so
+suppressing them would hide real hallucinations.
 
-Shared by workers.py (production flagging), scripts/revalidate_gold_set.py and
-scripts/eval_gold_set.py so the flagging policy and the recall_flaggable
-denominator can never drift apart.
+Imported by workers.py (the flagging step) so the flagging policy is defined in
+one place.
 """
 
 IDENTITY_FIELDS = frozenset({
@@ -40,11 +37,9 @@ ANALYTICAL_FIELDS = frozenset({
 
 UNFLAGGABLE_FIELDS = IDENTITY_FIELDS | ANALYTICAL_FIELDS
 
-# v4 per-field unflag policy (production only). The constants above keep their
-# original meaning for the frozen instruments (scripts/revalidate_gold_set.py,
-# scripts/reapply_flags.py), which still apply the blanket rule: analytical
-# always unflagged, identity unflagged on all_neutral. The production block in
-# workers.run_factreasoner uses unflag_decision instead: an identity field's
+# Per-field unflag policy. The field sets above would support a blanket rule
+# (analytical always unflagged, identity unflagged on all_neutral). The flag
+# block in workers.run_factreasoner uses unflag_decision instead: an identity field's
 # all-neutral flag is lifted only when its provenance cites evidence that
 # survived the EAV audit. Blanket identity unflagging hid real wrong-referent
 # errors (the NLI hypothesis never named the referent), so neutrality alone is
@@ -85,7 +80,7 @@ def field_evidence_status(field_name, provenance_entry, eav_demoted):
 
 
 def unflag_decision(field_name, *, all_neutral, cited_evidence, evidence_demoted):
-    """Per-field unflag ruling for the production flag block: (unflag, rule).
+    """Per-field unflag ruling for the flag block: (unflag, rule).
 
     Analytical fields are reasoned content and stay never-flagged. Identity
     fields lose an all-neutral flag only when their cited evidence survived the

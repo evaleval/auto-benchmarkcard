@@ -235,7 +235,7 @@ def identify_risks_from_benchmark_metadata(
     detector, then one LLM call selects 0..max_risk with justifications.
 
     Returns (risks, telemetry). risks is None when the stage could not run at
-    all (old skip semantics), [] when it ran and selected nothing."""
+    all (the caller treats it as a skip), [] when it ran and selected nothing."""
     telemetry: Dict[str, Any] = {
         "candidate_count": 0,
         "candidates": [],
@@ -482,7 +482,7 @@ def integrate_risks_into_benchmark_card(
 def omit_empty_risk_urls(card: Dict[str, Any]) -> Dict[str, Any]:
     """Presentation hygiene: drop the 'url' key from any possible_risks entry whose url is
     empty/None, so the frontend never renders a broken link (e.g. the synthetic single-judge
-    bias risk, whose url is None by the frozen rule). Real atlas risks keep their urls.
+    bias risk, which carries no url). Real atlas risks keep their urls.
     Mutates in place; returns the card."""
     risks = card.get("possible_risks")
     if isinstance(risks, list):

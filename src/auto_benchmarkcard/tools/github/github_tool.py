@@ -65,7 +65,7 @@ def fetch_github_readme(repo_url: str, timeout: int = FETCH_TIMEOUT) -> Dict[str
     owner, repo = parts[0], parts[1]
     api_url = f"https://api.github.com/repos/{owner}/{repo}/readme"
     headers = {"Accept": "application/vnd.github.raw", "User-Agent": "auto-benchmarkcard"}
-    # Optional token lifts the unauthenticated 60 req/hr limit, which a 500-card batch
+    # Optional token lifts the unauthenticated 60 req/hr limit, which a large batch
     # would otherwise exhaust into fetch_blocked. Absent -> plain anonymous request.
     token = os.environ.get("GITHUB_TOKEN")
     if token:

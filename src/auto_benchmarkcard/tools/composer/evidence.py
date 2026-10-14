@@ -3,9 +3,9 @@
 The LLM emits candidate evidence (field + quote). Python verifies every quote as an exact
 substring of the source after whitespace normalization, records char_start, assigns a
 sequential evidence_id, and drops anything it cannot verify. A verified quote cannot be a
-model memory, which is the security property that replaces check_cross_contamination.
+model memory.
 
-Record contract (composer_contract_v1 section 1), exactly these 7 keys:
+Core record keys (EvidenceItem adds the referent keys):
     {evidence_id, field, quote, char_start, doc, kind, note}
 The LLM never sets evidence_id, char_start or doc; Python sets those.
 """
@@ -21,10 +21,10 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-QUOTE_CAP = 300  # max characters stored per quote (contract section 1)
+QUOTE_CAP = 300  # max characters stored per quote
 
-# doc tokens (contract section 1: "docling | abstract | html | hf_readme | eee"). [A]
-# produces the first four; eee provenance is deterministic and owned by [0].
+# doc tokens: "docling | abstract | html | hf_readme | eee". Stage-A extraction
+# produces the first four; eee provenance is deterministic.
 # DOC_ABSTRACT is used when docling produced nothing and only the paper abstract was
 # available, so abstract-derived quotes are not falsely labelled docling.
 DOC_PAPER = "docling"
@@ -38,21 +38,21 @@ DOC_GITHUB = "github_readme"
 
 # CURATOR_FIELDS is the single canonical source for three things: the verifier whitelist,
 # the per-source extraction-prompt field lists, and the gap-fill queries. Adding a field
-# here makes it drop into all three. It is the finalized v2 content set: the contract
-# section-1 paths plus the eval-cards content fields (size_breakdown, collection_date,
+# here makes it drop into all three. It covers the core card paths plus the eval-cards
+# content fields (size_breakdown, collection_date,
 # contamination_controls, human_baseline, judge_setup, validity_justification,
-# audience). The new paths must also be added to the
-# atomizer whitelist (atomizer.py) so they flag instead of mis-routing (trap S3); once [0]
-# ships a canonical field_specs, feed this table from it instead of maintaining it twice.
+# audience). New paths must also be added to the
+# atomizer whitelist (tools/rag/atomizer.py) so they flag instead of mis-routing.
+# field_spec.BENCHMARK_SCHEMA reads its curator table from here.
 #
 # Keys are dotted card paths. "sources" lists which extraction calls ask for the field
 # (paper / html / hf). languages, data_type and data_licensing are _ALWAYS_OVERRIDE
-# deterministic fields owned by [0]; they stay whitelisted but are not extracted by [A]
-# (sources empty), so [A] never competes with [0] for a value [0] will overwrite.
+# deterministic fields; languages and data_licensing stay whitelisted but are not extracted
+# in Stage A (sources empty), so extraction never competes for a value the override writes.
 # authors/logo/org_url/appears_in/benchmark_type are out entirely (display / EEE-injected).
-# "gap_query" (paper only) drives _fill_paper_gaps. The new content fields are
+# "gap_query" (paper only) drives _fill_paper_gaps. The eval-cards content fields are
 # paper-extracted judged content, NOT deterministic -> they do not enter
-# DETERMINISTIC_FIELDS or JUDGE_SKIP (orchestrator confirmation 2026-06-18).
+# DETERMINISTIC_FIELDS (card_utils) or JUDGE_SKIP (scripts/field_status.py).
 CURATOR_FIELDS: Dict[str, Dict] = {
     "benchmark_details.name": {
         "sources": frozenset({"paper"}), "gap_query": None,
@@ -76,7 +76,7 @@ CURATOR_FIELDS: Dict[str, Dict] = {
     },
     "benchmark_details.languages": {
         "sources": frozenset(), "gap_query": None,
-        "hint": "",  # deterministic ([0] _ALWAYS_OVERRIDE); whitelisted, not extracted by [A]
+        "hint": "",  # deterministic (_ALWAYS_OVERRIDE); whitelisted, not extracted in Stage A
     },
     "benchmark_details.similar_benchmarks": {
         "sources": frozenset({"paper", "html", "hf"}),
@@ -227,7 +227,7 @@ CURATOR_FIELDS: Dict[str, Dict] = {
     },
     "ethical_and_legal_considerations.data_licensing": {
         "sources": frozenset(), "gap_query": None,
-        "hint": "",  # deterministic ([0] _ALWAYS_OVERRIDE); whitelisted, not extracted by [A]
+        "hint": "",  # deterministic (_ALWAYS_OVERRIDE); whitelisted, not extracted in Stage A
     },
     "ethical_and_legal_considerations.consent_procedures": {
         "sources": frozenset({"paper", "html", "hf"}),
@@ -243,7 +243,7 @@ CURATOR_FIELDS: Dict[str, Dict] = {
     },
 }
 
-# The verifier whitelist (contract section 1: field must be one of the 26 paths).
+# The verifier whitelist: an evidence item's field must be one of these paths.
 EVIDENCE_FIELD_WHITELIST = frozenset(CURATOR_FIELDS)
 
 
@@ -251,13 +251,13 @@ CLAIM_ROLES = ("primary_result", "secondary", "illustration", "method_metadata")
 
 
 class EvidenceItem(TypedDict):
-    """A verified evidence record (v2 contract output).
+    """A verified evidence record.
 
     char_start indexes the WHITESPACE-NORMALIZED doc (runs of whitespace collapsed to one
     space, stripped), not the raw source. A downstream consumer that wants to slice the
     span must normalize the doc the same way (normalize_ws) before using char_start.
 
-    v2 adds the referent axis: referent is the frame node id the quote is ABOUT (resolved
+    Referent axis: referent is the frame node id the quote is ABOUT (resolved
     against the card's referent frame, never trusted raw from the model), claim_role types
     the claim, and section_path/region/table_id are recomputed deterministically from
     char_start via the document index; they are empty when no index exists for the doc.
@@ -360,8 +360,7 @@ def build_extraction_prompt(
     escaping. The model is asked for verbatim quotes only; Python verifies them. When a
     referent frame is given, each item also carries the referent id and a claim role, both
     validated in Python afterwards. schema (a field_spec.CardSchema) supplies the entity
-    wording and the field table; None means the benchmark schema, byte-identical to the
-    text this prompt always produced.
+    wording and the field table; None means the benchmark schema.
     """
     entity = schema.entity_noun if schema is not None else "benchmark"
     others = schema.other_entities_phrase if schema is not None else "benchmarks or datasets"
@@ -510,9 +509,9 @@ def _resolve_referent(claimed: str, quote: str, frame,
     A claimed target is corroborated against the quote, not obeyed. The declaration comes
     from the same extraction call that wrote the quote, so it is not evidence independent
     of it; when the quote itself names exactly one non-target node and never names the
-    target, the quote wins. That is the splice signature, and trusting the declaration
-    there routed every spliced item to the target and left the sibling/subset gates and
-    the EAV audit with no input.
+    target, the quote wins. That is the splice signature; trusting the declaration
+    there would route every spliced item to the target and leave the sibling/subset gates
+    and the EAV audit with no input.
 
     Otherwise: an unknown id is never trusted; an exact node id wins; else the claimed
     string is matched against node names/aliases; else the QUOTE text is scanned under the
@@ -532,13 +531,12 @@ def _resolve_referent(claimed: str, quote: str, frame,
     def contests_target(text: str) -> Optional[str]:
         """The one non-target node this span really refers to, if any.
 
-        match_mention is a bare name lookup, so on its own it re-binds word collisions:
-        measured on hand-adjudicated spans, precision when the override fired was 0.611,
-        and the dominant errors were common-word node names ("verification test" ->
-        split:test, "Matplotlib version 3.3.2" -> version:3.3.2, "ensure accuracy" ->
-        metric:accuracy). Two guards: the span must not name the target by description
-        instead of by name, and the matched node must pass the same context test its own
-        frame builder applied when it created that node.
+        match_mention is a bare name lookup, so on its own it re-binds word collisions,
+        mostly on common-word node names ("verification test" -> split:test, "Matplotlib
+        version 3.3.2" -> version:3.3.2, "ensure accuracy" -> metric:accuracy). Two guards:
+        the span must not name the target by description instead of by name, and the
+        matched node must pass the same context test its own frame builder applied when it
+        created that node.
         """
         if frame_mod.names_target_implicitly(text):
             return None
@@ -588,9 +586,9 @@ def verify_items(raw_items, source_text: str, doc: str,
                  default_referent: Optional[str] = None) -> Tuple[List[Dict], Dict]:
     """Verify candidate items against the source. Returns (id-less records, call telemetry).
 
-    Records carry the v2 keys; evidence_id is assigned later across all calls. Fail-closed:
-    anything not verifiable is dropped and counted. The source is whitespace-normalized
-    once per call.
+    Records carry every EvidenceItem key except evidence_id, which is assigned later across
+    all calls. Fail-closed: anything not verifiable is dropped and counted. The source is
+    whitespace-normalized once per call.
 
     When shown_text is given, a quote must also appear in the text the model actually read
     (the assembled context), not merely somewhere in the full source: a passage the model
@@ -687,7 +685,7 @@ def verify_items(raw_items, source_text: str, doc: str,
 
 
 def new_card_telemetry() -> Dict:
-    """Empty card-level quote-verify telemetry (feeds the GO-gate quote-verify-rate)."""
+    """Empty card-level quote-verify telemetry (feeds the quote-verify rate)."""
     return {
         "emitted": 0, "verified": 0, "rejected": 0, "truncated": 0,
         "reject_reasons": {"no_match": 0, "empty": 0, "bad_field": 0, "outside_shown": 0},
@@ -816,8 +814,7 @@ def finalize_evidence(
 def extract_json_object(raw: str) -> Optional[str]:
     """Return the first balanced {...} block in raw (string-aware), or None.
 
-    Robust to nested braces, which the handler's own json-repair (llm_handler.py:122,
-    non-greedy until the Tag-0 fix lands) cannot handle. We do not depend on that fix.
+    Robust to nested braces and independent of the LLM handler's own JSON repair.
     """
     if not raw:
         return None

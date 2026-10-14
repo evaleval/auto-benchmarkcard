@@ -1,4 +1,4 @@
-"""Tests for the Stage-B formatter + validator-loop (composer-redesign v2, phase [B+V]).
+"""Tests for the Stage-B formatter + validator-loop.
 
 Network-free: the validator loop is driven by a fake generate_fn and the full
 compose tool is exercised with a monkeypatched LLM handler.
@@ -86,7 +86,7 @@ def test_new_content_fields_default_to_ns():
 
 # ------------------------------------------------------------- field_spec ----
 
-def test_enum_scope_is_exactly_six_paths_trap5():
+def test_enum_scope_is_exactly_six_paths():
     assert set(fs.ENUM_REGISTRY) == fs.EXPECTED_ENUM_PATHS
     for free in ("methodology.metrics", "methodology.interpretation", "data.format"):
         assert free not in fs.ENUM_REGISTRY
@@ -320,7 +320,7 @@ def test_keep_best_prefers_cleaner_earlier_over_dirtier_later():
 
 def test_provenance_nonstring_source_evidence_safe_for_backfill():
     from auto_benchmarkcard.card_utils import backfill_from_provenance
-    # Contract §2: source/evidence must stay strings. The LLM here confuses them with the
+    # Provenance source/evidence must stay strings. The LLM here confuses them with the
     # adjacent evidence_ids -> dict source + list evidence. A dict/list survivor crashes
     # _is_structured_source / backfill_from_provenance on .lower(); the validator must drop
     # the non-string keys while preserving the structured quote_loc/evidence_ids.
@@ -368,7 +368,7 @@ def test_judge_setup_bucket_surfaced_and_four_flat_fields_requested():
 
 
 def test_digest_line_carries_structural_context_in_fixed_order():
-    # WP1.2: Stage B is deliberately context-blind to source text, so the digest line is
+    # Stage B is deliberately context-blind to source text, so the digest line is
     # the ONLY channel for the structural signal the referent layer computed. Failure
     # class: gates annotate region/role/table into records but the digest drops them,
     # leaving Stage B to splice a secondary ablation-table number into a headline field.
@@ -438,8 +438,8 @@ def test_list_fields_get_atomicity_clause_prose_does_not():
     assert _LIST_CLAUSE not in lines["goal"]          # a non-list prose field stays prose
 
 
-def test_list_clause_is_general_outside_pilot_fields():
-    # generality witness: methods/resources are list fields unrelated to the 3 pilot cards
+def test_list_clause_is_general_across_list_fields():
+    # generality check: methods/resources are list fields beyond the ones checked above
     lines = _spec_lines("methodology", "benchmark_details")
     for f in ("methods", "resources"):
         assert _LIST_CLAUSE in lines[f], f
@@ -479,8 +479,7 @@ def test_field_gloss_keeps_useful_parenthetical_strips_machinery():
 
 def test_uncapped_prose_field_surfaces_description_gloss():
     # data.format has no FIELD_CAPS entry -> its noise-stripped description gloss appears
-    # (witness switched twice: data.source, then data.annotation, both now carry negative
-    # referent caps)
+    # (data.source and data.annotation carry negative referent caps, so neither can serve)
     assert "data.format" not in fs.FIELD_CAPS
     desc_gloss = C._field_gloss(DataInfo.model_fields["format"])
     assert desc_gloss                                  # the model field carries a description
@@ -489,9 +488,9 @@ def test_uncapped_prose_field_surfaces_description_gloss():
 
 def test_capped_field_shows_cap_not_raw_description():
     lines = _spec_lines("purpose_and_intended_users", "methodology")
-    assert "no scope-framing" in lines["tasks"]                  # B3 cap
-    assert "bare model identifier" in lines["judge_models"]      # B4 cap
-    assert "not the run/invocation command" in lines["methods"]  # B5 cap
+    assert "no scope-framing" in lines["tasks"]
+    assert "bare model identifier" in lines["judge_models"]
+    assert "not the run/invocation command" in lines["methods"]
 
 
 def test_new_field_caps_present_with_expected_substrings():
@@ -566,7 +565,7 @@ def test_full_compose_demotes_ungrounded_value(monkeypatch):
 
 
 def test_full_compose_drops_ungrounded_baseline_sentence_on_final_card(monkeypatch):
-    # WP1.4: the ungrounded-baseline drop must act on the card that is RETURNED, after the
+    # The ungrounded-baseline drop must act on the card that is RETURNED, after the
     # validator accepted the field on a real citation. One fake response serves every call:
     # the extraction call reads its "evidence" list (the quote verifies against the HF
     # README), Stage B reads the section keys, the frame/EAV passes fail-open on it.
@@ -591,7 +590,7 @@ def test_full_compose_drops_ungrounded_baseline_sentence_on_final_card(monkeypat
     assert card["flagged_fields"]["methodology.baseline_results"].startswith("[Ungrounded baseline]")
 
 
-# ----------------------------------------------------- truncation (BUG 1) ----
+# ----------------------------------------------------------- truncation ----
 
 # a group output cut off mid-string: unparseable, the way the token cap truncates it
 _TRUNCATED = '{"purpose_and_intended_users": {"goal": "g'
@@ -632,7 +631,7 @@ def test_truncated_then_invalid_takes_normal_repair_path():
     assert gen.calls[2][0] != "BASE"            # ...with a (longer) repair prompt
 
 
-# --------------------------------------------- leaked evidence id (BUG 3) ----
+# --------------------------------------------------- leaked evidence id ----
 
 def test_leaked_evidence_id_demoted_to_ns():
     leak = _purpose()
@@ -653,7 +652,7 @@ def test_leaked_evidence_id_bracket_form_demoted():
 
 
 def test_leaked_evidence_id_embedded_in_text_demoted():
-    # scalar field whose substantive content is a labelled citation, past the old bare-eid guard
+    # scalar field whose substantive content is a labelled citation, not just a bare id
     leak = _purpose()
     leak["purpose_and_intended_users"]["limitations"] = "Provenance: [E07]"
     out = V.run_group_with_repair("purpose", ["purpose_and_intended_users"], SECTION_MODELS,
@@ -688,7 +687,7 @@ def test_list_field_keeps_legit_id_mention():
     assert out.sections["purpose_and_intended_users"]["tasks"] == ["evaluation using the E07 protocol"]
 
 
-# ----------------------------------------- paper source-label threading (fix c) ----
+# ------------------------------------------------- paper source-label threading ----
 
 def _extract_resp(field, quote):
     return json.dumps({"evidence": [{"field": field, "quote": quote, "kind": "stated"}]})

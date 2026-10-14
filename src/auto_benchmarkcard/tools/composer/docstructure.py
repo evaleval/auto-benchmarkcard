@@ -1,6 +1,6 @@
 """Deterministic document structure index over docling markdown.
 
-Phase 2 foundation: every verified quote carries a char_start into the
+Every verified quote carries a char_start into the
 whitespace-normalized full document (see evidence.normalize_ws). This module maps
 those offsets back to the section and table they came from, so assignment checks
 can reason about WHERE evidence sits (a related-work sentence must not fill a

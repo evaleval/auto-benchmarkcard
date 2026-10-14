@@ -4,7 +4,7 @@ The guard is structural and model-independent, so it is exercised directly with
 synthetic evidence. Cases cover: classifier recall/precision (incl. the real aa-lcr
 equality-checker phrasing that must NOT be demoted), the two judge demotion branches,
 data.source subset rejection, the backfill-resurrection regression, and that the
-frozen gate classifier buckets the outcome as grounded / NS (never ungrounded).
+field-status classifier buckets the outcome as grounded / NS (never ungrounded).
 """
 
 import os
@@ -93,7 +93,7 @@ def test_subset_vs_provenance():
     assert A.is_subset_construction(Q_GITHUB) is False
 
 
-# ------------------------ shared EEE+HF LLM-judge detector (J1/J3/J4/J5) ----
+# ------------------------------------ shared EEE+HF LLM-judge detector ----
 
 @pytest.mark.parametrize("text,is_judge,model", [
     # named judge / equality checker -> True + the model string
@@ -119,7 +119,7 @@ def test_subset_vs_provenance():
     ("Win-rate is computed against the reference", False, None),
     ("Models are compared by pairwise win rate.", True, None),
     ("The judge model is unclear.", True, None),             # boolean fires, but no junk model
-    # HUMAN evaluation is NOT an LLM judge (the brief's must-not-fire case)
+    # HUMAN evaluation is NOT an LLM judge (must not fire)
     ("We use three human evaluators to judge the responses.", False, None),
     ("We use human annotators to score each answer.", False, None),
     ("We use Mechanical Turk workers to evaluate the answers.", False, None),
@@ -164,7 +164,7 @@ def test_llm_judge_detector(text, is_judge, model):
     ("We use GPT-4 to evaluate the difficulty of each task during dataset construction.", False, None),
     ("We use GPT-4 to evaluate whether each generated question is answerable.", False, None),
 ])
-def test_llm_judge_detector_round2(text, is_judge, model):
+def test_llm_judge_detector_edge_cases(text, is_judge, model):
     assert A.describes_llm_judge(text) is is_judge
     assert A.extract_judge_model(text) == model
 
@@ -192,7 +192,7 @@ def test_collect_judge_scan_text_merges_eee_and_hf():
     assert A.collect_judge_scan_text(None, None) == ""
 
 
-# --------------------- judge guard J4: named judge off the judge bucket ----
+# ------------------------ judge guard: named judge off the judge bucket ----
 
 def test_named_judge_off_bucket_not_demoted():
     """A named equality-checker quote verified but routed to a NON-judge field (so it is not in

@@ -1,9 +1,8 @@
-"""Tests for the display-layer flag policy in workers.py (composer-redesign v2, brief C).
+"""Tests for the display-layer flag policy in workers.py.
 
 Network-free: exercises the pure presentation helpers directly. The policy is applied
-downstream of the frozen FactReasoner flagging and never touches the gold-set instruments
-(reapply_flags --self-test runs a separate flag reimplementation). Synthetic field paths,
-so the checks are general, not pilot-specific.
+downstream of FactReasoner flagging and only changes how flags are presented. Synthetic
+field paths, so the checks are general, not specific to one benchmark.
 """
 
 from auto_benchmarkcard.workers import (
@@ -36,7 +35,7 @@ def test_source_coverage_blocked_signals():
         {"docling_telemetry": {"reason": "html_only"}}, "z" * 2000) is False
 
 
-def test_c2_excludes_resources_and_annotation():
+def test_excludes_resources_and_annotation():
     ff = {
         "benchmark_details.resources": PH,
         "data.annotation": PH,
@@ -48,7 +47,7 @@ def test_c2_excludes_resources_and_annotation():
     assert ff["methodology.methods"] == PH  # unrelated flag untouched
 
 
-def test_c2_preserves_schema_invalid_residual():
+def test_preserves_schema_invalid_residual():
     # a parse-failure residual on an excluded field must survive for the gate's metric.
     ff = {"data.annotation": SCHEMA, "benchmark_details.resources": PH}
     _apply_presentation_flag_policy(ff, source_blocked=False)
@@ -56,7 +55,7 @@ def test_c2_preserves_schema_invalid_residual():
     assert "benchmark_details.resources" not in ff
 
 
-def test_c1_relabels_only_hallucination_on_blocked_card():
+def test_relabels_only_hallucination_on_blocked_card():
     ff = {
         "methodology.methods": PH,
         "benchmark_details.languages": PH,
@@ -70,13 +69,13 @@ def test_c1_relabels_only_hallucination_on_blocked_card():
     assert ff["data.format"] == SCHEMA
 
 
-def test_c1_no_relabel_on_normally_sourced_card():
+def test_no_relabel_on_normally_sourced_card():
     ff = {"methodology.methods": PH}
     _apply_presentation_flag_policy(ff, source_blocked=False)
     assert ff["methodology.methods"] == PH  # full-source hallucination flag stays
 
 
-def test_biolp_like_card_combined_c1_c2():
+def test_biolp_like_card_combined_relabel_and_exclusion():
     # biolp regression shape: 4 PH flags incl resources+annotation, source-blocked (403).
     ff = {
         "benchmark_details.resources": PH,

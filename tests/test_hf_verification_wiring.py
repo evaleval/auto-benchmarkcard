@@ -1,6 +1,6 @@
 """Wiring tests for HF-match verification: orchestrator routing (no hf_worker loop on reject),
-the descriptive gate flag (does not move GO/NO-GO), the _subject_overlap refactor (byte-behavior
-identical _hf_subject_conflicts), and the eee_metadata existing_hf_repo passthrough.
+the descriptive gate flag (does not move the pass/fail verdict), _subject_overlap and the
+_hf_subject_conflicts check built on it, and the eee_metadata existing_hf_repo passthrough.
 
 Network-free.
 """
@@ -56,7 +56,7 @@ def test_unrejected_unfetched_repo_still_routes_to_hf_worker():
     assert orchestrator(st)["next"] == "hf_worker"
 
 
-# --- gate flag: descriptive, does not change GO/NO-GO --------------------------------
+# --- gate flag: descriptive, does not change the pass/fail verdict --------------------------------
 
 def _write_hf_sidecar(run_dir, card, verdict, repo_id="acme/x", reason="r"):
     d = run_dir / card / "tool_output" / "hf_verifier"
@@ -98,7 +98,7 @@ def _write_min_card(run_dir, name):
 
 
 def test_gate_verdict_independent_of_hf_flag(tmp_path):
-    """Differential: two run dirs identical except one carries a rejected HF sidecar. The GO/NO-GO
+    """Differential: two run dirs identical except one carries a rejected HF sidecar. The pass/fail
     verdict block must be byte-identical -- the descriptive HF flag does not feed _verdict."""
     cgm = _load_cgm()
     import inspect
@@ -123,7 +123,7 @@ def test_gate_verdict_independent_of_hf_flag(tmp_path):
     assert metrics_a["verdict"] == metrics_b["verdict"]        # but verdict is unchanged
 
 
-# --- paper-binding gate flag: descriptive, does not change GO/NO-GO (FINISH-7) -------------------
+# --- paper-binding gate flag: descriptive, does not change the pass/fail verdict ---------------------------
 
 def _binding(verdict, source="eee_unitxt", url="https://arxiv.org/abs/x", reason="r"):
     return {"binding_source": source, "paper_url": url, "verdict": verdict, "reason": reason}
@@ -152,7 +152,7 @@ def test_gate_paper_binding_flags_surface_prior_binding_on_fallthrough():
 
 
 def test_gate_verdict_independent_of_paper_binding_flag(tmp_path):
-    """Differential: the descriptive paper-binding flag must not feed GO/NO-GO. _verdict cannot even
+    """Differential: the descriptive paper-binding flag must not feed the verdict. _verdict cannot even
     see it (not in its signature), and adding a rejected binding sidecar changes the flag count but
     not the verdict."""
     cgm = _load_cgm()
@@ -177,7 +177,7 @@ def test_gate_verdict_independent_of_paper_binding_flag(tmp_path):
     assert metrics_a["verdict"] == metrics_b["verdict"]
 
 
-# --- _subject_overlap refactor: _hf_subject_conflicts unchanged ----------------------
+# --- _subject_overlap and the _hf_subject_conflicts check built on it ----------------
 
 _DISJOINT_README = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu"
 _DISJOINT_IDENTITY = "one two three four five six seven eight nine ten eleven twelve"

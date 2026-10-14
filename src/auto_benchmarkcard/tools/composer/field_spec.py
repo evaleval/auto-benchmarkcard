@@ -5,12 +5,11 @@ Both the Stage-B prompt builder (composer_tool.py) and the validator
 enum-controlled fields, the group split, and the per-field classification can
 never drift apart. Nothing else in the codebase declares a Stage-B enum.
 
-Enum scope is exactly the paths in ENUM_REGISTRY (Trap #5: if a prose field
-ever entered this set the flaggable prose surface behind the Flag-F1 metric
-would silently shrink). The deterministic enums (data_type / languages /
-data_licensing) take their vocabulary live from the card_utils maps that
-extract_hf_tags uses, so [0]'s _ALWAYS_OVERRIDE pass stays a byte-identical
-no-op against what the validator considers valid.
+Enum scope is exactly the paths in ENUM_REGISTRY (if a prose field ever entered
+this set, the set of prose fields that can be flagged would silently shrink).
+The deterministic enums (data_type / languages / data_licensing) take their
+vocabulary live from the card_utils maps that extract_hf_tags uses, so the
+validator accepts every mapped value the _ALWAYS_OVERRIDE pass writes.
 """
 
 from dataclasses import dataclass, field
@@ -46,7 +45,7 @@ ENUM_REGISTRY = {
     "purpose_and_intended_users.audience": lambda: AUDIENCE_VOCAB,
 }
 
-# Trap #5 guard: the enum scope must be exactly these five paths.
+# Guard: the enum scope must be exactly these five paths.
 EXPECTED_ENUM_PATHS = frozenset({
     "benchmark_details.data_type",
     "benchmark_details.languages",
@@ -68,18 +67,18 @@ ENUM_COMMA_JOINED = {"benchmark_details.data_type"}  # one lowercased comma-join
 B_AUTHORED_ENUMS = {
     "purpose_and_intended_users.audience",
 }
-# Deterministic enums [0] sets via _ALWAYS_OVERRIDE; B only echoes them. Validated
-# softly (telemetry / other-rate) since [0]'s override is the source of truth and
-# extract_hf_tags may legitimately emit an unmapped raw fallback.
+# Deterministic enums set via _ALWAYS_OVERRIDE; Stage B only echoes them. Validated
+# softly (telemetry / other-rate) since the deterministic override is the source of truth
+# and extract_hf_tags may legitimately emit an unmapped raw fallback.
 ESTABLISHED_ENUMS = {
     "benchmark_details.data_type",
     "benchmark_details.languages",
     "ethical_and_legal_considerations.data_licensing",
 }
-# benchmark_type is EEE-injected by [0] post-composition and never appears in
-# Stage-B output, so V never validates it inline; [0] enforces it at the inject site.
+# benchmark_type is EEE-injected post-composition and never appears in Stage-B
+# output, so the validator never checks it inline; the injection site enforces it.
 
-# Display-only (populated by [0] post-composition; B never authors; no evidence).
+# Display-only (populated post-composition; Stage B never authors them; no evidence).
 DISPLAY_FIELDS = {
     "benchmark_details.authors",
     "benchmark_details.logo",
@@ -110,7 +109,7 @@ COLLAPSE_FIELDS = {
 }
 
 # Fields whose value carries no extractable citation -> exempt from evidence-linkage
-# (NS fields are also exempt, handled at runtime). Established/display fields, the new
+# (NS fields are also exempt, handled at runtime). Established/display fields, the
 # structured/scalar fields, plus identity URL/name fields.
 EVIDENCE_EXEMPT = (
     ESTABLISHED_FIELDS
@@ -227,7 +226,7 @@ FIELD_CAPS = {
     ),
 }
 
-# Group definitions for Stage-B (each group is one LLM call). Default 3; pilot-switchable.
+# Group definitions for Stage-B (each group is one LLM call). Default 3; 2 and 4 are alternatives.
 GROUP_DEFS_3 = [
     ("identity_purpose", ["benchmark_details", "purpose_and_intended_users"]),
     ("data_method", ["data", "methodology"]),

@@ -3,7 +3,7 @@
 Detects new benchmark folders in EEE_datastore, generates cards via
 run_eee_pipeline(), and uploads them to evaleval/auto-benchmarkcards.
 
-Uses Jenny's Entity Registry for canonical ID resolution and dedup.
+Uses the EvalEval Entity Registry for canonical ID resolution and dedup.
 """
 
 import json

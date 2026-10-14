@@ -6,20 +6,11 @@ carries the identical model-field key-set. extract_missing_fields skips display-
 fields. Network-free.
 """
 
-import glob
 import json
-from pathlib import Path
 
-import pytest
-
-from auto_benchmarkcard.card_utils import (
-    _DISPLAY_ONLY_FIELDS, extract_card, extract_missing_fields, is_not_specified)
+from auto_benchmarkcard.card_utils import _DISPLAY_ONLY_FIELDS, extract_missing_fields
 from auto_benchmarkcard.tools.composer import field_spec as fs
 from auto_benchmarkcard.tools.composer.composer_tool import SECTION_MODELS, enforce_card_shape
-
-# Non-model keys EEE injects into benchmark_details (deliberately outside the schema).
-BD_EXTRAS_ALLOWED = {"benchmark_type", "appears_in", "contains"}
-BD_EXTRAS_REQUIRED = {"benchmark_type", "appears_in"}
 
 
 def _canonical_ns(field):
@@ -120,46 +111,3 @@ def test_missing_fields_filled_baseline_absent_genuine_ns_stays():
     missing = extract_missing_fields(card)
     assert "methodology.baseline_results" not in missing  # filled
     assert "data.collection_date" in missing              # genuine NS stays
-
-
-# ---------------------------------------------------------------- re-pilot cards ----
-
-_REPILOT_GLOB = "output/d6_repilot_wave1/output/*/benchmarkcard/benchmark_card_*.json"
-
-
-def _repilot_card_paths():
-    root = Path(__file__).resolve().parents[1]
-    return sorted(glob.glob(str(root / _REPILOT_GLOB)))
-
-
-@pytest.mark.parametrize("path", _repilot_card_paths() or [None])
-def test_repilot_cards_shape_and_missing_fields(path):
-    if path is None:
-        pytest.skip("re-pilot cards not present (output/ is gitignored)")
-    card = extract_card(json.load(open(path)))
-
-    enforce_card_shape(card)
-
-    for sec in SECTION_MODELS:
-        keys = set(card[sec])
-        assert "provenance" not in keys
-        if sec == "benchmark_details":
-            assert _model_keys(sec) <= keys
-            assert BD_EXTRAS_REQUIRED <= keys
-            assert (keys - _model_keys(sec)) <= BD_EXTRAS_ALLOWED
-        else:
-            assert keys == _model_keys(sec)
-
-    # missing_fields recomputed after enforce: no display fields, filled baseline absent,
-    # every genuine NS content field present.
-    missing = set(extract_missing_fields(card))
-    assert not (missing & _DISPLAY_ONLY_FIELDS)
-    assert "methodology.baseline_results" not in missing  # EEE-filled in every re-pilot card
-    genuine_ns = {
-        f"{sec}.{field}"
-        for sec in SECTION_MODELS for field, val in card[sec].items()
-        if field != "provenance"
-        and f"{sec}.{field}" not in _DISPLAY_ONLY_FIELDS
-        and is_not_specified(val)
-    }
-    assert genuine_ns <= missing

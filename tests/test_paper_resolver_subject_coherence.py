@@ -1,4 +1,4 @@
-"""FINISH-5 subject-coherence: a verified paper must not introduce a plainly
+"""Subject coherence: a verified paper must not introduce a plainly
 differently-named benchmark than the identity (the beyond-aime defect, where the LLM accepted
 'MATH-Beyond' for 'Beyond AIME').
 
@@ -99,10 +99,10 @@ def test_resolve_keeps_coherent_paper(monkeypatch):
     assert result is not None and "2101.11718" in result["url"]
 
 
-# --- B documentation: derivative subset/extension are indistinguishable structurally ----------
+# --- Known limit: derivative subset/extension are indistinguishable structurally -------------
 
 def test_repo_corroboration_indistinguishable_subset_vs_extension():
     # Both a canonical extension and a wrong subset return the same reason: no structural signal
-    # separates keep-apex-v1 from strip-swe-bench (FINISH-5 B deferred to the composer guard).
+    # separates keep-apex-v1 from strip-swe-bench (that case is left to the composer guard).
     assert pr._repo_corroboration("org/Widget-extended", "widget") == "derivative_repo"
     assert pr._repo_corroboration("org/Widget_Verified", "widget") == "derivative_repo"

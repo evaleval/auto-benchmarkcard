@@ -1,4 +1,4 @@
-"""Code-benchmark detection in extract_hf_tags (contract S4.3). A code dataset carries no
+"""Code-benchmark detection in extract_hf_tags. A code dataset carries no
 HF code-modality tag, so an explicit code signal (bare "code", code/programming task tag, or
 a language:code value) must pin data_type="code" and languages=["not-applicable"]. Modeled on
 the real bigcodebench tags (language:code + modality:text + bare code). Network-free.

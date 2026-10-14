@@ -1,4 +1,4 @@
-"""FINISH-4 B1: OpenEval aggregate-source denylist.
+"""OpenEval aggregate-source denylist.
 
 An aggregate eval source (human-centered-eval/OpenEval) is bound for bold/gpqa/boolq and
 injects false languages/size/licensing/org (HF) plus a false metric (EEE). These tests cover
@@ -27,7 +27,7 @@ def test_is_aggregate_metric():
 
 
 def test_precision_metrics_not_flagged():
-    # Real metric ids from the d8 precision set + apex-v1 must never be treated as aggregate.
+    # Real first-party metric ids (incl. apex-v1) must never be treated as aggregate.
     for m in ["superglue.score", "apex_v1.score", "bixbench.score", "arc-agi.score",
               "accuracy", "exact_match", "AssistantBench", "llm_stats.gpqa.score", "pass@1"]:
         assert eee_tool._is_aggregate_metric(m) is False

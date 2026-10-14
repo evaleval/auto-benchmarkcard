@@ -63,7 +63,7 @@ Reviser.run = _parallel_reviser_run
 
 
 # redirect_stdout/redirect_stderr swap the *global* sys.stdout/stderr, which is not
-# thread-safe: when several cards are scored concurrently (batch revalidation) two
+# thread-safe: when several cards are scored concurrently (a multi-threaded batch) two
 # threads can interleave their save/restore so sys.stdout is left pointing at another
 # thread's already-closed devnull, and the next print() dies with "I/O operation on
 # closed file". Only the lock holder suppresses; concurrent callers run without
@@ -544,8 +544,8 @@ def _create_factreasoner_backend(model_id: str):
     """Create a Mellea backend for FactReasoner from the configured engine.
 
     RITS and HuggingFace both expose OpenAI-compatible chat endpoints, so a single
-    logprobs-surfacing OpenAI backend serves both (no mellea-ibm needed). RITS is the
-    batch engine and does not consume HF credits; HF is the interactive fallback.
+    logprobs-surfacing OpenAI backend serves both (no mellea-ibm needed). Any other
+    engine type uses a generic OpenAI-compatible endpoint (FACTREASONER_API_BASE).
     """
     try:
         engine_type = _active_factreasoner_engine()
@@ -884,8 +884,8 @@ def flag_benchmark_card_fields(
     When structured_artifacts is given ({"eee": <json>, "hf": <json>}), a claimed
     structured source is verified against the actual artifact instead of being
     trusted on the composer's say-so; with no artifact on disk the claim falls
-    back to prose grounding. structured_artifacts=None preserves the legacy
-    blind-trust behavior (needed for byte-identical re-application of old runs).
+    back to prose grounding. structured_artifacts=None trusts the composer's
+    structured-source label as given.
     """
 
     flagged_card = copy.deepcopy(benchmark_card)
@@ -909,7 +909,7 @@ def flag_benchmark_card_fields(
             evidence = field_prov.get("evidence") or ""
 
             if structured_artifacts is None:
-                # Legacy: trust the composer's structured-source label outright.
+                # No artifacts given: trust the composer's structured-source label.
                 unflag = bool(
                     field_prov.get("source")
                     and evidence
@@ -925,7 +925,6 @@ def flag_benchmark_card_fields(
                 # really in the eee/hf artifact is grounded even if the composer
                 # forgot or mislabeled its provenance. Independently, evidence
                 # genuinely present in the retrieved text also lifts the flag.
-                # Blind label-trust is gone.
                 section_val = benchmark_card.get(section_key)
                 value = section_val.get(field_key) if isinstance(section_val, dict) else None
                 bench_name = (benchmark_card.get("benchmark_details") or {}).get("name")

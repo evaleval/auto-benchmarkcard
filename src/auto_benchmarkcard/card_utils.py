@@ -35,7 +35,7 @@ def extract_missing_fields(data: Any, prefix: str = "") -> List[str]:
             if key in _SKIP_SECTIONS:
                 continue
             current_path = f"{prefix}.{key}" if prefix else key
-            if current_path in _DISPLAY_ONLY_FIELDS:  # display-only: never measured (contract S8)
+            if current_path in _DISPLAY_ONLY_FIELDS:  # display-only: never measured
                 continue
 
             if is_not_specified(value):
@@ -56,17 +56,16 @@ def extract_missing_fields(data: Any, prefix: str = "") -> List[str]:
     return missing_fields
 
 
-# The five scored card sections (shared by the gold-set metric tooling).
+# The five scored card sections (also used by scripts/field_status.py).
 GOLD_SECTIONS = (
     "benchmark_details", "purpose_and_intended_users",
     "data", "methodology", "ethical_and_legal_considerations",
 )
 
 # Fields with a structured external source (HF tags / EEE metadata) that can be
-# filled deterministically. Everything else in the gold sections counts as prose.
-# This split drives the prose-vs-deterministic Not-specified breakdown.
-# FROZEN measurement instrument for the v31 -> v32 before/after comparison: do NOT
-# edit these 6. Any new deterministic count goes into a separate DETERMINISTIC_FIELDS_V2.
+# filled deterministically. Everything else in the five scored sections counts as prose.
+# This split drives the prose-vs-deterministic Not-specified breakdown. Changing the set
+# shifts that split, so counts taken before and after a change are not comparable.
 DETERMINISTIC_FIELDS = frozenset({
     "benchmark_details.languages",
     "benchmark_details.data_type",
@@ -77,24 +76,22 @@ DETERMINISTIC_FIELDS = frozenset({
 })
 
 # Display-only fields: shown to humans, never measured. Single source of truth for
-# every exclusion site (eval denominator, judge skip, atomizer strip). Adding a new
-# display field is a one-line extension here. Kept out of every _V2 metric (contract S8).
+# every exclusion site (missing-field and field-stat counts, atomizer strip). Adding a new
+# display field is a one-line extension here.
 _DISPLAY_ONLY_FIELDS = frozenset({
     "benchmark_details.authors",
     "benchmark_details.logo",
-    # org_url is the orchestrator-pre-approved S8 registry extension (schema_v2_field_specs,
-    # 2026-06-18); the schema field itself is requested from [B+V] via Aenderungsmeldung.
+    # org_url is the HF organisation page of the dataset owner.
     "benchmark_details.org_url",
 })
 
 # Fields excluded from the card_field_stats prose/deterministic NS split. Beyond the
-# bookkeeping keys: structured-typed v2 fields (object / bool / int -- not prose) and the
+# bookkeeping keys: structured-typed fields (object / bool / int -- not prose) and the
 # EEE-injected appears_in/benchmark_type (links/enums, not prose). Display fields are
 # excluded set-driven via _DISPLAY_ONLY_FIELDS (the dotted check in card_field_stats), so
-# they are NOT repeated here. (judge_* use [B+V]'s flat field names, bv-to-0 meldung.)
-# ACCOUNTING (trap #7a): dropping appears_in/benchmark_type from the prose count shifts the
-# NS denominator vs v31. The leak-corrected v31b baseline recount MUST use this same
-# accounting, otherwise the v31->v32 NS-delta silently absorbs this structural component.
+# they are NOT repeated here. (judge_* are the flat methodology field names.)
+# Dropping appears_in/benchmark_type from the prose count shrinks the NS denominator, so
+# NS counts are only comparable between cards counted with the same skip set.
 _FIELD_SKIP = {
     "provenance", "flagged_fields", "missing_fields",
     "appears_in", "benchmark_type",
@@ -118,7 +115,7 @@ _ABSENCE_PLACEHOLDER_RE = re.compile(
 
 
 def detect_absence_placeholders(card: Dict[str, Any]) -> Dict[str, str]:
-    """Find gold-section fields whose value is an explicit no-data placeholder
+    """Find fields in the five scored sections whose value is an explicit no-data placeholder
     that slipped past the canonical 'Not specified' sentinel. Returns a
     {dotted_path: reason} map for flagging. Deterministic, no inference."""
     found: Dict[str, str] = {}
@@ -141,7 +138,7 @@ def detect_absence_placeholders(card: Dict[str, Any]) -> Dict[str, str]:
 
 
 def card_field_stats(card: Dict[str, Any]) -> Dict[str, int]:
-    """Count fields and 'Not specified' values across the five gold sections,
+    """Count fields and 'Not specified' values across the five scored sections,
     split into prose vs deterministic (structured) fields.
 
     `card` must be the unwrapped card dict (see extract_card). Returns counts:
@@ -381,8 +378,8 @@ def _is_structured_source(source: Optional[str]) -> bool:
 
 
 # Prose (free-text) fields where backfilling a provenance quote AS the field value is
-# safe. With verbatim quotes as evidence (v2), non-prose fields (enum / list /
-# deterministic) must not receive a raw quote as their value (contract S2 / S10 / S11.2).
+# safe. Evidence is a verbatim quote, so non-prose fields (enum / list / deterministic)
+# must not receive a raw quote as their value.
 _PROSE_BACKFILL_FIELDS = frozenset({
     "benchmark_details.overview",
     "purpose_and_intended_users.goal",
@@ -409,10 +406,9 @@ def backfill_from_provenance(
     is grounded in the retrieved source or is a structured fact -- never on the composer's
     unverified say-so alone.
 
-    prose_only gates backfill to the prose allowlist (v2 scoping, contract S2/S11.2): the
-    production v2 path sets it True so a verbatim quote is never written as the value of an
-    enum/list/deterministic field. Default False reproduces the legacy v31 behaviour, so the
-    reapply self-test stays a no-op by construction."""
+    prose_only gates backfill to the prose allowlist: set it True so a verbatim quote is
+    never written as the value of an enum/list/deterministic field. Default False keeps the
+    legacy behaviour and backfills any field."""
     for section_key, section_val in card.items():
         if not isinstance(section_val, dict):
             continue
@@ -489,15 +485,15 @@ _BENCHMARK_TYPE_MAP = {
 
 
 def map_benchmark_type(raw: Any) -> str:
-    """Map a raw benchmark_type onto the Tier-1 enum (contract S4.2):
+    """Map a raw benchmark_type onto the card enum:
     single | composite_suite | leaderboard_aggregate. EEE emits single|composite;
-    sub-benchmark -> single (S11.4 default). Unknown -> single. Idempotent."""
+    sub-benchmark -> single. Unknown -> single. Idempotent."""
     return _BENCHMARK_TYPE_MAP.get(str(raw).strip().lower(), "single")
 
 
 def apply_single_judge_bias_rule(card: Dict[str, Any]) -> Dict[str, Any]:
     """Append a bias-risk entry to possible_risks when scoring uses exactly one
-    LLM judge. Deterministic, rule-based, no new card key. Reads [B+V]'s flat
+    LLM judge. Deterministic, rule-based, no new card key. Reads the flat
     methodology fields (judge_uses_llm / judge_num); no-op until they are filled.
 
     Sentinel guards are mandatory: both fields default to the string sentinel
@@ -599,7 +595,7 @@ _SIZE_CATEGORY_MAP = {
 
 # Programming-language / code signals in HF tags. A code benchmark rarely carries a code
 # modality tag, so the modality/language derivation in extract_hf_tags mislabels it (e.g.
-# modality:text -> "text", language:code -> ["code"]). These tokens pin the S4.3 code shape.
+# modality:text -> "text", language:code -> ["code"]). These tokens select the code shape.
 _CODE_SIGNAL_TOKENS = {"code", "coding", "programming"}
 
 
@@ -779,8 +775,8 @@ def extract_hf_tags(hf_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if license_val:
         result["ethical_and_legal_considerations.data_licensing"] = license_val
 
-    # Code benchmark: override the modality/language derivation above with the contract S4.3
-    # code shape (data_type "code", languages not-applicable). Runs last so it wins.
+    # Code benchmark: override the modality/language derivation above with the code shape
+    # (data_type "code", languages not-applicable). Runs last so it wins.
     if _tags_signal_code(tags):
         result["benchmark_details.data_type"] = "code"
         result["benchmark_details.languages"] = ["not-applicable"]

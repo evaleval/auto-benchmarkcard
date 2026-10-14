@@ -150,7 +150,7 @@ def test_evidence_id_sequencing_across_calls():
     assert ids == ["E01", "E02", "E03", "E04"]
     # order is paper, gap, html, hf
     assert items[0]["doc"] == "docling" and items[3]["doc"] == "html"
-    # every record has exactly the v2 contract keys
+    # every record has exactly the evidence-record keys
     for it in items:
         assert set(it.keys()) == {
             "evidence_id", "field", "quote", "char_start", "doc", "kind", "note",
@@ -276,7 +276,7 @@ def test_parse_json_in_markdown_fence():
     assert len(parsed.evidence) == 1
 
 
-def test_parse_nested_braces_tag0_case():
+def test_parse_nested_braces():
     # The non-greedy handler regex would stop at the first '}'. Balanced matcher must not.
     raw = ('{"evidence": [{"field": "methodology.metrics", "quote": "uses {brace} token", '
            '"note": "nested {and} more"}]}')
@@ -303,7 +303,7 @@ def test_extract_json_object_string_aware():
     assert obj == '{"a": "}{ braces in string", "b": {"c": 1}}'
 
 
-# --- abstract-only source token (fix c) -------------------------------------------
+# --- abstract-only source token ---------------------------------------------------
 
 def test_doc_abstract_constant():
     assert ev.DOC_ABSTRACT == "abstract"
@@ -449,7 +449,7 @@ def _mini_frame():
     ]}
 
 
-def test_v2_keys_attached_with_index_and_frame():
+def test_structural_keys_attached_with_index_and_frame():
     full = "The benchmark has 500 items in the test pool."
     items = [{"field": "data.size", "quote": "has 500 items", "kind": "stated",
               "referent": "target", "claim_role": "primary_result"}]
@@ -469,8 +469,8 @@ def test_claimed_target_is_overridden_when_the_quote_names_only_a_sibling():
     """The splice signature: the model writes a sibling's sentence and labels it target.
 
     The label comes from the same call that wrote the quote, so it is not independent
-    evidence. Before this check every spliced item resolved to target and the sibling
-    gate and the EAV audit never saw a referent decision.
+    evidence. Without this check every spliced item would resolve to target, and the
+    sibling gate and the EAV audit would never see a referent decision.
     """
     full = "Fibble contains 2,294 task instances drawn from real issues."
     items = [{"field": "data.size", "quote": "Fibble contains 2,294 task instances",
@@ -482,9 +482,9 @@ def test_claimed_target_is_overridden_when_the_quote_names_only_a_sibling():
 
 
 def test_override_is_refused_when_the_span_names_the_target_by_description():
-    """"our benchmark" is not an alias, so the bare matcher saw only the sibling.
+    """"our benchmark" is not an alias, so the bare matcher sees only the sibling.
 
-    Measured on hand-adjudicated spans, precision when the override fired was 0.611.
+    Overriding here would relabel the target's own claim as the sibling's.
     """
     full = "Unlike Fibble, our benchmark includes visual elements."
     items = [{"field": "benchmark_details.overview",
@@ -563,7 +563,7 @@ def test_referent_defaults_to_target_and_role_coerced():
     assert telem["referent_resolution"]["default_target"] == 1
 
 
-def test_v2_keys_empty_without_index_or_frame():
+def test_structural_keys_empty_without_index_or_frame():
     full = "The benchmark has 500 items."
     items = [{"field": "data.size", "quote": "500 items", "kind": "stated"}]
     records, telem = ev.verify_items(items, full, ev.DOC_PAPER)

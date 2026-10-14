@@ -116,7 +116,7 @@ class _FakeHead:
 
 
 def test_pdf_url_accepted_despite_html_head(monkeypatch):
-    # Core fix: a normalized .full.pdf whose HEAD returns text/html is still trusted.
+    # A normalized .full.pdf whose HEAD returns text/html is still trusted.
     monkeypatch.setattr(W.requests, "head", lambda url, **k: _FakeHead(200, "text/html"))
     ok, reason, status = W._check_paper_accessible(
         "https://www.biorxiv.org/content/10.1101/2024.08.21.608694v1.full.pdf")

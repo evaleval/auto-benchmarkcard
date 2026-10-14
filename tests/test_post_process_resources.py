@@ -1,6 +1,6 @@
-"""Tests for post_process_card's resources heuristic (BUG 3b).
+"""Tests for post_process_card's resources heuristic.
 
-Only a clean owner/name repo id gets the HF datasets prefix; prose is never mangled — a
+Only a clean owner/name repo id gets the HF datasets prefix; prose is never mangled. A
 real URL is extracted from it, otherwise the value is dropped.
 """
 
@@ -68,13 +68,13 @@ def test_paper_mirror_dedup_handles_versions_and_old_style_ids():
 
 
 def test_nested_foreign_domain_dropped():
-    # F4: ace's malformed/injected URL nests a foreign domain as a HF dataset owner
+    # ace's malformed/injected URL nests a foreign domain as a HF dataset owner
     assert _resources(["https://huggingface.co/datasets/mercor.com/ace-leaderboard"]) == []
     assert _resources(["https://github.com/org/repo.com/x"]) == []
 
 
 def test_furniture_org_url_dropped():
-    # F4: the hallucinated Exgentic/Ergon pipeline-org repos (a cross-card leak) are dropped
+    # the hallucinated Exgentic/Ergon pipeline-org repos (a cross-card leak) are dropped
     assert _resources(["https://github.com/Exgentic/exgentic"]) == []
     # word-boundary guard: a legit repo merely containing the substring is kept
     assert _resources(

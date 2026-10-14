@@ -1,7 +1,7 @@
 """Derivative-binds-parent guard: a variant-qualified identity (helm_lite, mm-mind2web) must
-not bind the PARENT's paper unless the paper mentions the variant. Replaces the deleted
-KNOWN_NO_PAPER sentinel with a general mechanism, wired in both resolve_paper (all accept
-paths) and the pre-set binding gate (before the Tier-1 accept).
+not bind the PARENT's paper unless the paper mentions the variant. A general mechanism, not a
+per-benchmark list, wired in both resolve_paper (all accept paths) and the pre-set binding
+gate (before the Tier-1 accept).
 
 Real titles/abstracts from tests/data/derivative_guard_fixtures.json; network and LLM mocked.
 Sharp regression pins:
@@ -96,7 +96,7 @@ def test_never_fires_for_version_metric_and_generic_qualifiers():
 
 def test_acronym_of_parent_qualifier_never_fires():
     # 'Expansion (Acronym)' identities are one name written twice: the acronym qualifier
-    # must not read as a variant marker (the ifeval false positive, 2026-07-05).
+    # must not read as a variant marker (the ifeval false positive).
     ife = _DATA["ifeval"]
     assert pr._parent_only_binding(
         "ifeval", "Instruction-Following Evaluation (IFEval)",
@@ -109,7 +109,7 @@ def test_acronym_of_parent_qualifier_never_fires():
     assert not pr._is_acronym_of("lite", ["helm"])
 
 
-def test_resolve_binds_ifeval_after_acronym_fix(monkeypatch, tmp_path):
+def test_resolve_binds_ifeval_with_acronym_qualifier(monkeypatch, tmp_path):
     _mock_resolver(monkeypatch, _DATA["ifeval"],
                    full_name="Instruction-Following Evaluation (IFEval)",
                    domain="instruction following evaluation")

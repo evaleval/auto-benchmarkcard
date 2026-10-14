@@ -1,5 +1,5 @@
 """Tests for the resolve-time paper-binding verifier (the mirror of the HF gate) in
-run_paper_resolver, plus the orchestrator routing change that makes the gate actually run.
+run_paper_resolver, plus the orchestrator routing that sends a set-but-unverified paper to it.
 
 Network-free: _fetch_paper_meta_for_verify, verify_paper_binding and resolve_paper are
 monkeypatched. The LLM is mocked via a call-counter so the deterministic fast paths can be asserted
@@ -56,7 +56,7 @@ class _LLMCounter:
 @pytest.fixture(autouse=True)
 def _enabled(monkeypatch):
     monkeypatch.setattr(Config, "PAPER_VERIFICATION_ENABLED", True)
-    # the keep paths now fetch authors for the bound URL; never hit the network in tests
+    # the keep paths fetch authors for the bound URL; never hit the network in tests
     monkeypatch.setattr(W, "_fetch_paper_authors",
                         lambda url: {"authors": [], "title": "", "year": None})
 
@@ -66,7 +66,7 @@ def _patch_meta(monkeypatch, title="", abstract="", fetch_error=False):
                         lambda url: {"title": title, "abstract": abstract, "fetch_error": fetch_error})
 
 
-# --- BYPASS CLOSED: a pre-set wrong paper is now verified + rejected + falls through ----------
+# --- PRE-SET BINDING: a pre-set wrong paper is verified + rejected + falls through ----------
 
 def test_preset_wrong_paper_rejected_and_falls_through(monkeypatch):
     # mgsm class: a pre-set GSM8K paper on an mgsm identity. LLM confident not-a-match -> reject ->
@@ -100,12 +100,11 @@ def test_preset_wrong_paper_rejected_no_search_match_honest_thin(monkeypatch):
 
 
 def test_preset_realistic_nomatch_zero_conf_rejects_and_falls_through(monkeypatch):
-    # FINISH-8 G1 (the dominant defect): the REALISTIC no-match verdict the live bug produced. A genuine
-    # LLM "none" returns is_match=False, confidence=0.0 (confidence is on the MATCH scale), error=False.
-    # The pre-fix reject branch required conf>=0.7, so this fell to keep-degraded -> the mgsm/GSM8K wrong
-    # paper survived. The fix treats any non-errored not-a-match as a confident reject -> drop + fall
-    # through to the verified search, which resolves the real MGSM paper and re-sources its authors.
-    # (The earlier reject test used conf=0.95, which DID satisfy the dead branch and so masked the bug.)
+    # The REALISTIC no-match verdict: a genuine LLM "none" returns is_match=False, confidence=0.0
+    # (confidence is on the MATCH scale), error=False. A reject gated on conf>=0.7 would fall to
+    # keep-degraded and the mgsm/GSM8K wrong paper would survive. Any non-errored not-a-match is a
+    # confident reject -> drop + fall through to the verified search, which resolves the real MGSM
+    # paper and re-sources its authors. (The conf=0.95 reject test above cannot catch that gap.)
     counter = _LLMCounter({"is_match": False, "confidence": 0.0, "error": False,
                            "reasoning": "This paper introduces GSM8K, not the multilingual MGSM."})
     monkeypatch.setattr(W, "verify_paper_binding", counter)
@@ -159,8 +158,8 @@ def test_preset_realistic_nomatch_thin_abstract_rejects_gracefully(monkeypatch):
 
 
 def test_correct_preset_confident_match_not_over_rejected(monkeypatch):
-    # gsm8k control: its REAL paper is a confident match (is_match=True, conf=1.0). Fix 1 must not touch
-    # the accept path -- the binding is KEPT/confirmed, never over-rejected.
+    # gsm8k control: its REAL paper is a confident match (is_match=True, conf=1.0). The reject rule
+    # must not touch the accept path -- the binding is KEPT/confirmed, never over-rejected.
     counter = _LLMCounter({"is_match": True, "confidence": 1.0, "error": False,
                            "reasoning": "this paper introduces GSM8K"})
     monkeypatch.setattr(W, "verify_paper_binding", counter)
@@ -187,7 +186,7 @@ def test_realistic_nomatch_with_error_keeps_degraded(monkeypatch):
 
 
 def test_nonerrored_missing_match_index_keeps_degraded(monkeypatch):
-    # FINISH-8 fix-round nit: a non-errored verdict that carries a `match_index` key with a
+    # A non-errored verdict that carries a `match_index` key with a
     # missing/null/non-integer value (a degenerate parse result that slipped past error=True) is
     # AMBIGUOUS, not a decision -> keep-degraded, never reject. A correct pre-set must not be dropped
     # on a no-decision verdict; only a REAL not-a-match (or match_index "none") rejects.
@@ -269,9 +268,9 @@ def test_preset_name_bearing_with_positive_overlap_accepts_zero_llm(monkeypatch)
 
 
 def test_preset_name_bearing_thin_abstract_wrong_domain_routes_to_llm_and_rejects(monkeypatch):
-    # MUST-2 regression: a name-bearing pre-set with a THIN/empty abstract (e.g. an abstract-less
+    # A name-bearing pre-set with a THIN/empty abstract (e.g. an abstract-less
     # OpenAlex DOI record) on a WRONG-domain identity must NOT auto-accept at 0 LLM -- it routes to the
-    # LLM verifier, which rejects on domain. (The pre-fix bug auto-accepted this with verdict=confirmed.)
+    # LLM verifier, which rejects on domain. (Auto-accepting would record verdict=confirmed.)
     counter = _LLMCounter({"is_match": False, "confidence": 0.95, "reasoning": "video, not text-to-image"})
     monkeypatch.setattr(W, "verify_paper_binding", counter)
     _patch_meta(monkeypatch, title="ActionBench: A Video Action Benchmark", abstract="")
@@ -300,7 +299,7 @@ def test_preset_name_bearing_thin_abstract_correct_samename_routes_to_llm_and_ke
 
 
 def test_preset_fetch_error_keeps_degraded_no_llm(monkeypatch):
-    # SHOULD-3: a paper-metadata FETCH failure keeps the binding degraded and does NOT call the LLM on
+    # A paper-metadata FETCH failure keeps the binding degraded and does NOT call the LLM on
     # a blank candidate (a transient outage must not drop a correct pre-set via an LLM "none").
     counter = _LLMCounter({"is_match": False, "confidence": 0.95})  # would reject if called
     monkeypatch.setattr(W, "verify_paper_binding", counter)
@@ -420,7 +419,7 @@ def test_hf_readme_binding_kept_when_verified(monkeypatch):
     assert out["paper_verified"] is True
 
 
-# --- FLAG OFF: byte-identical pre-feature behavior -------------------------------------------
+# --- FLAG OFF: byte-identical unverified behavior --------------------------------------------
 
 def test_flag_off_preset_skips_no_verification(monkeypatch):
     monkeypatch.setattr(Config, "PAPER_VERIFICATION_ENABLED", False)
@@ -484,9 +483,9 @@ def test_routing_flag_off_preset_skips_resolver(monkeypatch):
 
 
 def test_tier1_keep_fetches_authors_for_display(monkeypatch):
-    # WP1.3: a pre-set / HF arxiv-tag binding carried only the URL, so every Tier-1 card shipped
-    # authors "Not specified" (swe-bench-multimodal lost 13 authors). The keep path now fills
-    # paper_authors/title/year from the resolver's own metadata lookup, fill-only.
+    # A pre-set / HF arxiv-tag binding carries only the URL, so without a lookup a Tier-1 card
+    # would show authors "Not specified". The keep path fills paper_authors/title/year from the
+    # resolver's own metadata lookup, fill-only.
     counter = _LLMCounter({"is_match": False, "confidence": 1.0})
     monkeypatch.setattr(W, "verify_paper_binding", counter)
     _patch_meta(monkeypatch, title="CharXiv: Charting Gaps in Realistic Chart Understanding",

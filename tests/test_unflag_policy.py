@@ -1,9 +1,8 @@
 """Per-field unflag policy.
 
-The production block in workers.run_factreasoner replaced the blanket rules
-(analytical always unflagged, identity unflagged on all_neutral) with
-unflag_decision: identity fields lose an all-neutral flag only when their cited
-evidence survived the EAV audit.
+workers.run_factreasoner decides per field with unflag_decision: analytical fields
+are always unflagged, and identity fields lose an all-neutral flag only when their
+cited evidence survived the EAV audit.
 """
 
 import inspect
@@ -101,11 +100,11 @@ def test_run_factreasoner_uses_per_field_policy():
     src = inspect.getsource(W.run_factreasoner)
     assert "unflag_decision" in src
     assert "field_evidence_status" in src
-    # the blanket rule is gone from production
+    # no blanket field-type rule in run_factreasoner
     assert "Field-type-aware scoring" not in src
 
 
-def test_frozen_constants_unchanged():
+def test_unflaggable_field_sets():
     assert VP.IDENTITY_FIELDS == frozenset({
         "benchmark_details.overview", "benchmark_details.domains",
         "benchmark_details.data_type", "benchmark_details.similar_benchmarks",

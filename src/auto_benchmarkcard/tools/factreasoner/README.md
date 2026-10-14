@@ -1,148 +1,59 @@
-# FactReasoner Tool
+# FactReasoner validation
 
-Automated fact verification for benchmark metadata. Takes claims from benchmark cards and checks them against evidence to see what's actually true.
+This package checks each claim on a composed benchmark card against source text
+and flags fields that the sources do not support. It wraps
+[FactReasoner](https://github.com/IBM/FactReasoner), which scores claims with
+NLI and combines the scores in the Merlin probabilistic solver. In the
+pipeline, `workers.run_factreasoner` calls it after the RAG stage.
 
-## How it works
+## Steps
 
-1. **Get the claims**: Takes atomic statements extracted from benchmark cards (like "The dataset has 70,000 examples")
-2. **Check against evidence**: Uses NLI to see if supporting evidence confirms, contradicts, or says nothing about each claim
-3. **Calculate confidence**: Runs probabilistic reasoning to get a score for how likely each claim is true
-4. **Flag problems**: Automatically marks low-confidence fields for human review
+1. Re-retrieve each claim's contexts with BM25 from the card's own paper, web
+   page and HF README (`tools/rag/source_retrieval.py`).
+2. Rewrite each claim as a hypothesis that names the benchmark and any subset,
+   version, metric or related benchmark the composer recorded for the field.
+3. Score every claim against its contexts (`evaluate_factuality`).
+4. Score claims that stay exactly neutral (0.5) again against overlapping
+   12,000-character windows of the full source (`evaluate_factuality_two_tier`).
+5. Flag fields whose average score is below 0.8 or whose claims are all
+   neutral (`flag_benchmark_card_fields`). A flag is lifted when the field's
+   evidence appears in the retrieved text or its value is confirmed by the EEE
+   or Hugging Face metadata.
 
-## What you get
-
-### Confidence scores
-- **High confidence correct** (>0.8): Pretty sure this is right
-- **Likely correct** (0.6-0.8): Probably right but not certain
-- **Uncertain** (0.4-0.6): Could go either way
-- **Likely incorrect** (0.2-0.4): Probably wrong
-- **High confidence incorrect** (<0.2): Pretty sure this is wrong
-
-### Field analysis
-Groups results by benchmark card sections like:
-- `benchmark_details.name`
-- `data.size`
-- `methodology.metrics`
-- `ethical_and_legal_considerations.data_licensing`
-
-### Automated flagging
-Marks problematic fields in the final benchmark card:
-- `[ALERT, low factuality score: 0.45]` - Not confident about this
-- `[ALERT, no evidence found]` - No supporting evidence available
-
-## Usage
-
-### Part of main pipeline
-```bash
-python agents.py hellaswag
-```
-
-### Standalone
-```bash
-python tools/factreasoner/factreasoner_tool.py path/to/rag_results.jsonl \
-    --benchmark-card path/to/benchmark_card.json \
-    --threshold 0.8
-```
-
-### In code
-```python
-from tools.factreasoner.factreasoner_tool import evaluate_factuality
-
-results = evaluate_factuality(
-    formatted_rag_results=rag_results,
-    model="llama-3.3-70b-instruct",
-    merlin_path="FactReasoner/merlin/bin/merlin"
-)
-```
+Flags go into the card's `flagged_fields` map, keyed by field path, with reasons
+such as `[Possible Hallucination], ...`, `[Probable Hallucination], ...` (still
+neutral after step 4) or `[Factuality Score: 0.45], ...`. On a card whose source
+was blocked or very short, hallucination flags are relabelled as unverified.
 
 ## Setup
 
-You need the Merlin reasoning engine:
-```bash
-# Download merlin binary and place it here:
-mkdir -p fact_reasoner/merlin/bin
-# Put merlin binary in fact_reasoner/merlin/bin/merlin
-chmod +x fact_reasoner/merlin/bin/merlin
-```
-
-## Configuration
-
-- **model**: Which LLM to use for NLI (default: "llama-3.3-70b-instruct")
-- **threshold**: Confidence threshold for flagging fields (default: 0.8)
-- **merlin_path**: Path to Merlin binary
-- **debug_mode**: Show detailed logs
+- Merlin: build the solver as described in the main README. The pipeline finds
+  it through `Config.MERLIN_BIN`, which reads `MERLIN_BIN` and defaults to
+  `<repo>/external/merlin/bin/merlin`.
+- Model endpoint: NLI needs a chat endpoint that returns token logprobs.
+  `FACTREASONER_ENGINE_TYPE` picks the route and falls back to `LLM_ENGINE_TYPE`.
+  - `rits`: `RITS_API_KEY` and `RITS_API_URL`.
+  - `hf`: `HF_TOKEN`, optionally `HF_API_URL` and `HF_ORG`.
+  - any other value: an OpenAI-compatible endpoint at `FACTREASONER_API_BASE`
+    with `FACTREASONER_API_KEY` (else `LLM_API_BASE` and `LLM_API_KEY`). On
+    OpenRouter, set `FACTREASONER_PROVIDER` to a comma-separated list of
+    providers that return logprobs; routing is pinned to them with no fallback.
+- `FACTREASONER_MODEL` sets the model (default `llama-3.3-70b-instruct`).
 
 ## Output
 
-### Factuality results
-```json
-{
-  "marginals": [
-    {
-      "variable": "atom_id",
-      "p_true": 0.8945
-    }
-  ],
-  "field_analysis": {
-    "field_details": {
-      "data.size": {
-        "avg_probability": 0.65,
-        "accuracy_percentage": 67.0
-      }
-    }
-  },
-  "atom_summary": [
-    {
-      "atom_id": "a0",
-      "field": "data.size",
-      "text": "The dataset contains 70,000 examples",
-      "factuality_score": 0.8945,
-      "confidence_level": "HIGH_CONFIDENCE_CORRECT"
-    }
-  ]
-}
+The pipeline writes to `<session>/tool_output/factreasoner/`:
+`factuality_results_<benchmark>.json` (marginals, per-field analysis, atom
+summary, escalation details), `source_scoped_rag_<benchmark>.jsonl` (the atoms
+and contexts that were scored) and, when the card has flags,
+`unflag_policy_<benchmark>.json`.
+
+## Standalone use
+
+```bash
+python -m auto_benchmarkcard.tools.factreasoner.factreasoner_tool \
+    <session>/tool_output/rag/formatted_rag_results_<benchmark>.jsonl \
+    --benchmark-card card.json --merlin-path "$MERLIN_BIN"
 ```
 
-### Flagged benchmark card
-The original benchmark card with alerts added to problematic fields:
-```json
-{
-  "benchmark_details": {
-    "name": "[ALERT, no evidence found] ethos_binary"
-  },
-  "data": {
-    "size": "[ALERT, low factuality score: 0.45] 998 comments"
-  }
-}
-```
-
-## Technical details
-
-### How the scoring works
-1. Uses natural language inference to compare claims with evidence
-2. Builds a probabilistic model of relationships
-3. Uses Bayesian reasoning (via Merlin) to calculate final confidence scores
-4. Groups results by benchmark card field for easier review
-
-### What gets flagged
-- Fields where average confidence is below threshold (default 0.8)
-- Fields where no evidence was found (all neutral NLI scores)
-- Individual claims with very low confidence scores
-
-### Performance
-- Processes ~2-3 claims per second with caching
-- Uses 2-4GB RAM for large benchmark cards
-- Results are cached to avoid recomputation
-
-## Troubleshooting
-
-**Missing Merlin**: Make sure the merlin binary is installed and executable
-**Model errors**: Check your LLM API credentials
-**Memory issues**: Large datasets might need more RAM
-**Path problems**: Verify the fact_reasoner directory structure exists
-
-## Output location
-
-Results are saved to `tools/factreasoner/output/` with files like:
-- `factuality_results_hellaswag.json` - Full evaluation results
-- Used by the main pipeline to create flagged benchmark cards
+This runs one scoring pass without escalation or evidence-based unflagging.

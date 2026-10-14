@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Offline dry-run for the resolve-time HF-match verifier: bucket each benchmark name into the
 3-tier gate DETERMINISTICALLY (no LLM), so the LLM-cost cohort (Tier-2) can be measured before a
-broad run.
+large batch.
 
 For each input name it runs resolve_hf_repo (mechanical), and for resolved repos fetches HF
 metadata and computes the same deterministic signals run_hf uses (_repo_corroboration name-only,
@@ -11,7 +11,7 @@ Tier-2-bound names (the true LLM cohort). NO LLM is called.
 
 Inputs (one of):
   --names-file PATH   newline-delimited benchmark names (optionally "name<TAB>existing_hf_repo")
-  --eee-dir PATH      an EEE scan directory (uses scan_eee_directory)
+  --eee-dir PATH      an EEE scan directory (uses scan_eee_folder)
 
 Usage:
   PYTHONPATH=src python scripts/hf_verification_dryrun.py --names-file names.txt

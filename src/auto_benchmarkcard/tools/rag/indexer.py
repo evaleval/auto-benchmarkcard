@@ -344,7 +344,7 @@ class MetadataIndexer:
         url = data.get("url", "")
         title = data.get("title", "")
         # Self-guard: drop leaderboard/related-benchmarks furniture in case this indexer
-        # is fed HTML that did not pass through the patched scraper (cached/external input).
+        # is fed HTML that did not pass through extract_html_content (cached/external input).
         page_text, _ = strip_page_furniture(page_text, url)
         text_chunks = self.text_splitter.split_text(page_text)
 

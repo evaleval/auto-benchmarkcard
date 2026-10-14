@@ -1,8 +1,8 @@
-"""Paper-resolver robustness: author-fetch retry/cache (F1-3) and name-token recovery (F1-2).
+"""Paper-resolver robustness: author-fetch retry/cache and name-token recovery.
 
 All network-free: requests.get is monkeypatched and time.sleep is stubbed so retries don't
-delay the suite. The F1-2 cases drive resolve_paper with the search, metadata and LLM boundaries
-mocked, so only the in-resolver acceptance logic is exercised.
+delay the suite. The name-token cases drive resolve_paper with the search, metadata and
+LLM boundaries mocked, so only the in-resolver acceptance logic is exercised.
 """
 
 import pytest
@@ -46,7 +46,7 @@ def _no_sleep_clean_cache(monkeypatch):
     pr._author_cache.clear()
 
 
-# --------------------------------------------------------------------------- F1-3 retry/cache
+# --------------------------------------------------------------------------- retry/cache
 def test_arxiv_meta_retries_then_succeeds(monkeypatch):
     # Two transient network errors then a good response, all within _http_get's retry budget.
     calls = {"n": 0}
@@ -95,7 +95,7 @@ def test_successful_fetch_is_cached(monkeypatch):
     assert second == first and calls["n"] == n  # served from cache, no new fetch
 
 
-# --------------------------------------------------------------------------- F1-2 / F1-3 resolve_paper
+# --------------------------------------------------------------------------- resolve_paper
 def _mock_resolver(monkeypatch, candidates, llm_result, *, full_name="AlpacaEval 2.0"):
     """Wire resolve_paper's boundaries: metadata, search source, prefilter, LLM verdict."""
     monkeypatch.setattr(pr, "_query_benchmark_metadata",

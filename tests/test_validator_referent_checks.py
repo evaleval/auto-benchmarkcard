@@ -1,4 +1,4 @@
-"""Phase-1 wrong-referent fixes in the Stage-B validator.
+"""Wrong-referent guards in the Stage-B validator.
 
 Pins the three mechanical guards:
   1. evidence-tag/field agreement: a cited id must be tagged for the citing field

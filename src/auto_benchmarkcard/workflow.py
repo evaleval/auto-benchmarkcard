@@ -1,11 +1,14 @@
 """Benchmark metadata extraction pipeline built on LangGraph.
 
-Pipeline flow:
-  [UnitXT] -> [Extractor] -> [HF] -> [HF_Extractor?] -> [PaperResolver?]
-    -> [Docling?] -> [HTML?] -> [Composer] -> [Risk] -> [RAG] -> [FactReasoner] -> END
+The graph starts at an orchestrator node that inspects the state and picks the
+next worker. Every worker returns to the orchestrator, except FactReasoner,
+which ends the run. Workers are visited in this order (? = only when its input
+exists):
+  [UnitXT] -> [Extractor] -> [HF?] -> [HF_Extractor?] -> [PaperResolver?]
+    -> [Docling?] -> [HTML?] -> [GitHub] -> [Composer] -> [Risk] -> [RAG]
+    -> [FactReasoner] -> END
 
 EEE path: skips UnitXT/Extractor (metadata comes from EEE JSONs)
-Composite path: skips RAG/FactReasoner (no single source paper to fact-check)
 Failed steps: skipped, pipeline continues to next step
 """
 

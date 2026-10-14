@@ -13,7 +13,7 @@ off-topic:
     was constructed.
 
 Everything here is keyword/regex over the verified quotes; it is independent of the
-composer model, so its effect does not depend on a model re-pilot.
+composer model.
 """
 
 from __future__ import annotations
@@ -228,7 +228,7 @@ def is_metric_only_data_type(quote: str) -> bool:
     return bool(_METRIC_METHOD_RE.search(quote))
 
 
-# Assignment gates (Stage-A routing): deterministic checks of each verified v2 record's
+# Assignment gates (Stage-A routing): deterministic checks of each verified record's
 # referent / region / claim_role / table anchor against the field it is tagged for. Runs at
 # the routing seam (evidence.finalize_evidence) on the routed records, before ids are
 # assigned and the digest is built. Conservative: only high-confidence violations drop; the
@@ -263,7 +263,7 @@ def _append_note(note: str, addition: str) -> str:
 
 def apply_assignment_gates(records: List[Dict], frame: Optional[Dict],
                            telemetry_dict: Optional[Dict] = None) -> List[Dict]:
-    """Deterministic assignment gates over routed v2 evidence records. Returns the survivors.
+    """Deterministic assignment gates over routed evidence records. Returns the survivors.
 
     Gates, in the order applied per record:
       region (paper items with a non-empty region, the pure-docstructure signal):
@@ -285,7 +285,7 @@ def apply_assignment_gates(records: List[Dict], frame: Optional[Dict],
         one is counted as unanchored_numeric.
 
     No-op (records returned unchanged, telemetry untouched) when frame is None or no
-    record carries the v2 keys, so legacy callers and non-paper docs are unaffected.
+    record carries the referent keys, so legacy callers and non-paper docs are unaffected.
     telemetry_dict gains "actions" (a list of {gate, field, referent, region, action})
     and "summary" (gate -> per-action counts); a refile logs the ORIGINAL field.
     """
@@ -387,8 +387,9 @@ def apply_assignment_gates(records: List[Dict], frame: Optional[Dict],
 
 
 # Widened LLM-judge / equality-checker signal for the EEE+HF judge rescue. Shared by the EEE
-# injection (eee_workflow), the J4 escape in _guard_judge_cluster below, and the gate's denial
-# mirror -- one detector, no second reimpl. Additive: the in-pipeline guard above is unchanged.
+# injection (eee_workflow), the named-judge escape in _guard_judge_cluster below, and the judge
+# check in scripts/field_status.py -- one detector, no second reimpl. It is separate from
+# describes_output_scoring above and does not change it.
 # Matched per sentence with citation / answer-extractor / execution / human-evaluation /
 # dataset-construction vetoes, so it names an LLM that SCORES MODEL OUTPUTS -- never firing on
 # exact-match scoring, human evaluation, or a model used to build/filter the dataset.
@@ -613,8 +614,8 @@ def extract_judge_model(text: str):
 
 def collect_judge_scan_text(eee_metadata=None, hf_json=None) -> str:
     """Assemble the judge-scan text from EEE metric descriptions + the HF readme so the EEE
-    injection and the gate mirror scan byte-identical input. Newline-joined to preserve the
-    sentence boundaries the detectors split on."""
+    injection and scripts/field_status.py scan byte-identical input. Newline-joined to
+    preserve the sentence boundaries the detectors split on."""
     texts: List[str] = []
     metrics = (eee_metadata or {}).get("metrics") if isinstance(eee_metadata, dict) else None
     if isinstance(metrics, dict):
@@ -658,7 +659,7 @@ def apply_aboutness_guard(generated_sections: Dict, all_provenance: Dict,
     all_provenance: section -> {short_field -> {evidence_ids, source, evidence, ...}}.
     evidence_items: the flat verified-evidence list (each has evidence_id, field, quote).
     all_flagged: dotted path -> reason; demotions are recorded here (never with the
-    'schema_invalid' marker, which feeds the gate's parse-failure metric).
+    'schema_invalid' marker, which scripts/field_status.py counts as a parse failure).
     """
     id2quote = {it["evidence_id"]: it.get("quote", "") for it in evidence_items or []}
     digest_by_field: Dict[str, List[str]] = {}
@@ -701,7 +702,7 @@ def _guard_judge_cluster(generated_sections, all_provenance, evidence_items,
     original = meth.get("judge_uses_llm")
     exec_eid, exec_quote = _find_exec_evidence(evidence_items)
 
-    # J4: a named LLM-judge / equality-checker anywhere in the verified evidence keeps the cluster
+    # A named LLM-judge / equality-checker anywhere in the verified evidence keeps the cluster
     # intact even when that quote was routed off the judge bucket (it may be cited on another
     # field) -- BUT only when there is no execution-scoring evidence. An exec-scored cluster (Pass@1)
     # must still demote even if a separate quote (e.g. a related-work mention) names a judge model.

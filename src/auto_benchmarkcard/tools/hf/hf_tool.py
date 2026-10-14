@@ -53,7 +53,7 @@ def _collect_hf_metadata(repo_id: str, repo_type: str = "dataset",
                          revision: str | None = None) -> Dict[str, Any]:
     """Get all metadata for a HuggingFace dataset, or a model repo when repo_type="model".
 
-    The dataset path is unchanged (default arguments). The model path reads model_info at
+    The dataset path uses the default arguments. The model path reads model_info at
     the pinned revision, the README and config.json at that revision, and the file list;
     dataset-only extras (dataset_infos.json, configs) are skipped, and the tags that carry
     lineage (base_model:*) plus the card's model-index are surfaced as plain keys.

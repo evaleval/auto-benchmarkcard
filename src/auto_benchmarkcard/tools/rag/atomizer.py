@@ -20,9 +20,9 @@ except ImportError:
 
 from auto_benchmarkcard.card_utils import _DISPLAY_ONLY_FIELDS
 
-# Structured / scalar v2 fields stripped before atomization. A dict/bool/int value
+# Structured / scalar fields stripped before atomization. A dict/bool/int value
 # serialized into the atomizer prompt has no verbatim source form, so the field-path
-# mapper would mis-attribute it onto a real prose path (trap S3). Display-only fields
+# mapper would mis-attribute it onto a real prose path. Display-only fields
 # are stripped separately via _DISPLAY_ONLY_FIELDS. judge_score_consolidation is NOT
 # here -- it is short prose ("majority vote" / "mean") and stays whitelisted.
 _ATOMIZER_STRIP_FIELDS = frozenset({
@@ -143,8 +143,8 @@ def text_to_statements(text: str, separator: str = "- ") -> List[dict]:
         "ethical_and_legal_considerations.data_licensing",
         "ethical_and_legal_considerations.consent_procedures",
         "ethical_and_legal_considerations.compliance_with_regulations",
-        # v2 prose/content fields: kept in the whitelist so they atomize on their own
-        # path instead of mis-routing via keyword fallback (trap S3). The structured
+        # Prose/content fields kept in the whitelist so they atomize on their own
+        # path instead of mis-routing via keyword fallback. The structured
         # fields (size_breakdown, flat judge_*) are NOT here -- they are stripped before
         # atomization in exclude_risk_sections (a dict/bool/int would be mis-attributed).
         "data.collection_date",
@@ -207,7 +207,7 @@ def _map_to_valid_field(field: str, statement: str) -> str:
 
     # Methodology-related mappings
     if "methodology" in field.lower():
-        # The v2 validity_justification (construct-validity / metric-choice rationale)
+        # validity_justification (construct-validity / metric-choice rationale)
         # must not collapse onto methodology.validation (QA procedures): the words
         # overlap but the fields are distinct. "validity" is not a substring of
         # "validation", so this never catches a genuine validation path.
@@ -248,7 +248,7 @@ def _map_to_valid_field(field: str, statement: str) -> str:
             return "benchmark_details.overview"
 
     elif "purpose" in field.lower():
-        # The v2 audience split: an audience-attributed atom routes to consumers (who
+        # The audience split: an audience-attributed atom routes to consumers (who
         # interpret/use the results) or evaluators (who run the benchmark), never back
         # to the single goal field. Default to evaluators when no consumer signal.
         if "audience" in field.lower():
@@ -373,7 +373,7 @@ def exclude_risk_sections(benchmark_card: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(section, dict):
             section.pop(fld, None)
 
-    # Strip structured/scalar v2 fields (dict/bool/int) before atomization: serialized
+    # Strip structured/scalar fields (dict/bool/int) before atomization: serialized
     # into the prompt they have no verbatim source form and would be mis-attributed
     # onto a real prose path. Set-driven, same as the display strip above.
     for dotted in _ATOMIZER_STRIP_FIELDS:

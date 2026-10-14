@@ -1,4 +1,4 @@
-"""F6: deterministic extractors -- HF-readme BibTeX authors, docling run-on normalize, and the
+"""Deterministic extractors: HF-readme BibTeX authors, docling run-on normalize, and the
 benchmark-identity-vs-paper-title name preference. Synthetic inputs only (no network)."""
 
 from auto_benchmarkcard.tools.composer import composer_tool as C

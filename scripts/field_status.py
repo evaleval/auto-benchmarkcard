@@ -63,16 +63,16 @@ _KEY = {NS: NS, EXTRACTED: "extracted", DERIVED: "derived", UNGROUNDED: "ungroun
 # Keys that can sit alongside real fields inside a section but are never measured.
 _BOOKKEEPING = {"provenance", "flagged_fields", "missing_fields"}
 # Only these provenance sources count as structured-derived (grounded in structured
-# data, no text quote expected). Matches composer_gate_v2.md. Classified by source,
-# NOT status: in the real artifacts deterministic fields carry status='stated'.
+# data, no text quote expected). Classified by source, NOT status: in the card
+# artifacts deterministic fields carry status='stated'.
 _DERIVED_SOURCES = {"deterministic", "eee"}
 
 # A measured field whose Stage-B group failed to parse is collapsed to a "Not
 # specified" placeholder on the card, but the failure is recorded in the top-level
 # card["flagged_fields"] dict with this marker. That is data loss, NOT an honest
-# abstention -- counting it as clean NS lets a parse failure read as a false GO.
+# abstention. Counting it as clean NS would let a parse failure pass the verdict.
 _SCHEMA_INVALID_MARKER = "schema_invalid"
-# Gate metric 2 bar. A structural hallucination-rate strictly above this is NO-GO.
+# Hallucination-rate bar. A structural hallucination-rate strictly above this fails.
 HALLUCINATION_MAX = 0.02
 
 
@@ -127,7 +127,7 @@ def _prov_entry(prov, section, field):
 
 
 def classify_card(card, prov):
-    """Per-field rows for every non-display gold-section field of one card."""
+    """Per-field rows for every non-display field in the five scored sections of one card."""
     rows = []
     for section in GOLD_SECTIONS:
         fields = card.get(section)
@@ -153,7 +153,7 @@ def schema_invalid_fields(card):
     """Field paths in card['flagged_fields'] whose Stage-B group failed to parse.
     Such a field collapses to 'Not specified' on the card, so the classifier would
     otherwise score it as honest NS. It is data loss, not abstention; counting it
-    keeps a parse failure from passing the gate as a clean card."""
+    keeps a parse failure from passing the verdict as a clean card."""
     flagged = card.get("flagged_fields") if isinstance(card, dict) else None
     if not isinstance(flagged, dict):
         return []
@@ -171,7 +171,7 @@ def _rate(num, den):
 
 
 def _metrics_from_rows(rows):
-    """Full breakdown (all non-display fields) + judged-set gate metrics. Works for
+    """Full breakdown (all non-display fields) + judged-set headline metrics. Works for
     one card or for the rows pooled across cards (the aggregate, micro-averaged)."""
     judged_rows = [r for r in rows if r["judged"]]
     j = Counter(r["label"] for r in judged_rows)
@@ -239,16 +239,16 @@ def _quote_verify(run_dir):
         if hits:
             return {"source_file": os.path.relpath(hits[0], run_dir), "telemetry": _load(hits[0])}
     return {"source_file": None,
-            "note": "no verify_items telemetry in this run. quote-verify-rate (gate metric 1) "
-                    "is telemetered by verify_items (reject-reason log) and read elsewhere "
-                    "(D6 pilot = 90.5%); not recomputed here -- the verifier is not reimplemented."}
+            "note": "no verify_items telemetry in this run. The quote-verify rate is "
+                    "logged by verify_items (reject-reason log) and is not recomputed here, "
+                    "because the verifier is not reimplemented."}
 
 
 def _verdict(schema_invalid_count, schema_invalid_by_card, hallucination_rate):
-    """GO/NO-GO over the two bars this script owns. NO-GO if any field was lost to a
-    parse failure (data loss masquerading as 'Not specified') or the structural
-    hallucination-rate exceeds the bar. Gate metric 1 (quote-verify-rate >= 90%) is
-    telemetered upstream by verify_items and is not asserted here."""
+    """Pass/fail verdict over the two bars this script checks. The result is "fail" if
+    any field was lost to a parse failure (data loss masquerading as 'Not specified') or
+    the structural hallucination-rate exceeds the bar, else "pass". The quote-verify rate
+    is logged upstream by verify_items and is not checked here."""
     hall_exceeds = hallucination_rate is not None and hallucination_rate > HALLUCINATION_MAX
     reasons = []
     if schema_invalid_count:
@@ -260,7 +260,7 @@ def _verdict(schema_invalid_count, schema_invalid_by_card, hallucination_rate):
         reasons.append(
             f"hallucination-rate {_pct(hallucination_rate)} exceeds the {_pct(HALLUCINATION_MAX)} bar")
     return {
-        "result": "NO-GO" if reasons else "GO",
+        "result": "fail" if reasons else "pass",
         "reasons": reasons,
         "checks": {
             "schema_invalid": {
@@ -274,8 +274,8 @@ def _verdict(schema_invalid_count, schema_invalid_by_card, hallucination_rate):
                 "threshold": HALLUCINATION_MAX,
             },
         },
-        "note": "Gate metric 1 (quote-verify-rate >= 90%) is telemetered upstream by "
-                "verify_items and read elsewhere; it is not asserted by this script.",
+        "note": "The quote-verify rate is logged upstream by verify_items; this "
+                "script does not check it.",
     }
 
 
@@ -283,7 +283,7 @@ def _docling_degraded(run_dir):
     """Cards that resolved a paper_url but built abstract-only (docling got nothing).
 
     Reads the per-card docling_telemetry sidecar written by run_composer. Purely
-    descriptive triage telemetry — does not feed the GO/NO-GO verdict.
+    descriptive triage telemetry. Does not feed the verdict.
     """
     out = []
     pattern = os.path.join(run_dir, "*", "tool_output", "composer", "docling_telemetry_*.json")
@@ -299,10 +299,10 @@ def _docling_degraded(run_dir):
     return {"count": len(out), "cards": out}
 
 
-# Gate v3: a descriptive content layer over the two grounding bars above. These checks
+# Descriptive content checks layered over the two grounding bars above. These checks
 # are GENERAL linters for the full corpus -- they key on field-class, enum vocab, URL
 # shape and telemetry, never on a benchmark name or an expected value. They do NOT feed
-# the GO/NO-GO verdict; they annotate a clean verdict with content defects the grounding
+# the verdict; they annotate a clean verdict with content defects the grounding
 # bars are blind to (a verbatim-grounded value can still be the wrong thing to say).
 
 # Enumerable list fields whose elements should be atomic items, not prose or a summary.
@@ -385,7 +385,7 @@ def _aboutness_flags(name, card, prov, hf=None, eee=None):
                                     + (" (scoring looks execution-based)" if exec_seen else "")})
 
     # judge DENIAL mis-aboutness: an explicit judge_uses_llm=False that the source contradicts
-    # by NAMING a judge / equality-checker model (the aa-lcr V4-Flash misread). Read-only mirror
+    # by NAMING a judge / equality-checker model. Read-only mirror
     # of the EEE injection's detector over the SAME EEE + HF text -- fires independently of
     # whether the injection ran. Descriptive only; never feeds the verdict.
     if meth.get("judge_uses_llm") is False:
@@ -587,8 +587,8 @@ def _dataset_identity_flags(name, card, hf):
 
 
 def _none_override_flags(name, pv):
-    """A confident LLM 'none' verdict that nonetheless shipped a resolved_url -- the Tier-1
-    regression signal (today's aa-index). Descriptive; goes empty once confident-none is final."""
+    """A confident LLM 'none' verdict that nonetheless shipped a resolved_url, a regression
+    signal for the paper resolver. Descriptive only."""
     if not isinstance(pv, dict):
         return []
     lv = pv.get("llm_verification") or {}
@@ -626,7 +626,7 @@ def _paper_binding_flags(name, pv):
     unverified-degraded keep (a hesitant/absent LLM verdict kept a pre-set binding). Also reads the
     top-level `prior_binding` (a pre-set that was rejected then fell through to a search/curated keep),
     so a dropped bypass is surfaced even when the final binding succeeded. Mirrors _hf_match_flags /
-    _paper_search_degraded_flags: descriptive only, does NOT feed the GO/NO-GO verdict."""
+    _paper_search_degraded_flags: descriptive only, does NOT feed the verdict."""
     if not isinstance(pv, dict):
         return []
     out = []
@@ -663,7 +663,7 @@ def _hf_match_flags(run_dir):
     unverified-degraded keep (verdict 'unverified_degraded' -> kept under a weak/absent LLM verdict),
     and a verifier_error (verdict 'verifier_error' -> the verifier crashed and the binding was kept
     by the fail-safe; LOUD so a mass crash is not silent). Mirrors _paper_search_degraded_flags /
-    _docling_degraded: descriptive only, does NOT feed the GO/NO-GO verdict."""
+    _docling_degraded: descriptive only, does NOT feed the verdict."""
     out = []
     pattern = os.path.join(run_dir, "*", "tool_output", "hf_verifier", "hf-verification.json")
     for p in sorted(glob.glob(pattern)):
@@ -687,7 +687,7 @@ def _hf_verification_summary(run_dir):
     unverified_degraded / skipped_curated / verifier_error / other). The denominator (total) exposes
     a mass verifier crash: 'hf_match_verification: 0 flags' can never be confused with '0 cards
     verified' because the summary shows how many cards the verifier actually scored. Descriptive
-    only; does NOT feed the GO/NO-GO verdict."""
+    only; does NOT feed the verdict."""
     counts = Counter()
     pattern = os.path.join(run_dir, "*", "tool_output", "hf_verifier", "hf-verification.json")
     for p in sorted(glob.glob(pattern)):
@@ -713,7 +713,7 @@ def _shell_detector_flags(name, card, pv):
 
 
 def _repo_paper_mismatch_flags(name, card, hf):
-    """Gate twin of Tier-2b on the resolved HF sidecar: the repo basename is a derivative (bears
+    """Report-side check on the resolved HF sidecar: the repo basename is a derivative (bears
     the card's name token plus extra distinctive tokens -> the bixbench case _dataset_identity
     MISSES) or an aggregate (shares no name token -> the bold case). Descriptive only."""
     repo_id = hf.get("id") if isinstance(hf, dict) else None
@@ -745,8 +745,8 @@ def _repo_paper_mismatch_flags(name, card, hf):
 def _source_coverage(run_dir):
     """Per-card paper coverage from the docling telemetry sidecar: full_text | abstract_only
     | no_paper. Descriptive context so NS/flag counts are read in light of what source the
-    composer actually had (e.g. biolp is abstract-only because the paper host blocked the
-    batch), not as failure. Feeds the C1 relabel signal."""
+    composer actually had (e.g. abstract-only because the paper host blocked the fetch),
+    not as failure."""
     by_card, counts = {}, Counter()
     pattern = os.path.join(run_dir, "*", "tool_output", "composer", "docling_telemetry_*.json")
     for p in sorted(glob.glob(pattern)):
@@ -1042,7 +1042,7 @@ def print_summary(metrics):
 
     print(f"\nHeadline (judged set, {a['judged']['n_fields']} fields over the run):")
     print(f"  hallucination-rate = {a['hallucination_numerator']}/{a['hallucination_denominator']} "
-          f"= {_pct(a['hallucination_rate'])}   [gate: <= 2%]")
+          f"= {_pct(a['hallucination_rate'])}   [bar: <= 2%]")
     print(f"  NS-rate            = {_pct(a['ns_rate'])}   (descriptive context, not a bar)")
     if a["hallucination_fields"]:
         print("  judged ungrounded (numerator):")
@@ -1066,14 +1066,14 @@ def print_summary(metrics):
 
 
 def _print_gate(metrics):
-    """Prominent GO/NO-GO block. Lists the offending card+fields when a parse failure
+    """Prominent verdict block. Lists the offending card+fields when a parse failure
     has silently shipped a card with data collapsed to 'Not specified'."""
     v = metrics["verdict"]
     si = v["checks"]["schema_invalid"]
     hr = v["checks"]["hallucination_rate"]
     bar = "=" * 64
     print(f"\n{bar}")
-    print(f"GATE: {v['result']}")
+    print(f"VERDICT: {v['result']}")
     print(bar)
     print(f"  schema_invalid fields (parse failures = data loss, not abstention): "
           f"{si['count']}  [{'PASS' if si['pass'] else 'FAIL'}]")
@@ -1086,7 +1086,7 @@ def _print_gate(metrics):
             for path in entry["fields"]:
                 print(f"      {path}")
     if v["reasons"]:
-        print("\n  NO-GO:")
+        print("\n  Failed checks:")
         for reason in v["reasons"]:
             print(f"    - {reason}")
     print(f"\n  {v['note']}")
@@ -1094,16 +1094,16 @@ def _print_gate(metrics):
 
 
 def _print_gate_v3(metrics):
-    """Descriptive triage layer (Gate v3). Does NOT affect GO/NO-GO -- it annotates a clean
-    verdict with content defects the two grounding bars cannot see. Lists offending field
-    paths and notes which checks are candidates to promote to hard bars on the ship model."""
+    """Descriptive triage layer. Does NOT affect the verdict; it annotates a clean verdict
+    with content defects the two grounding bars cannot see. Lists offending field paths
+    and notes which checks are candidates to become hard bars."""
     ab = metrics.get("aboutness", {})
     fl = metrics.get("format_lint", {})
     di = metrics.get("dataset_identity", {})
     sc = metrics.get("source_coverage", {})
     bar = "-" * 64
     print(f"\n{bar}")
-    print("Gate v3 -- descriptive triage (does NOT affect GO/NO-GO)")
+    print("Descriptive triage (does NOT affect the verdict)")
     print(bar)
     print(f"  aboutness flags  : {ab.get('count', 0)}")
     for f in ab.get("flags", []):
@@ -1155,7 +1155,7 @@ def _print_gate_v3(metrics):
     print(f"  available_but_dropped: {ad.get('count', 0)}")
     for f in ad.get("flags", []):
         print(f"    {f['card']:16s} {f['path']:34s} {f['kind']}: {f['detail']}")
-    print("\n  Promotion candidates (descriptive now; hard-bar once confirmed on the ship model):")
+    print("\n  Candidates for hard bars (descriptive for now):")
     print("    judge_mis_aboutness, judge_denial_mis_aboutness, metric_noncanonical, data_type_not_atomic,")
     print("    data_type_not_modality, dataset_identity_mismatch, numeric_internal_contradiction,")
     print("    available_but_dropped")
@@ -1165,7 +1165,7 @@ def _print_gate_v3(metrics):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Composer gate v2 grounding metrics over a run output dir.")
+    ap = argparse.ArgumentParser(description="Field-status report over a batch output dir.")
     ap.add_argument("--run-dir", required=True, help="batch output dir (parent of <name>_<ts> dirs)")
     args = ap.parse_args()
     if not os.path.isdir(args.run_dir):

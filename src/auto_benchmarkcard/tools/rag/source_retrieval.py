@@ -1,16 +1,11 @@
 """Source-scoped retrieval and source assembly for the validation stage.
 
-Ship-config building blocks measured on the gold set (validation week): BM25
-re-retrieval of each atom's contexts from the card's OWN source bundle
-(docling + html + HF readme), and assembly of the primary source text used for
-neutral-atom escalation. The data-level functions take the in-memory tool
-outputs the production pipeline already holds in state; the *_from_run_dir /
+Two building blocks: BM25 re-retrieval of each atom's contexts from the card's
+OWN source bundle (docling + html + HF readme), and assembly of the primary
+source text used for neutral-atom escalation. The data-level functions take the
+in-memory tool outputs the pipeline already holds in state; the *_from_run_dir /
 run_dir variants load the same JSON artifacts from a run directory for offline
-use (scripts/revalidate_gold_set.py).
-
-scripts/judge_gold_set.py keeps its own assemble_source variant on purpose:
-the judge is the measurement instrument (different rag-fill semantics, EEE
-block) and must not be coupled to the ship module.
+use.
 """
 
 import glob
@@ -23,7 +18,7 @@ from collections import Counter
 from auto_benchmarkcard.tools.rag.format_converter import normalize_context_for_nli
 from auto_benchmarkcard.tools.rag.indexer import MetadataIndexer
 
-SOURCE_CAP = 280_000  # chars; judge parity (scripts/judge_gold_set.py)
+SOURCE_CAP = 280_000  # chars; upper bound on the assembled source text
 
 _TOKEN_RE = re.compile(r"\d+\.\d+|\w+")
 _NUM_LIT_RE = re.compile(r"\d+(?:[.,]\d+)+%?|\d{2,}")
@@ -102,7 +97,7 @@ def rank_chunks(index, texts, query, top_k):
 
 def assemble_source_text(docling_data, html_data, hf_json, rag_context_texts=None, cap=SOURCE_CAP):
     """Primary source text: docling + html + HF readme; optional retrieved-context
-    fill up to the cap. Pass rag_context_texts=None for the no-rag-fill ship config."""
+    fill up to the cap. Pass rag_context_texts=None for no retrieved-context fill."""
     doc = _doc_text(docling_data)
     html = _doc_text(html_data)
     readme = _readme(hf_json)
@@ -123,7 +118,7 @@ def assemble_source_text(docling_data, html_data, hf_json, rag_context_texts=Non
 
 def bundle_documents(benchmark_name, docling_data, html_data, hf_json):
     """Chunked langchain Documents from the card's own source bundle (docling +
-    html + HF readme only -- readme-only hf payload keeps judge parity, no
+    html + HF readme only; the HF payload is the readme alone, without the
     basic_info/builder docs)."""
     readme = _readme(hf_json)
     return MetadataIndexer().create_documents(
@@ -184,11 +179,10 @@ def _read_rag_context_texts(rag_dir):
 
 
 def assemble_source(run_dir, include_rag_fill=True):
-    """Full source text for neutral escalation, loaded from a run directory;
-    mirrors judge_gold_set.assemble_source (primary docling+html+readme, RAG
-    contexts fill the remaining budget) so 'neutral after escalation' is judged
-    against the same text the judge saw. include_rag_fill=False drops the
-    retrieved-context fill (no-rag-fill ship config / contamination ablation)."""
+    """Full source text for neutral escalation, loaded from a run directory:
+    the primary docling + html + readme text, with RAG contexts filling the
+    remaining budget. include_rag_fill=False drops the retrieved-context fill,
+    which matches what the pipeline passes to escalation."""
     to = os.path.join(run_dir, "tool_output")
     docling = _load_json(_first(os.path.join(to, "docling", "*.json")))
     html = _load_json(_first(os.path.join(to, "html", "*.json")))

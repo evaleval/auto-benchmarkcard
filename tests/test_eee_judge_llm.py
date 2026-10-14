@@ -1,4 +1,4 @@
-"""Tests for the EEE model-graded -> methodology.judge_uses_llm injection (#4).
+"""Tests for the EEE model-graded -> methodology.judge_uses_llm injection.
 
 Mirrors the interpretation injection. Verifies the model-graded signal derivation and the
 conservative guards (already-True, genuine cluster, text-grounded, aboutness exec demotion).
@@ -24,7 +24,7 @@ _MISREAD_DENIAL = {"methodology": {"judge_uses_llm": {
     "source": "hf", "status": "stated", "evidence_ids": ["E1"],
     "evidence": "Reply only with CORRECT or INCORRECT."}}}
 
-# Verbatim d6 EEE metric evaluation_description fragments.
+# Verbatim EEE metric evaluation_description fragments.
 _BIOLP_DESC = "BioLP-Bench is a model-graded evaluation measuring ability to find and correct mistakes"
 _BIGCODE_DESC = "A benchmark that challenges LLMs to invoke multiple function calls as tools"
 
@@ -125,7 +125,7 @@ def test_clears_stale_missing_and_flagged_entries(tmp_path):
     assert "data.size" in card["flagged_fields"]
 
 
-# J1/J2 -- HF-readme signal + named-model fill ----------------------------------
+# HF-readme signal + named-model fill ----------------------------------
 
 def test_derive_signal_from_hf_readme():
     # the signal lives ONLY in the HF readme (EEE has no metric description)
@@ -158,7 +158,7 @@ def test_unnamed_signal_sets_boolean_only(tmp_path):
     assert card["methodology"]["judge_num"] == "Not specified"
 
 
-# J3 -- named judge overrides the misread text-grounded denial (but not exec) ---
+# Named judge overrides the misread text-grounded denial (but not exec) ---
 
 def test_named_judge_overrides_misread_text_grounded_denial(tmp_path):
     om = OutputManager("demo-misread", base_path=str(tmp_path))

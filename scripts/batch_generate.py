@@ -8,7 +8,7 @@ generates cards for each missing single benchmark.
 Usage:
     python scripts/batch_generate.py --dry-run              # list what would be generated
     python scripts/batch_generate.py --limit 2 -o test_out  # test with 2 benchmarks
-    python scripts/batch_generate.py -o ./batch_output      # full overnight run
+    python scripts/batch_generate.py -o ./batch_output      # full run
 """
 
 import argparse
@@ -358,7 +358,7 @@ def run_batch(
                 if source_bundle:
                     # The repo binding is made here, before the workflow, by a live Hub
                     # search when EEE has none; a replay takes the bundle run's repo (or
-                    # none) so both conditions read the same HF metadata.
+                    # none) so both runs read the same HF metadata.
                     from auto_benchmarkcard.workers import bundle_hf_repo
                     inputs["hf_repo"] = bundle_hf_repo(eee_key)
                 gate = gate_benchmark_identity(eee_key, inputs, str(output_dir))
@@ -463,7 +463,7 @@ def main():
         "--source-bundle", type=str, default=None,
         help="Replay sources from a prior run's output dir (its <slug>_*/tool_output/): paper "
              "binding, docling text, HF metadata, HTML, GitHub README and croissant facts are "
-             "read from there instead of fetched live, so two conditions compose from "
+             "read from there instead of fetched live, so two runs compose from "
              "byte-identical inputs. Cards whose bundle has no paper get no paper.")
 
     args = parser.parse_args()

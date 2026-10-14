@@ -1,6 +1,6 @@
 """Referent frame: the typed list of things evidence for this card could be about.
 
-Phase 2 foundation. The frame enumerates, per card, the candidate referents that
+The frame enumerates, per card, the candidate referents that
 wrong-section-splice errors confuse: the target benchmark itself, sibling
 benchmarks named in the same paper or suite, subsets/configs, versions, splits,
 evaluation settings, and metrics with their role. Downstream, every evidence
@@ -28,9 +28,8 @@ METRIC_ROLES = ("primary", "secondary", "meta_eval", "unknown")
 
 # paper head window for version/split harvesting and the LLM sibling prompt
 HEAD_CHARS = 4000  # fallback window for the LLM prompts when no section index exists
-# The deterministic version/split scans read the WHOLE paper. Capping them at
-# HEAD_CHARS cost real nodes: over the 11 papered phase 2 gate cards, widening
-# takes splits 8 -> 21 and versions 0 -> 2, all clean. Their own context guards
+# The deterministic version/split scans read the WHOLE paper; capping them at
+# HEAD_CHARS misses real split and version nodes. Their own context guards
 # (release cue or target alias within +/-200 chars, URL and model-word exclusion
 # for versions; a set/split/partition noun immediately after for splits) are what
 # keep them precise, not the window.
@@ -50,7 +49,7 @@ _EXCERPT_REGION_ORDER = {"intro": 0, "related_work": 1, "data": 2, "results": 3}
 
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 
-# version tokens; same shapes and URL exclusion as scripts/generate_referent_probes.py
+# version tokens: a standalone v<number> or "version <number>"
 _VERSION_RE = re.compile(r"(?<![\w.])[vV](\d+(?:\.\d+)*)(?![\w.])")
 _VERSION_WORD_RE = re.compile(r"\b[vV]ersion\s+(\d+(?:\.\d+)*)(?![\w.])")
 _RELEASE_CUE_RE = re.compile(
@@ -400,8 +399,7 @@ def _ranked_paper_excerpts(doc_index, paper_text: str) -> Tuple[List[str], str]:
     heading) plus the heads of the sections ranked by region (intro, related work,
     data, results first, then document order), within EXCERPT_BUDGET. Offsets refer
     to the index's own normalized text, so slices and the literal-presence guard use
-    that same string. Without an index (or one lacking offsets): the raw head, as
-    before."""
+    that same string. Without an index (or one lacking offsets): the raw head."""
     fallback = ([paper_text[:HEAD_CHARS]], paper_text)
     sections = list(getattr(doc_index, "sections", None) or [])
     text = getattr(doc_index, "normalized_text", "") or ""
@@ -559,8 +557,9 @@ def _llm_subset_names(llm_handler, target_name: str, target_aliases: List[str],
                       source_blocks: List[Tuple[str, str]]) -> List[str]:
     """One LLM call proposing named subsets/configs/tracks OF the target itself.
 
-    healthbench builds 2 nodes from a 46-section paper because subsets living only
-    in prose (its themes, a Hard/Consensus variant) have no deterministic channel.
+    Subsets that live only in prose (e.g. HealthBench's themes, a Hard/Consensus
+    variant) have no deterministic channel, so without this pass a long paper can
+    yield almost no subset nodes.
     Same trust model as the sibling pass: the model only PROPOSES names, the caller
     keeps a name only when it occurs literally in a source text."""
     known = ", ".join([target_name, *target_aliases][:6])

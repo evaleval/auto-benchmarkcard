@@ -1,5 +1,6 @@
-"""F4 entity-resolution: Tier-1 confident-none, Tier-1b parse repair, Tier-2 repo corroboration,
-the Tier-3a worker guard, and the F4-1c search-layer fixes.
+"""Paper-resolver entity resolution: a confident "none" is final, bounded verdict-parse repair,
+repo corroboration, the worker drop guard, README paper-link preference, and the search-layer
+query and telemetry.
 
 All synthetic -- no real benchmark names. Network is mocked; the checks are general mechanisms
 that must score an unseen card the same way the regression fixtures here do.
@@ -48,7 +49,7 @@ def _mock_resolver(monkeypatch, candidates, llm_result, *, full_name="WidgetBenc
     monkeypatch.setattr(pr, "_batch_verify_with_llm", lambda *a, **k: llm_result)
 
 
-# Tier-1: confident none is final --------------------------------------------------------------
+# Confident none is final --------------------------------------------------------------
 def test_confident_none_resolves_nothing(monkeypatch):
     # A name-bearing candidate would normally be recovered by name_token_fallback; a confident,
     # non-errored "none" must short-circuit that and resolve nothing (the aa-index defect).
@@ -76,7 +77,7 @@ def test_errored_none_still_recovers(monkeypatch):
     assert result is not None and "2404.00003" in result["url"]
 
 
-# Tier-1b: bounded JSON-parse repair -----------------------------------------------------------
+# Bounded JSON-parse repair -----------------------------------------------------------
 class _FakeLLM:
     def __init__(self, texts):
         self._texts, self.calls = list(texts), 0
@@ -107,7 +108,7 @@ def test_parse_failure_twice_is_inconclusive(monkeypatch):
     assert fake.calls == 2
 
 
-# Tier-2: repo corroboration -------------------------------------------------------------------
+# Repo corroboration -------------------------------------------------------------------
 def test_corroboration_clean_repo():
     assert pr._repo_corroboration("widgetorg/widgetbench", "widgetbench") is None
 
@@ -138,7 +139,7 @@ def test_corroboration_short_slug_skipped():
     assert pr._repo_corroboration("org/totallydifferent", "abc") is None
 
 
-# Tier-3a: worker drop guard -------------------------------------------------------------------
+# Worker drop guard -------------------------------------------------------------------
 def test_drop_uncorroborated_hf_clears_overrides_and_ns_display():
     card = {"benchmark_details": {"logo": "https://x/y.png", "org_url": "https://hf/org"}}
     overrides = {"benchmark_details.languages": ["English"], "data.size": "1K<n<10K"}
@@ -156,7 +157,7 @@ def test_drop_uncorroborated_hf_noop_when_corroborated():
     assert card["benchmark_details"]["logo"] == "https://x/y.png"
 
 
-# D4: _extract_paper_from_hf must NOT anchor on a top-level tag -------------------------------
+# _extract_paper_from_hf must NOT anchor on a top-level tag -------------------------------
 def test_extract_paper_prefers_readme_over_toplevel_tag():
     # A wrong top-level arxiv tag plus a correct README Paper: link -> the README link wins
     # (the function never reads top-level tags; agentharm-shaped regression).
@@ -165,7 +166,7 @@ def test_extract_paper_prefers_readme_over_toplevel_tag():
     assert workers._extract_paper_from_hf(hf) == "https://arxiv.org/abs/2222.22222"
 
 
-# F4-1c: search-layer query + telemetry ------------------------------------------------------
+# Search-layer query + telemetry ------------------------------------------------------
 def test_suffix_aware_query_adds_base_entity():
     queries = [q.lower() for q in pr._build_search_queries("widgetbench-d")]
     assert "widgetbench" in queries

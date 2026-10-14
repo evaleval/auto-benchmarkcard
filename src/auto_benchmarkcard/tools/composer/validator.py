@@ -1,9 +1,9 @@
 """Stage-B validator-loop.
 
-Replaces the old blind 3x retry. Each Stage-B group is generated, validated, and
-repaired with a source-free error->fix table for at most a few rounds; the best
-attempt is kept and any still-invalid field is recorded in flagged_fields rather
-than raising, so the card always ships.
+Each Stage-B group is generated, validated, and repaired with a source-free
+error->fix table for at most a few rounds; the best attempt is kept and any
+still-invalid field is recorded in flagged_fields rather than raising, so the
+card always ships.
 
 Validators: structural (Pydantic), enum-membership (registry-driven), canonical
 Not-specified, evidence-linkage (cited evidence_id must exist in the digest AND,
@@ -345,10 +345,10 @@ def evidence_field_agreement(path: str, field_prov: Any,
     return None
 
 
-# Contract v1 §2: provenance source/evidence stay STRINGS. The Dict[..., Any]
-# widening (needed so quote_loc/evidence_ids survive) dropped Pydantic's type wall,
+# Provenance source/evidence must be STRINGS. Provenance entries are typed
+# Dict[..., Any] (so quote_loc/evidence_ids survive), which gives no Pydantic type check,
 # so a dict/list-valued source or evidence (the LLM confusing it with the adjacent
-# evidence_ids) would now pass through verbatim and later crash the downstream
+# evidence_ids) would pass through verbatim and later crash the downstream
 # consumers (_is_structured_source does (source or "").lower(); backfill_from_provenance
 # does evidence.lower()). A non-string source/evidence carries no usable grounding,
 # so we drop it (treated as absent); quote_loc/evidence_ids keep their structured types.
@@ -491,7 +491,7 @@ def validate_sections(parsed: dict, section_names: List[str],
                                            observed=val, n_miss=len(misses)))
                     else:
                         stats["established_mismatch"] += 1
-                        # Established-enum backstop (defense-in-depth with the Wave-1 evidence drop):
+                        # Established-enum backstop (defense-in-depth):
                         # an out-of-vocab established value must never ship. Drop only the bad
                         # tokens and keep the valid ones; coerce to NS only when nothing valid
                         # remains -- never guess. data_type + data_licensing are scalars (a
@@ -505,7 +505,7 @@ def validate_sections(parsed: dict, section_names: List[str],
                         else:
                             secdict[fld] = ", ".join(kept) if kept else _canonical_ns(fld, schema)
                 elif used_other and path == "benchmark_details.data_type":
-                    # C4: the misses path above is skipped when only other: tokens are
+                    # The misses path above is skipped when only other: tokens are
                     # present, so a compound / task-format other: in the modality field
                     # (e.g. 'other:multiple-choice and error-detection') would ship as-is.
                     # Clean it to real modalities or a single clean other:<modality>.
@@ -670,12 +670,12 @@ def finalize(best: Attempt, section_names: List[str], section_models: Dict[str, 
 
 
 # ---------------------------------------------------------------------------
-# coverage-completeness check (v1: benchmark_details.domains only)
+# coverage-completeness check (benchmark_details.domains only)
 # ---------------------------------------------------------------------------
 
-# The coverage-truncation class from the S=150 findings: a list field ships one true
-# element as if it were the whole set (the math card's domains=['Geometry'] though the
-# card's own size_breakdown enumerates seven subjects). Deterministic and flag-only:
+# Coverage truncation: a list field ships one true element as if it were the whole set
+# (e.g. domains=['Geometry'] though the card's own size_breakdown enumerates seven
+# subjects). Deterministic and flag-only:
 # the value is never rewritten, because subset names are not always domains (difficulty
 # tiers like Easy/Medium/Hard enumerate subsets that are NOT subject areas), so the
 # check can honestly say "the list looks incomplete" but never what the completed list
@@ -805,10 +805,10 @@ def run_group_with_repair(group_name: str, section_names: List[str],
                           size_breakdown=None, card_frame=None, schema=None) -> GroupOutcome:
     """Generate -> validate -> source-free repair (capped) -> keep best -> ship.
 
-    generate_fn(prompt) -> raw model text. digest_ids: valid evidence ids from [A]'s
+    generate_fn(prompt) -> raw model text. digest_ids: valid evidence ids from the Stage-A
     digest, either an iterable of ids or a mapping evidence_id -> digest field tag;
     only the mapping form enables the evidence-tag/field agreement check.
-    det_filled_paths: extra evidence-exempt dotted paths filled by [0].
+    det_filled_paths: extra evidence-exempt dotted paths filled deterministically.
     size_breakdown / card_frame (both optional, default None so legacy callers are
     untouched): the card's data.size_breakdown dict and the referent frame; supplying
     either enables the post-finalize domains coverage-completeness flag."""

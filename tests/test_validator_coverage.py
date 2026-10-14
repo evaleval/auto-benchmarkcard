@@ -1,7 +1,7 @@
-"""Coverage-completeness flag for benchmark_details.domains (v1 scope).
+"""Coverage-completeness flag for benchmark_details.domains.
 
-The coverage-truncation class from the S=150 findings: a list field ships one
-true element as if it were the whole set (the math card's domains=['Geometry']
+The coverage-truncation class: a list field ships one
+true element as if it were the whole set (a math card's domains=['Geometry']
 though its own size_breakdown enumerates seven subjects). The check is
 deterministic and flag-only: the shipped value is never rewritten, and
 non-topical subset names (difficulty tiers, splits, digits) never count toward

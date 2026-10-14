@@ -2,8 +2,8 @@
 
 Failure class: truncated_extraction_yields_nothing. The evidence array never closes, so
 the document fails to parse and a call that emitted dozens of good, verifiable quotes
-produced none of them. Measured 2026-09-04 on allenai/OLMo-2-1124-7B-Instruct: one
-truncated README call and the card lost its whole training_context section.
+produced none of them. A single truncated README call could cost a card its whole
+training_context section.
 """
 
 from __future__ import annotations

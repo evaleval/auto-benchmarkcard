@@ -706,10 +706,10 @@ def resolve_hf_repo(benchmark_name: str, existing_hf_repo: Optional[str] = None)
                             benchmark_name, ds.id, ds.downloads)
                 return ds.id
 
-        # No exact or token-boundary match. The old high-download "name mismatch" fallback is gone:
-        # accepting a popular but name-mismatched dataset fabricates a wrong dataset identity.
+        # No exact or token-boundary match. A popular but name-mismatched dataset is never
+        # accepted on downloads alone: that would fabricate a wrong dataset identity.
         if len(search_norm) < MIN_TOKEN_MATCH_LEN:
-            # Measure how often the short-name guard drops a card. EEE-provided existing_hf_repo
+            # Logged so short-name guard drops stay visible. EEE-provided existing_hf_repo
             # already short-circuits this search, so the affected set is short name + no EEE repo
             # + no override.
             logger.info(
@@ -912,7 +912,7 @@ def eee_to_pipeline_inputs(
     hf_repo = resolve_hf_repo(bench.name, bench.hf_repo)
 
     # Build extracted_ids (same format as extractor_tool output)
-    # Paper URL resolution happens later via paper_resolver (Semantic Scholar + LLM)
+    # Paper URL resolution happens later via paper_resolver (OpenAlex, Semantic Scholar + LLM)
     extracted_ids = {
         "hf_repo": hf_repo,
         "paper_url": None,
@@ -970,7 +970,7 @@ def composite_to_pipeline_inputs(
             all_scores.extend(bench.model_scores)
             all_metrics.update(bench.metrics)
 
-    # Paper URL resolution happens later via paper_resolver (Semantic Scholar + LLM)
+    # Paper URL resolution happens later via paper_resolver (OpenAlex, Semantic Scholar + LLM)
     eee_metadata = {
         "benchmark_name": composite.folder_name,
         "eee_source_folder": composite.folder_name,

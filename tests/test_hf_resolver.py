@@ -1,4 +1,4 @@
-"""Tests for resolve_hf_repo's name-match gate (composer-redesign v2).
+"""Tests for resolve_hf_repo's name-match gate.
 
 Network-free: HfApi.list_datasets is monkeypatched with a fake returning fixed
 candidates, and the manual override table is emptied so the search path runs.

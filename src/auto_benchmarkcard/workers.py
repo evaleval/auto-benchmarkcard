@@ -431,9 +431,9 @@ def _bundle_dir():
 
     A bundle is simply a prior run's output directory: <root>/<slug>_<stamp>/tool_output/
     <tool>/<file>. Replaying from it makes paper binding, docling text, HF metadata, HTML,
-    GitHub README and croissant facts byte-identical across two conditions, which is the
-    source-parity mechanism for a paired read (the phase 2 gate was unattributable because
-    live resolution attached a paper in one condition and not the other)."""
+    GitHub README and croissant facts byte-identical across two runs, so a comparison
+    between them is not confounded by live resolution attaching a paper in one run and
+    not the other."""
     root = os.environ.get("SOURCE_BUNDLE_DIR")
     return root or None
 
@@ -446,8 +446,8 @@ def _bundle_tool_output(state, tool, filename):
     if not root:
         return None
     slug = sanitize_benchmark_name(state["query"])
-    # stamped run dirs (<slug>_<date>_<time>) newest first, then the exact <slug> layout the
-    # frozen S150 rundirs use (eval/s150/rundirs/<slug>/tool_output/...)
+    # stamped run dirs (<slug>_<date>_<time>) newest first, then an unstamped <slug> dir
+    # (<root>/<slug>/tool_output/...)
     candidates = sorted(glob.glob(os.path.join(root, f"{slug}_*")), reverse=True)
     if os.path.isdir(os.path.join(root, slug)):
         candidates.append(os.path.join(root, slug))
@@ -468,8 +468,8 @@ def bundle_hf_repo(query):
 
     The repo binding is decided BEFORE the workflow (eee_to_pipeline_inputs runs a live
     Hub search when EEE carries no repo), so a replay has to take the bundle's own
-    repo id (hf/<slug>.json "id") instead: the frozen run bound mme to lmms-lab/MME
-    by search, and a fresh search might bind something else or nothing."""
+    repo id (hf/<slug>.json "id") instead: a bundle run that bound mme to lmms-lab/MME
+    by search could bind something else or nothing on a fresh search."""
     hf = _bundle_tool_output({"query": query}, "hf",
                              f"{sanitize_benchmark_name(query)}{Config.JSON_EXTENSION}")
     repo = (hf or {}).get("id") if isinstance(hf, dict) else None
@@ -486,9 +486,9 @@ def _with_paper_meta(ids, paper_url):
     """Authors, title and year for a URL-only paper binding, fill-only.
 
     The Tier-2/3 search path sources these from the record it found, but a pre-set or
-    HF arxiv-tag binding carried only the URL, so every Tier-1 card shipped authors
-    'Not specified' (swe-bench-multimodal in the phase 3 gate, 13 authors lost). The
-    fetch is the resolver's own arXiv/OpenAlex metadata lookup, fail-soft."""
+    HF arxiv-tag binding carries only the URL, so without this fill such a card ships
+    authors 'Not specified'. The fetch is the resolver's own arXiv/OpenAlex metadata
+    lookup, fail-soft."""
     ids = dict(ids or {})
     if not (ids.get("paper_authors") and ids.get("paper_title")):
         try:
@@ -564,8 +564,8 @@ def run_paper_resolver(state) -> Dict[str, Any]:
                    if k not in ("paper_url", "paper_url_from_hf")}
             om = state.get("output_manager")
             if sidecar is not None and om is not None:
-                # written verbatim: the screen inlines this sidecar, so it must carry no
-                # marker that could tell a condition apart (the run log records the replay)
+                # written verbatim, with no replay marker, so both runs carry an identical
+                # sidecar (the run log records the replay)
                 om.save_tool_output(sidecar, "paper_resolver", "paper-verification.json")
             if url:
                 ids["paper_url"] = url
@@ -811,7 +811,7 @@ def run_docling(state):
 
     if _bundle_dir():
         # Replay: the bundle's docling text or nothing. Converting live here would let the
-        # two conditions read different paper bytes.
+        # two runs read different paper bytes.
         filename = f"{sanitize_benchmark_name(state['query'])}{Config.JSON_EXTENSION}"
         cached = _bundle_tool_output(state, "docling", filename)
         if cached and cached.get("success"):
@@ -1221,7 +1221,7 @@ def _verify_hf_binding(state, hf_data):
 
     # Deterministic signals (shared with the downstream corroboration / subject backstops).
     corrob = _repo_corroboration(repo_id, name)            # name-only (no arxiv args here)
-    namelike = _token_is_namelike(name)                    # ORIGINAL-case name (Correction 2)
+    namelike = _token_is_namelike(name)                    # ORIGINAL-case name
     overlap = _subject_overlap(
         _get_hf_readme(hf_data), _eee_identity_subject(eee_metadata))
     deterministic = {
@@ -1477,7 +1477,7 @@ def run_composer(state):
         if _bundle_dir():
             # Replay: the bundle run's croissant facts or none. The live datasets-server
             # row counts drift (swe-bench-multimodal moved 580 -> 612 rows within days), so
-            # a paired read must not refetch them.
+            # a replay must not refetch them.
             croissant_facts = _bundle_croissant_facts(state)
         elif repo_id_pre:
             try:
@@ -1579,7 +1579,7 @@ def run_risk_identification(state):
             benchmark_card, frame=frame, telemetry_out=risk_telemetry
         )
         risk_enhanced_card = apply_single_judge_bias_rule(risk_enhanced_card)
-        # A5 presentation hygiene: drop empty url keys (e.g. the synthetic single-judge risk).
+        # Presentation hygiene: drop empty url keys (e.g. the synthetic single-judge risk).
         risk_enhanced_card = omit_empty_risk_urls(risk_enhanced_card)
 
         if risk_telemetry:
@@ -1691,9 +1691,9 @@ def run_rag(state) -> Dict[str, Any]:
 
         # The atomizer runs the COMPOSER model, so it must follow the same serving
         # substitute get_llm_handler applies (COMPOSER_ENGINE_TYPE). Passing the base
-        # engine here silently killed every atomization call in the phase 3 regen: the
-        # composer checkpoint had left RITS, the engine failed to construct, and the
-        # atomizer fail-softed to zero statements per card.
+        # engine here breaks when the composer model is not served on that engine: the
+        # engine fails to construct and the atomizer fail-softs to zero statements per
+        # card, silently.
         from auto_benchmarkcard.config import composer_serving_engine
 
         statements = atomize_benchmark_card(
@@ -1766,10 +1766,8 @@ def run_rag(state) -> Dict[str, Any]:
             retriever.cleanup()
 
 
-# Presentation-layer flag policy, applied downstream of the frozen FactReasoner flagging
-# and the gold-set flag-F1 instrument. Production cards only: the reapply self-test runs
-# its own flag reimplementation (scripts/revalidate_gold_set), so these never affect
-# byte-identity. General and benchmark-agnostic.
+# Presentation-layer flag policy, applied after FactReasoner flagging. It changes which
+# flags are displayed, never the factuality scores. General and benchmark-agnostic.
 PRESENTATION_EXCLUDED_FLAGS = frozenset({
     "benchmark_details.resources",  # deterministically assembled URLs (extraction artifact)
     "data.annotation",              # verbatim-extracted, not composed
@@ -1796,12 +1794,11 @@ def _source_coverage_blocked(state, source_text) -> bool:
 def _apply_presentation_flag_policy(flagged_fields, source_blocked):
     """Display-layer flag policy on a card's flagged_fields (mutates in place).
 
-    C2: drop extraction-artifact / verbatim-extracted fields (resources, annotation) from
+    First, drop extraction-artifact / verbatim-extracted fields (resources, annotation) from
     the displayed flags, preserving any schema_invalid residual so the gate's parse-failure
-    metric still sees it. C1: on a source-blocked card relabel neutral "no supporting
+    metric still sees it. Second, on a source-blocked card relabel neutral "no supporting
     evidence" hallucination flags as unverified, leaving contradiction (low-factuality) and
-    schema_invalid reasons intact. Production-only and benchmark-agnostic: the gold-set
-    instruments run a separate flag reimplementation, so byte-identity is untouched."""
+    schema_invalid reasons intact. Benchmark-agnostic."""
     for path in PRESENTATION_EXCLUDED_FLAGS:
         reason = flagged_fields.get(path)
         if reason is not None and "schema_invalid" not in reason.lower():
@@ -1846,7 +1843,7 @@ def _drop_uncorroborated_hf(card, hf_overrides, reason):
     return card
 
 
-# M1: fields that an incoherent HF repo can splice into the card. The overview comes straight from
+# Fields that an incoherent HF repo can splice into the card. The overview comes straight from
 # the HF README (source=hf); the methodology/data fields can come from the WRONG paper when the bound
 # repo's own arxiv tag became the resolved paper (paper_url_from_hf). Each is blanked only when it
 # actually came from a suspect source, so a paper/deterministic-grounded field is never touched.
@@ -1914,7 +1911,7 @@ def _apply_hf_corroboration_gate(state, card, provenance):
             "identity fields", repo_id, benchmark_name, reason,
         )
         return
-    # M1: the name/arxiv corroboration above cannot catch a same-name repo whose arxiv tag
+    # The name/arxiv corroboration above cannot catch a same-name repo whose arxiv tag
     # became the paper. Compare the README's leading description against the EEE-identity
     # subject; near-disjoint content means the repo describes a different benchmark, so
     # blank the fields it spliced.
@@ -1939,8 +1936,8 @@ def _apply_hf_corroboration_gate(state, card, provenance):
 
 def _rits_reachable(timeout=30.0):
     """Can RITS serve the FactReasoner model right now? One 16-token inference call with a
-    short timeout; a plain HTTP GET is not enough (on 2026-08-27 a slow gateway answered
-    GETs after 16s while every inference request timed out at 420s). Never raises."""
+    short timeout; a plain HTTP GET is not enough (a slow gateway can answer GETs while
+    every inference request times out). Never raises."""
     if not (os.getenv("RITS_API_URL") and os.getenv("RITS_API_KEY")):
         return False
     try:
@@ -1976,8 +1973,8 @@ def run_factreasoner(state):
         benchmark_name = sanitize_benchmark_name(state["query"])
         rag_results = state["rag_results"]
 
-        # Ship config: source-scoped NLI contexts + neutral escalation against
-        # the primary source without RAG fill (measured on the gold set).
+        # Source-scoped NLI contexts + neutral escalation against the primary
+        # source without RAG fill.
         generation_contexts = (
             [c.get("text", "") for c in rag_results.get("contexts", [])]
             if isinstance(rag_results, dict)
@@ -1996,8 +1993,8 @@ def run_factreasoner(state):
                 scope_info.get("fallback"),
             )
         # Empty source on fallback keeps escalation structurally skipped: the
-        # fallback path must equal the pre-ship behavior (plain FR1 on
-        # generation contexts), not a hybrid that was never measured.
+        # fallback path is plain FR1 on generation contexts, not a hybrid of
+        # the two modes.
         source_text = (
             assemble_source_text(
                 docling_data=state.get("docling_output"),
@@ -2041,9 +2038,9 @@ def run_factreasoner(state):
             factuality_results, "factreasoner", factuality_filename
         )
         if scope_info.get("source_scoped"):
-            # Audit copy. Must not land in tool_output/rag/: the generation
-            # formatted_rag_results there is the frozen input for revalidation
-            # and the judge bundles every file under rag/.
+            # Audit copy, kept out of tool_output/rag/ so that directory holds
+            # only the generation formatted_rag_results (tools that read every
+            # file under rag/ would otherwise pick it up).
             save_formatted_results(
                 scoped_rag,
                 os.path.join(
@@ -2117,8 +2114,8 @@ def run_factreasoner(state):
                 f"unflag_policy_{benchmark_name}.json",
             )
 
-            # C1/C2: display-layer flag policy (resources/annotation exclusion + source-
-            # blocked relabel). Production only; the gold-set flag instruments are untouched.
+            # Display-layer flag policy (resources/annotation exclusion + source-blocked
+            # relabel).
             _apply_presentation_flag_policy(
                 flagged_card["flagged_fields"],
                 _source_coverage_blocked(state, source_text),
@@ -2126,9 +2123,9 @@ def run_factreasoner(state):
 
         # Single write order: composition (including deterministic overrides and the HF
         # corroboration gate in run_composer) finished before validation, so nothing may
-        # write new card content here. The old post-validation provenance backfill and the
-        # second override pass with its flag clearing are gone; only canonicalization and
-        # shape checks remain. Guarded by test_single_write_order.py.
+        # write new card content here: no post-validation provenance backfill and no second
+        # override pass, only canonicalization and shape checks. Guarded by
+        # test_single_write_order.py.
         flagged_card = normalize_not_specified(flagged_card)
 
         enforce_card_shape(flagged_card)

@@ -1,6 +1,6 @@
-"""Tests for the human-baseline relocation (#2): the deterministic detector and
-_relocate_human_baseline. Uses the verbatim d6_repilot_batchA baseline_results values so the
-detector is exercised against real ground truth. Network-free.
+"""Tests for the human-baseline relocation: the deterministic detector and
+_relocate_human_baseline. Uses verbatim baseline_results values from generated cards so the
+detector is exercised against real text. Network-free.
 """
 
 import json
@@ -13,7 +13,7 @@ from auto_benchmarkcard.eee_workflow import (
 )
 from auto_benchmarkcard.output import OutputManager
 
-# Verbatim d6_repilot_batchA methodology.baseline_results values.
+# Verbatim methodology.baseline_results values from generated cards.
 _AALCR = (
     "Human performance revealed the benchmark's challenging nature - individual evaluators "
     "achieved modest accuracy rates, typically answering 40-60% of questions correctly on "
@@ -57,7 +57,7 @@ def test_detector_fires_only_on_human_text():
 def test_relocate_resets_baseline_then_eee_injects(tmp_path):
     om = OutputManager("demo-aalcr", base_path=str(tmp_path))
     safe = om.benchmark_name
-    # the d6 reality: human_baseline already populated -> move-branch skipped, reset only
+    # human_baseline already populated -> move-branch skipped, reset only
     card = {"benchmark_card": {"methodology": {
         "baseline_results": _AALCR,
         "human_baseline": "Individual human evaluators achieved 40-60%.",

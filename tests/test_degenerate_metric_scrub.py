@@ -1,4 +1,4 @@
-"""F5: suppress the degenerate llm_stats benchmark_score wrapper metric, and scrub a leaked
+"""Suppressing the degenerate llm_stats benchmark_score wrapper metric, and scrubbing a leaked
 raw metric id out of prose. Synthetic metric dicts only (no network, no real cards)."""
 
 from auto_benchmarkcard.tools.composer import composer_tool as C

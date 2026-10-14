@@ -1,4 +1,4 @@
-"""Tests for the post-composition methodology.interpretation injection (contract S4.6).
+"""Tests for the post-composition methodology.interpretation injection.
 
 Network-free: exercises the deterministic EEE -> interpretation mapping, the
 Not-specified overwrite guard, and the provenance-sidecar emission directly.
@@ -200,7 +200,7 @@ def test_baseline_results_preserves_genuine_stage_b_value():
 
 
 def test_baseline_results_resolves_raw_metric_id_to_human_name():
-    # F4: a raw llm_stats.<slug>.score primary_metric is displayed as its human metric_name
+    # a raw llm_stats.<slug>.score primary_metric is displayed as its human metric_name
     card = {"methodology": {"baseline_results": "Not specified"}}
     eee = _eee_eval()
     eee["evaluation_summary"]["primary_metric"] = "llm_stats.x.score"

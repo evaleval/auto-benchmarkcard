@@ -39,8 +39,8 @@ from auto_benchmarkcard.tools.composer import validator as _validator
 logger = logging.getLogger(__name__)
 
 # Stage-A extraction prompts live in evidence.build_extraction_prompt (verbatim-quote
-# Evidence Items). The legacy paraphrase extractor and the parent-copy sub-benchmark path
-# were retired: variants live on the parent card per the 2026-05-06 granularity decision.
+# Evidence Items). Sub-benchmark variants are documented on the parent card, not on cards
+# of their own.
 
 SECTION_QUERIES = {
     "benchmark_details": [
@@ -297,7 +297,7 @@ def _get_hf_meta(hf_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     return hf_metadata
 
 
-# Canonical metric-name vocabulary (contract S4.5). The canonical name is the card VALUE;
+# Canonical metric-name vocabulary. The canonical name is the card VALUE;
 # the raw EEE id stays in provenance only. Conservative: only well-known patterns map, and
 # everything else keeps its raw form behind an `other:` tag -- we never guess.
 _METRIC_SUBSTR_MAP = [
@@ -376,7 +376,7 @@ def _metric_from_cfg(cfg: Optional[Dict[str, Any]]) -> Optional[str]:
 
 
 def _canonicalize_metric(raw_id: Any, cfg: Optional[Dict[str, Any]] = None) -> str:
-    """Map one raw EEE metric id onto the contract S4.5 canonical vocabulary.
+    """Map one raw EEE metric id onto the canonical metric-name vocabulary.
 
     The id is tried first; when it names no metric the cfg's kind/description/unit is consulted
     (_metric_from_cfg) so a degenerate `*.score` proxy still yields the real metric the source
@@ -420,7 +420,7 @@ def _canonicalize_metric(raw_id: Any, cfg: Optional[Dict[str, Any]] = None) -> s
 
 
 def canonicalize_metrics(metrics: Dict[str, Any]) -> List[str]:
-    """Canonicalize an EEE metrics dict (id -> config) to S4.5 names, order-preserving.
+    """Canonicalize an EEE metrics dict (id -> config) to canonical names, order-preserving.
 
     No dedup: distinct raw ids stay distinct entries even when two map to the same canonical
     name (they are different EEE metrics). Raw ids are carried in provenance, not here.
@@ -473,7 +473,7 @@ def _scrub_pipeline_jargon(text: str) -> str:
     return re.sub(r"\s{2,}", " ", out).strip()
 
 
-# M3: V4-Flash generation artifacts. Keyed on the artifact TOKEN PATTERN, never the card; each
+# V4-Flash generation artifacts. Keyed on the artifact TOKEN PATTERN, never the card; each
 # pattern requires a marker so clean prose is untouched, and each repair is idempotent.
 
 # Pattern 1: a stray control-word suffix glued mid-prose ('years)Skip. The' from a sampler/decoder
@@ -545,7 +545,7 @@ def _glued_word_fragments(text: Any) -> List[str]:
 
 
 # Prose fields the artifact scrub covers, beyond the metric-id prose fields: data.source and the
-# out_of_scope_uses list (where the pilot artifacts landed).
+# out_of_scope_uses list (where such artifacts also occur).
 _ARTIFACT_SCRUB_FIELDS = [
     ("benchmark_details", "overview"),
     ("methodology", "calculation"), ("methodology", "methods"),
@@ -591,7 +591,7 @@ def _scrub_leaked_metric_ids(card: Dict[str, Any],
     """Rewrite any raw EEE metric id the model echoed into prose, and strip pipeline jargon.
 
     A degenerate benchmark_score wrapper id becomes its human metric_name (or is dropped) --
-    never its other:<id> canonical, which would re-inject the very proxy F5-1 suppresses. A
+    never its other:<id> canonical, which would re-inject the dropped wrapper proxy. A
     real scorer's leaked id becomes its canonical display form. The pipeline-jargon backstop
     runs regardless of whether EEE carries metrics. Idempotent; leaves clean prose untouched."""
     metrics = (eee_metadata or {}).get("metrics", {})
@@ -741,14 +741,13 @@ def _drop_ungrounded_baselines(card: Dict[str, Any],
       - 'Score' means a number with score context (trailing '%' or a decimal); a bare integer or a
         name-glued version digit ('Fable 5', 'GPT-5', 'Gemini 3.1') is NOT a score and never grounds.
       - A sentence with NO stated score is qualitative context -> kept untouched.
-      - A sentence with ANY ungrounded stated score is dropped, mixed or not. Mixed sentences used
-        to be kept and flagged; the phase 3 screen showed that path ships real fabrications
-        (assistantbench's 22.2% closed-book row, chartqa's 31.96%, math's 'GPT-2 (0.7B)'), and a
-        flag is not a withhold. Losing the grounded half of such a sentence is the price of
-        abstaining, and the grounded number still lives in the cited evidence.
+      - A sentence with ANY ungrounded stated score is dropped, mixed or not: keeping a mixed
+        sentence with a flag would still ship the fabricated number, and a flag is not a
+        withhold. Losing the grounded half of such a sentence is the price of abstaining, and
+        the grounded number still lives in the cited evidence.
       - Surviving grounded + qualitative sentences are KEPT (whole sentences -> grammatical, no mangled
         remnant); the WHOLE field is set to 'Not specified' only when NO grounded sentence survives a
-        real drop (e.g. mmlu-pro's all-fabricated leaderboard -> whole-field NS)."""
+        real drop (e.g. an all-fabricated leaderboard -> whole-field NS)."""
     meth = card.get("methodology")
     if not isinstance(meth, dict):
         return
@@ -829,11 +828,11 @@ def _drop_ungrounded_size_breakdown(card: Dict[str, Any],
                                     det_facts: Optional[Dict[str, Any]]) -> None:
     """Withhold size_breakdown counts that no retrieved source carries. Mutates card in place
     and flags the change. A Stage-B breakdown is a set of per-subset integers; each one must
-    occur literally in a verified quote or a deterministic count, else it was synthesized (the
-    swe-polybench task-type class: round numbers that match no published breakdown). A
+    occur literally in a verified quote or a deterministic count, else it was synthesized (e.g.
+    round per-task-type numbers that match no published breakdown). A
     breakdown that equals the deterministic README-table parse is trusted as-is. Runs BEFORE
     the numeric-consistency rules so a percentage breakdown, grounded as '40%' in a quote, can
-    still be converted by Rule C afterwards."""
+    still be converted to counts afterwards."""
     data = card.get("data")
     if not isinstance(data, dict):
         return
@@ -883,7 +882,7 @@ def build_metric_labels(eee_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any
     return labels
 
 
-# Controlled metric vocabulary for the prose->structured promotion (S4.5 names the gate
+# Controlled metric vocabulary for the prose->structured promotion (canonical names the gate
 # recognises). A term is promoted only when it is NAMED in a metric-definition context, so an
 # incidental mention never invents a metric. Keyed on the vocabulary, never on a benchmark name.
 # mAP is case-sensitive ("\bmAP\b") so it never fires on the common word "map".
@@ -940,10 +939,10 @@ def _deterministic_field_provenance(
     """Build the source=deterministic provenance entry for one deterministically-filled
     field, or None when the deterministic write did not win (card value != det fact).
 
-    The emission decision is gated solely on `card_value == det_facts[dotted]` (contract S10
-    no-op invariant) -- unchanged by metric canonicalization. For methodology.metrics the
-    stored quote/evidence is the RAW EEE ids (S4.5: canonical names are the card value; raw
-    ids live in provenance only); every other field quotes its own structured value.
+    The emission decision is gated solely on `card_value == det_facts[dotted]`, unchanged by
+    metric canonicalization. For methodology.metrics the stored quote/evidence is the RAW EEE
+    ids (canonical names are the card value; raw ids live in provenance only); every other
+    field quotes its own structured value.
     """
     if dotted not in det_facts:
         return None
@@ -1129,10 +1128,10 @@ def _size_breakdown_is_consistent(
     return abs(split_total - total) <= max(1, total // 100)
 
 
-# C2: numeric internal-consistency guard. Never ship a size / size_breakdown that the card's own
+# Numeric internal-consistency guard. Never ship a size / size_breakdown that the card's own
 # prose contradicts -- abstain (NS / drop) instead. All signals are structural, never a name.
 
-# Inverse of the frozen card_utils _SIZE_CATEGORY_MAP (standard HF size_categories vocabulary).
+# Inverse of card_utils._SIZE_CATEGORY_MAP (standard HF size_categories vocabulary).
 _SIZE_BUCKET_RANGES = {
     "Less than 1K examples": (0, 1000),
     "1K to 10K examples": (1000, 10000),
@@ -1235,7 +1234,7 @@ def _hf_size_is_shard_count(meta: Optional[Dict[str, Any]]) -> bool:
     return any(e in _ARCHIVE_EXT or _SPLIT_ARCHIVE_RE.match(e) for e in exts)
 
 
-# M2 Rule A2: a size_breakdown can encode a MULTIPLICATIVE total (203 classes x 137 videos/class).
+# A size_breakdown can encode a MULTIPLICATIVE total (203 classes x 137 videos/class).
 # A key carrying a per-token ("per", "average ... per") names one multiplicand and its partner the
 # other, so their product is the real example count -- which can disprove a too-small bucket. Keyed
 # on the per-token + integer structure, never the noun (so "videos per class" generalizes).
@@ -1266,7 +1265,7 @@ def _breakdown_product(breakdown: Dict[str, Any]) -> Optional[int]:
 # The COUNTED noun of a per-rate ('average of N <noun> per <unit>') tells whether N*M is the example
 # count. A measure / sub-item noun (frames per video, tokens per doc, annotations per item) is NOT an
 # example yield -- multiplying it false-drops a correct size (a multimodal "30 frames per video" x M
-# videos). The composer is deliberately MORE conservative than the descriptive gate: compute the
+# videos). The composer is deliberately MORE conservative than the field-status report: compute the
 # magnitude ONLY when the counted noun is an example-ish content noun (or equals the size bucket's own
 # unit), never on a sub-unit/measure rate.
 _MAGNITUDE_MEASURE_NOUNS = frozenset({
@@ -1289,7 +1288,7 @@ def _prose_magnitude(text: Any, bucket_unit: Optional[str] = None) -> Optional[i
     activity classes with an average of 137 untrimmed videos per class") where _breakdown_product can
     never see it and _prose_example_count excludes the videos/classes nouns.
 
-    Conservative (intentionally diverges from the descriptive gate's byte-shape -- the composer must
+    Conservative (intentionally diverges from the field-status report's byte-shape -- the composer must
     never false-drop a correct size): the COUNTED noun (N's noun) must be an example-ish CONTENT noun
     or equal the size bucket's own unit; a measure/sub-item noun (frames/tokens/annotations/hours per
     unit) yields None. Needs BOTH the rate AND a matching '<M> <unit>(s)' count whose number differs
@@ -1352,14 +1351,14 @@ def _enforce_numeric_consistency(
 ) -> None:
     """Drop a size / size_breakdown that the card's own prose contradicts (abstain, never a false
     number). Mutates card in place.
-      A  a coarse HF size bucket whose range excludes an explicit example count in the prose;
-      A2 a coarse HF size bucket disproved by a MULTIPLICATIVE size_breakdown product (base x per);
-      A3 a SPECIFIC size count contradicted by a different definitional-lead prose count (wrong
-         subset): prefer the lead count when cleanly extractable, else abstain;
-      C  a size_breakdown that is really percentages ('%' in its provenance, or values summing to
-         ~100): convert when an authoritative total is known, else drop;
-      D  a subset-partition size_breakdown whose value-sum OVERSHOOTS an authoritative total (a
-         real partition can never exceed the total -- a token-length column read as counts can)."""
+      - a coarse HF size bucket whose range excludes an explicit example count in the prose;
+      - a coarse HF size bucket disproved by a MULTIPLICATIVE size_breakdown product (base x per);
+      - a SPECIFIC size count contradicted by a different definitional-lead prose count (wrong
+        subset): prefer the lead count when cleanly extractable, else abstain;
+      - a size_breakdown that is really percentages ('%' in its provenance, or values summing to
+        ~100): convert when an authoritative total is known, else drop;
+      - a subset-partition size_breakdown whose value-sum OVERSHOOTS an authoritative total (a
+        real partition can never exceed the total -- a token-length column read as counts can)."""
     data = card.get("data")
     if not isinstance(data, dict):
         return
@@ -1370,7 +1369,7 @@ def _enforce_numeric_consistency(
     if prose_count is None:
         prose_count = _prose_example_count(source)
 
-    # Rule A: a coarse bucket clearly contradicted by an explicit prose count, or a shard-count
+    # A coarse bucket clearly contradicted by an explicit prose count, or a shard-count
     # bucket the prose cannot confirm. The 1.5x margin absorbs boundary noise and intermediate
     # counts (e.g. "1,005 pairs from the previous stage, 830 passed" must not unseat an n<1K tag),
     # while a real over/under-count (swe-bench's 2,294 vs n<1K) still trips it.
@@ -1383,13 +1382,14 @@ def _enforce_numeric_consistency(
         elif det_facts.get("_size_is_shard_host"):
             data["size"] = "Not specified"
         else:
-            # Rule A2: a per-structured breakdown product disproves a too-small bucket. Same 1.5x
-            # boundary margin as Rule A (203 x 137 = 27811 >> 1500 unseats an n<1K tag).
+            # A per-structured breakdown product disproves a too-small bucket, with the same
+            # 1.5x boundary margin as the prose-count check (203 x 137 = 27811 >> 1500 unseats
+            # an n<1K tag).
             product = _breakdown_product(data.get("size_breakdown"))
-            # Rule A2b: a card-internal MULTIPLICATIVE magnitude in the OVERVIEW PROSE ("203 classes
+            # A card-internal MULTIPLICATIVE magnitude in the OVERVIEW PROSE ("203 classes
             # ... average of 137 videos per class" -> 27811) disproves a too-small bucket where the
             # structured breakdown is absent and _prose_example_count excludes the videos/classes
-            # nouns. Conservative (more than the descriptive gate): only an example-ish content counted
+            # nouns. Conservative (more than the field-status report): only an example-ish content counted
             # noun (or the bucket's own unit) yields a magnitude, so a measure/sub-item rate ("30
             # frames per video") never false-drops a correct size. Abstain-only, over-count, 1.5x.
             if product is None:
@@ -1399,7 +1399,7 @@ def _enforce_numeric_consistency(
             if product is not None and product >= hi * 1.5:
                 data["size"] = "Not specified"
 
-    # Rule A3: a SPECIFIC size count (explicit, not a bucket) contradicted by a different
+    # A SPECIFIC size count (explicit, not a bucket) contradicted by a different
     # definitional-lead prose count is the wrong subset (gpqa "546 questions" Extended vs the
     # overview's "448 multiple-choice questions" main set). Prefer the lead count when it parses to
     # a clean count string, else abstain. Tolerance is the same ~1% the breakdown checks use, so two
@@ -1413,7 +1413,7 @@ def _enforce_numeric_consistency(
             phrase = _prose_count_phrase(lead)
             data["size"] = phrase if phrase else "Not specified"
 
-    # Rules C/D: size_breakdown sanity.
+    # size_breakdown sanity.
     sb = data.get("size_breakdown")
     if not (isinstance(sb, dict) and sb):
         return
@@ -1424,19 +1424,21 @@ def _enforce_numeric_consistency(
     det_total = det_facts.get("data.total_examples")
     det_total = det_total if (isinstance(det_total, int) and not isinstance(det_total, bool)) else None
 
-    # Rule E: when a size_breakdown's parts OVERSHOOT its own stated Total, the object is internally
+    # When a size_breakdown's parts OVERSHOOT its own stated Total, the object is internally
     # contradictory -- a real partition's parts can never exceed the whole (e.g. mmlu-pro Total=6810
     # while the per-discipline parts sum to 12032). Only the OVERSHOOT direction is a contradiction:
     # parts summing BELOW the stated Total is legitimate (the parts are an incomplete enumeration, or
     # the keys are dimension/subgroup counts whose Total counts something the parts don't fully list --
-    # e.g. BOLD {Profession:18, Gender:2, Race:4, Total:43}). This mirrors Rule D's overshoot-only
-    # asymmetry. ABSTAIN by default: DROP the contradictory Total key (leaving the clean per-part
-    # breakdown), because recomputing it to sum(parts) would itself assert a NEW false fact when the
-    # parts are an INCOMPLETE partition. Recompute-to-sum ONLY when an authoritative HF example total
-    # corroborates the parts are a complete partition (det_total == sum(parts)). Skip heterogeneous-stat
-    # breakdowns (not a summable partition) and percentage breakdowns (Rule C owns those). The total key
-    # is matched by NORMALIZED EQUALITY to "total" (not a substring), so a "Total Tokens"/"Subtotal"
-    # stat key is never mistaken for the partition total; the compared key IS the mutated key.
+    # e.g. BOLD {Profession:18, Gender:2, Race:4, Total:43}). This mirrors the overshoot-only
+    # asymmetry of the authoritative-total check at the end. ABSTAIN by default: DROP the
+    # contradictory Total key (leaving the clean per-part breakdown), because recomputing it to
+    # sum(parts) would itself assert a NEW false fact when the parts are an INCOMPLETE partition.
+    # Recompute-to-sum ONLY when an authoritative HF example total corroborates the parts are a
+    # complete partition (det_total == sum(parts)). Skip heterogeneous-stat breakdowns (not a
+    # summable partition) and percentage breakdowns (the percentage check below handles those).
+    # The total key is matched by NORMALIZED EQUALITY to "total" (not a substring), so a
+    # "Total Tokens"/"Subtotal" stat key is never mistaken for the partition total; the compared
+    # key IS the mutated key.
     # Structural, no name. (size_breakdown values are Dict[str, int], so abstain = drop the key.)
     if not any(_is_heterogeneous_stat_key(k) for k in sb):
         is_pct_like = len(vals) >= 3 and all(0 < v <= 100 for v in vals) and abs(sum(vals) - 100) <= 1
@@ -1458,7 +1460,7 @@ def _enforce_numeric_consistency(
         len(vals) >= 3 and all(0 < v <= 100 for v in vals) and abs(sum(vals) - 100) <= 1
         and (det_total is None or abs(det_total - sum(vals)) > max(1, det_total // 100)))
     if looks_pct:
-        # Rule C: convert only against an authoritative HF total; otherwise abstain.
+        # Percentages: convert only against an authoritative HF total; otherwise abstain.
         if det_total and det_total > 0:
             data["size_breakdown"] = {
                 k: round(v / 100 * det_total) for k, v in sb.items()
@@ -1467,7 +1469,7 @@ def _enforce_numeric_consistency(
             data["size_breakdown"] = "Not specified"
         return
 
-    # Rule D: a subset partition that overshoots an authoritative total cannot be example counts.
+    # A subset partition that overshoots an authoritative total cannot be example counts.
     if any(_is_heterogeneous_stat_key(k) for k in sb):
         return
     total = det_total if det_total is not None else prose_count
@@ -1481,10 +1483,10 @@ def _surface_size_conflicts(det_facts: Dict[str, Any],
     """A paper-stated example count that disagrees with the deterministic (HF tag or
     croissant row-count) size is a source conflict, not a silent priority.
 
-    swe-bench-multimodal: the HF parquet held 580 rows (dev 100 / test 480) while the
-    paper states 619 task instances; the croissant channel won by construction, Stage B
-    echoed 580 as 'already established', and the paper-cited annotation field then
-    contradicted the card's own size. The schema description for data.size prefers the
+    Example: an HF parquet holds 580 rows (dev 100 / test 480) while the paper states 619
+    task instances. Without this check the croissant count wins by construction, Stage B
+    echoes 580 as 'already established', and a paper-cited field on the same card can
+    contradict the card's own size. The schema description for data.size prefers the
     paper's count, so on a material disagreement the deterministic size (and a split
     breakdown that sums to it, i.e. the same artifact count) is withdrawn from
     det_facts: Stage B composes the size from the cited paper evidence and the conflict
@@ -1590,7 +1592,7 @@ def _eee_overview_text(eee_metadata: Optional[Dict[str, Any]]) -> Optional[str]:
     return _first_sentences(desc, 3)
 
 
-# C1: a husk-fill EEE description can describe a DIFFERENT benchmark than the resolved card, because
+# A husk-fill EEE description can describe a DIFFERENT benchmark than the resolved card, because
 # the llm-stats slug (e.g. "arc") can collide with another benchmark of the same short name (ARC-AGI
 # vs the AI2 Reasoning Challenge). Detect a definitional `Full Name (ACRONYM)` head whose acronym is
 # the card's short name but whose full-name words do not match the resolved identity. Keyed on the
@@ -1632,7 +1634,7 @@ def _overview_subject_conflicts(overview_text: str, identity_text: str) -> bool:
     return overlap < 0.5 and bool(fn_words - id_words)
 
 
-# M1: HF/source subject-coherence. A slug can match an HF repo describing a DIFFERENT benchmark of
+# HF/source subject-coherence. A slug can match an HF repo describing a DIFFERENT benchmark of
 # the same short name (actionbench-the-slug matched facebook/actionbench = ActionMesh's 3D-mesh
 # benchmark). The corroboration guard (workers _repo_corroboration) cannot see this: the basename
 # IS the distinctive name and the repo's arxiv tag became the paper, so it reads as corroborated.
@@ -1652,8 +1654,8 @@ _MARKDOWN_MARKUP_RE = re.compile(r"[#*`>|=_-]{1,}")
 # bare identity is undecidable -> never fire.
 _SUBJECT_MIN_WORDS = 8
 # Near-disjoint content-word overlap (best of the two directions) below this means the README
-# describes a different subject than the identity. Grounded on the pilot: actionbench best-overlap
-# 0.05 (wrong repo) sits far below gaia 0.40 / charxiv 0.24 / mbpp 0.93 (correct repos).
+# describes a different subject than the identity. A mismatched repo falls far below this floor,
+# while correctly bound repos sit well above it.
 _SUBJECT_OVERLAP_FLOOR = 0.10
 
 
@@ -1732,7 +1734,7 @@ def extract_deterministic_facts(
         if isinstance(tags, list):
             # Canonical HF-tag values come from extract_hf_tags, the single formatter.
             # This keeps the deterministic override at the composition site byte-identical
-            # to the workers override (S1: divergent ad-hoc formatting here used to clobber
+            # to the workers override (divergent ad-hoc formatting here would clobber
             # languages/license with unsorted/unmapped values). extract_hf_tags supplies
             # languages, data_type, data.format, data.size, data_licensing in canonical form.
             hf_canonical = extract_hf_tags(hf_metadata)
@@ -1745,7 +1747,7 @@ def extract_deterministic_facts(
             ):
                 if _k in hf_canonical:
                     facts[_k] = hf_canonical[_k]
-            # C2 Rule B signal: flag a size bucket that reflects shard/archive count (no parquet/
+            # Shard-host signal: flag a size bucket that reflects shard/archive count (no parquet/
             # arrow row files, no dataset_info). The abstain decision is deferred to
             # _enforce_numeric_consistency, which drops the bucket only when the prose does NOT
             # independently confirm it (so a real small archive-hosted set like aa-lcr is kept).
@@ -1768,8 +1770,8 @@ def extract_deterministic_facts(
 
         # No meta/card_data license fallback: extract_hf_tags is the single license
         # formatter (license: tag -> _LICENSE_MAP, other/unknown skipped). A raw,
-        # un-mapped fallback would write a non-Tier-1 value (e.g. "mit") that the workers
-        # override never produces -> breaks the S1 byte-identity invariant (contract S4.4/S10).
+        # un-mapped fallback would write a value (e.g. "mit") that the workers override never
+        # produces, so the two deterministic overrides would stop being byte-identical.
 
         card_data = meta.get("card_data", {})
         if isinstance(card_data, dict):
@@ -1799,13 +1801,13 @@ def extract_deterministic_facts(
                     facts["data.split_info"] = split_info
                     facts["data.total_examples"] = total
 
-        # A9 data.format fallback: no HF format: tag -> dominant data-file extension.
+        # data.format fallback: no HF format: tag -> dominant data-file extension.
         if "data.format" not in facts:
             fmt = _format_from_files(meta.get("file_list"))
             if fmt:
                 facts["data.format"] = fmt
 
-        # A9 data.size_breakdown: per-subset counts parsed from the README counts table.
+        # data.size_breakdown: per-subset counts parsed from the README counts table.
         # A split-named breakdown must be consistent with the dataset's example count (else
         # dropped); heterogeneous statistic breakdowns are kept as-is.
         size_breakdown = _size_breakdown_from_readme(meta.get("readme_markdown"))
@@ -1845,7 +1847,7 @@ def extract_deterministic_facts(
             facts["methodology.eval_library"] = eee_metadata["eval_library"]
 
         # Composite context in deterministic facts: structured data for merging.
-        # A second composite block exists in the prompt (~line 1744) for LLM guidance.
+        # A second composite block exists in the prompt for LLM guidance.
         # Both are needed: this one feeds the facts dict, that one shapes generation.
         if eee_metadata.get("benchmark_type") == "composite":
             contains = eee_metadata.get("contains", [])
@@ -1860,7 +1862,7 @@ def extract_deterministic_facts(
         # card is not a bare NS husk. Fill-only-NS downstream; honest-None for undocumented cards.
         overview_text = _eee_overview_text(eee_metadata)
         if overview_text:
-            # C1: suppress the husk fill when the EEE description's definitional subject conflicts
+            # Suppress the husk fill when the EEE description's definitional subject conflicts
             # with the resolved paper/card identity (a slug colliding with a different benchmark of
             # the same short name). An honest NS husk beats a wrong-benchmark description.
             _hf_meta = _get_hf_meta(hf_metadata) if isinstance(hf_metadata, dict) else {}
@@ -1885,7 +1887,7 @@ def extract_deterministic_facts(
             facts["benchmark_details.hf_url"] = f"https://huggingface.co/datasets/{hf_repo}"
 
     # collection_date is intentionally NOT seeded from a publication / HF-upload year -- those
-    # are not the data-collection date (F6-2). It stays NS unless the LLM finds an explicit
+    # are not the data-collection date. It stays NS unless the LLM finds an explicit
     # collection period; _coerce_collection_date keeps that a year-or-NS downstream.
 
     # Route UnitXT structured catalog metadata (non-EEE path only; see workers.py).
@@ -2254,7 +2256,7 @@ def apply_deterministic_overrides(
             overrides_applied.append("overview")
 
     # data_type is always-override (matches card_utils _ALWAYS_OVERRIDE); keeps this site
-    # byte-identical to the workers override for all six deterministic fields (S1/S10).
+    # byte-identical to the workers override for all six deterministic fields.
     if "benchmark_details.data_type" in deterministic_facts:
         _note_conflict("benchmark_details.data_type",
                        deterministic_facts["benchmark_details.data_type"])
@@ -2335,7 +2337,7 @@ def apply_deterministic_overrides(
     return card
 
 
-# Logo fetched per HF org handle, cached for the 500-card batch.
+# Logo fetched per HF org handle, cached for the lifetime of the process.
 _logo_cache: Dict[str, Optional[str]] = {}
 # Org-confirmation overview cached per owner handle (None = not a confirmed org / a user).
 _org_overview_cache: Dict[str, Optional[Dict[str, Any]]] = {}
@@ -2599,7 +2601,7 @@ def _clean_caps_name(name: Any, candidates: tuple = ()) -> Any:
     return pre
 
 
-# Evidence doc-label -> canonical provenance source (contract: source is a doc type,
+# Evidence doc-label -> canonical provenance source (source is a doc type,
 # never a bare evidence id like 'E01' or a 'doc/status' compound).
 _DOC_TO_SOURCE = {
     "docling": "paper", "abstract": "abstract", "html": "html",
@@ -2613,7 +2615,7 @@ def _normalize_provenance_sources(
     """Rewrite each field's provenance.source to the doc type of its cited evidence item.
 
     Stage-B echoes the cited evidence id (e.g. 'E01') or a 'doc/status' compound into
-    source; the contract wants a clean doc type. Looks up evidence_ids in evidence_items,
+    source; provenance.source must be a clean doc type. Looks up evidence_ids in evidence_items,
     maps the doc via _DOC_TO_SOURCE. Leaves source in {deterministic, eee} (already clean)
     and display entries untouched. Mutates all_provenance in place."""
     id2doc = {
@@ -2653,7 +2655,7 @@ def _normalize_provenance_sources(
                 entry["source"] = _DOC_TO_SOURCE.get(doc, doc)
 
 
-# C3: coverage reconciliation backstops.
+# Coverage reconciliation backstops.
 
 # A license token (SPDX-ish) for lifting a concise value out of a provenance quote.
 _LICENSE_TOKEN_RE = re.compile(
@@ -2767,16 +2769,16 @@ def apply_coverage_backstops(
     eee_metadata: Optional[Dict[str, Any]] = None,
     hf_metadata: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """C3 reconciliation. Mutates card in place.
+    """Coverage reconciliation backstops. Mutates card in place.
     Tier-1: lift a license that is NS in the card but present in provenance with a real source and
-      substantive evidence. Allowlisted to data_licensing -- a widened all-field lift was tested
-      across the d8 corpus and produced mostly type-mismatched re-lifts. Never touches
-      overview/size/size_breakdown (C1/C2 own those).
-    Tier-2: a code benchmark with NS languages gets ["not-applicable"] (contract S4.3 code shape;
-      matches the HF-tag path so a no-HF variant is consistent with its sibling).
+      substantive evidence. Allowlisted to data_licensing, because lifting every field this way
+      mostly produced values of the wrong type. Never touches overview/size/size_breakdown (the
+      subject-conflict and numeric-consistency guards own those).
+    Tier-2: a code benchmark with NS languages gets ["not-applicable"] (the code-benchmark
+      languages shape; matches the HF-tag path so a no-HF variant is consistent with its sibling).
     Tier-3: a code benchmark whose bound repo deterministically names its programming languages
       (tags, repo-id tokens, or a README Languages section) gets them surfaced in data.format,
-      since the languages enum is natural-language-or-not-applicable by contract.
+      since the languages enum is natural-language-or-not-applicable.
     Tier-4: EEE metadata declaring raw_modality=multimodal adds its named modalities to a
       filled data_type (a repo whose images are URL strings never earns a modality:image tag).
       Add-only, DATA_TYPE_VOCAB members only; no-op without the multimodal signal."""
@@ -2803,7 +2805,7 @@ def apply_coverage_backstops(
         logger.info("Coverage backstop: code benchmark -> languages not-applicable")
 
     # Tier-3: surface a code benchmark's programming languages in data.format. The
-    # not-applicable languages shape (Tier-2 / HF-tag path) is contract-correct but hides
+    # not-applicable languages shape (Tier-2 / HF-tag path) is schema-valid but hides
     # what the benchmark targets; when the bound repo names the languages, append them.
     data = card.get("data")
     is_code = _is_code_benchmark(card, eee_metadata) or (
@@ -2848,7 +2850,7 @@ def apply_display_fields(
 ) -> Dict[str, Any]:
     """Fill display-only fields (authors, logo, org_url) from structured metadata.
 
-    Display-only: shown to humans, excluded from every measurement (contract S8). Best
+    Display-only: shown to humans, excluded from every measurement. Best
     effort and non-blocking. authors <- HF card_data person list, else the resolved paper's
     authors (extracted_ids), else an HF-README BibTeX whose citation is identity-consistent;
     org_url <- the dataset's HF org page; logo <- HF avatar / card image, else the org/user
@@ -2943,10 +2945,9 @@ def apply_display_fields(
 def build_eee_prefill_block(det_facts: Dict[str, Any]) -> str:
     """Render the EEE evaluation-results and composite-suite blocks for Stage B.
 
-    Reconstructs the [EEE] / composite [DETERMINISTIC] blocks that merge_extracted_facts
-    used to produce, so EEE model scores and suite context survive once that merge
-    function is removed ([A] owns the deletion). Source = eee. Returns '' when there is
-    no EEE data. Stage B (owned by [B+V]) injects this into the methodology prefill.
+    Produces the [EEE] and composite [DETERMINISTIC] blocks, so EEE model scores and suite
+    context reach Stage B. Source = eee. Returns '' when there is no EEE data. Stage B
+    injects this into the methodology prefill.
     """
     blocks = []
 
@@ -3303,8 +3304,8 @@ _JUDGE_DETAIL_FIELDS = (
 def drop_inapplicable_judge_missing(card: Dict[str, Any], missing: Any) -> Any:
     """Remove judge-setup detail fields from a displayed missing_fields list when the
     benchmark does not use an LLM judge (judge_uses_llm is exactly False) -- they are
-    not-applicable, not genuinely missing. Presentation-only; the frozen
-    extract_missing_fields is unchanged. No-op when judge_uses_llm is True or unknown (NS)."""
+    not-applicable, not genuinely missing. Presentation-only; extract_missing_fields itself
+    is unchanged. No-op when judge_uses_llm is True or unknown (NS)."""
     methodology = card.get("methodology")
     if not isinstance(methodology, dict) or methodology.get("judge_uses_llm") is not False:
         return missing
@@ -3392,8 +3393,7 @@ def _established_block(det_facts, section_names):
         if isinstance(key, str) and "." in key and key.split(".", 1)[0] in section_names:
             lines.append(f"- {key} = {val}")
     if "methodology" in section_names and isinstance(det_facts, dict):
-        # Seam 2: surface EEE eval results + composite context so EEE baselines survive
-        # (build_eee_prefill_block replaces the line merge_extracted_facts used to emit).
+        # Surface EEE eval results + composite context so EEE baselines reach Stage B.
         eee_block = build_eee_prefill_block(det_facts)
         if eee_block:
             lines.append(eee_block)
@@ -3835,8 +3835,7 @@ def compose_benchmark_card(
             paper_retriever = None
 
     # Phase 4: Assign evidence ids and build the per-field digest (the only Stage-B input).
-    # evidence_digest replaces merged_facts; the Stage-B section loop below reads
-    # evidence_digest[field] instead of merged_facts.get(section) (handoff to [B+V]).
+    # The Stage-B group loop below reads evidence_digest[field].
     gate_telem = {}
     evidence_items, evidence_digest = evidence.finalize_evidence(
         paper_items, gap_items, html_items, hf_items, github_items,
@@ -3878,8 +3877,7 @@ def compose_benchmark_card(
     section_models = SECTION_MODELS
     fs.assert_groups_cover()
 
-    # Seam 1: Stage A's verified per-field digest (built above in Phase 4) is the only
-    # Stage-B input; it replaces the legacy section-text adapter.
+    # Stage A's verified per-field digest (built above in Phase 4) is the only Stage-B input.
     # Mapping id -> field tag activates the validator's evidence-field agreement check
     # (a cited id must be tagged for the field citing it); ids are unique across the digest.
     digest_ids = {it["evidence_id"]: it["field"]
@@ -3933,7 +3931,7 @@ def compose_benchmark_card(
 
     # Phase 5b: Aboutness guard. Structural, model-independent: demote judge_* / data.source
     # when the evidence behind them is off-topic (construction/annotation routed to judge,
-    # subset-construction routed to data.source). The §1 verifier checks presence, not topic.
+    # subset-construction routed to data.source). The quote verifier checks presence, not topic.
     aboutness_telem = aboutness.apply_aboutness_guard(
         generated_sections, all_provenance, evidence_items, all_flagged)
     if aboutness_telem["demoted_fields"]:
@@ -4000,12 +3998,11 @@ def compose_benchmark_card(
     benchmark_card_dict = post_process_card(benchmark_card_dict)
 
     # Card-level version consistency: fields carrying a minority version token get
-    # flagged (never rewritten). Catches the overview-says-v2-methodology-says-v0.1
-    # class from the S=150 findings.
+    # flagged (never rewritten), e.g. an overview saying v2 while the methodology says v0.1.
     version_flags = _flag_version_conflicts(benchmark_card_dict, card_frame)
 
     # Domain coverage: a domains list covering under half of the card's own enumerated
-    # subsets/subjects gets flagged (math geometry-only class). Card-level because the
+    # subsets/subjects gets flagged (e.g. only Geometry of seven subjects). Card-level because the
     # domains and size_breakdown live in different Stage-B groups.
     coverage_reason = _validator.domain_coverage_flag(
         benchmark_card_dict.get("benchmark_details", {}).get("domains"),
@@ -4022,25 +4019,25 @@ def compose_benchmark_card(
     # before the consistency rules see the dict.
     _drop_ungrounded_size_breakdown(benchmark_card_dict, evidence_items, det_facts)
 
-    # C2: drop a size / size_breakdown the card's own prose contradicts (runs before the
+    # Drop a size / size_breakdown the card's own prose contradicts (runs before the
     # deterministic-provenance block so a dropped value emits no stale source=deterministic entry).
     _enforce_numeric_consistency(benchmark_card_dict, det_facts, all_provenance)
 
-    # F5-2: scrub any raw EEE metric id the model leaked into prose (a degenerate wrapper id
+    # Scrub any raw EEE metric id the model leaked into prose (a degenerate wrapper id
     # becomes its human metric_name or is dropped; a real scorer's id becomes its canonical).
     _scrub_leaked_metric_ids(benchmark_card_dict, eee_metadata)
 
-    # G2-1: drop a fabricated baseline leaderboard -- any baseline_results sentence whose reported
+    # Drop a fabricated baseline leaderboard -- any baseline_results sentence whose reported
     # scores are not traceable to a source the composer was given (the verified evidence quotes + the
     # EEE/deterministic numeric content). Numbers are matched across scales (fraction/percent) so a
     # reformatted real baseline survives; structural, never a model-name list.
     _drop_ungrounded_baselines(benchmark_card_dict, evidence_items, det_facts)
 
-    # M3: repair V4-Flash generation artifacts in prose (stray control-word suffix, field-final
+    # Repair V4-Flash generation artifacts in prose (stray control-word suffix, field-final
     # truncation) and flag glued-word fragments. Keyed on the artifact token pattern, never a card.
     _apply_generation_artifact_scrub(benchmark_card_dict)
 
-    # C4: promote a slug-proxy metric to the canonical metric the methodology prose names. Only when
+    # Promote a slug-proxy metric to the canonical metric the methodology prose names. Only when
     # EVERY structured entry is an `other:` proxy AND the prose names a controlled-vocab metric in a
     # definition context -- never invents, never reads a benchmark name. Leaves canonical metrics and
     # defensible composites untouched.
@@ -4053,8 +4050,8 @@ def compose_benchmark_card(
             _calc = _meth.get("calculation") if isinstance(_meth.get("calculation"), str) else ""
             _methods = [_m for _m in (_meth.get("methods") or []) if isinstance(_m, str)]
             # interpretation names the metric as often as calculation does ("Scores represent
-            # accuracy ..."); reading only calculation/methods left the math smoke card on the
-            # raw other:MATH proxy while its own interpretation said accuracy.
+            # accuracy ..."); reading only calculation/methods would leave a card on its raw
+            # other:<id> proxy while its own interpretation names accuracy.
             _interp = _meth.get("interpretation") if isinstance(_meth.get("interpretation"), str) else ""
             _promoted = (_metric_from_prose(_calc) or _metric_from_prose(*_methods)
                          or _metric_from_prose(_interp))
@@ -4072,7 +4069,7 @@ def compose_benchmark_card(
                 logger.info("Metric promoted from prose: %s", _promoted)
 
     # Provenance for deterministically filled fields (source=deterministic). The quote
-    # is the structured value itself and is verified by construction (contract S2). Only
+    # is the structured value itself and is verified by construction. Only
     # emitted where the card value actually equals the deterministic value, i.e. the
     # deterministic write won over the LLM (always-override fields, or fill-only hits).
     _det_doc = {
@@ -4095,11 +4092,11 @@ def compose_benchmark_card(
         all_provenance.setdefault(_sec, {})[_field] = _entry
 
     # Display-only fields (authors, logo, org_url): best-effort, post-composition,
-    # excluded from every measurement (contract S8). Never blocks composition.
+    # excluded from every measurement. Never blocks composition.
     benchmark_card_dict = apply_display_fields(
         benchmark_card_dict, hf_metadata, extracted_ids, all_provenance, eee_metadata)
 
-    # A3: normalize a raw ALL-CAPS paper-title name to its short identity (no-op otherwise).
+    # Normalize a raw ALL-CAPS paper-title name to its short identity (no-op otherwise).
     _bd = benchmark_card_dict.get("benchmark_details")
     if isinstance(_bd, dict) and _bd.get("name"):
         _bd["name"] = _clean_caps_name(
@@ -4108,12 +4105,12 @@ def compose_benchmark_card(
              (extracted_ids or {}).get("paper_title")),
         )
 
-    # A9: collection_date must be a year, never prose; a non-year fragment is dropped to NS.
+    # collection_date must be a year, never prose; a non-year fragment is dropped to NS.
     _data = benchmark_card_dict.get("data")
     if isinstance(_data, dict) and "collection_date" in _data:
         _data["collection_date"] = _coerce_collection_date(_data.get("collection_date"))
 
-    # F2-8: never leave the name NS when EEE carries the benchmark identity. The single-EEE
+    # Never leave the name NS when EEE carries the benchmark identity. The single-EEE
     # path otherwise loses the name when paper resolution fails; fall back to the EEE
     # benchmark_name (a deterministic pipeline input, grounded downstream).
     if isinstance(_bd, dict) and isinstance(eee_metadata, dict):
@@ -4127,27 +4124,28 @@ def compose_benchmark_card(
             ):
                 _bd["name"] = _eee_name.strip()
 
-    # F2-7: de-duplicate exact-duplicate strings within the audience list (display hygiene).
+    # De-duplicate exact-duplicate strings within the audience list (display hygiene).
     _pu = benchmark_card_dict.get("purpose_and_intended_users")
     if isinstance(_pu, dict) and isinstance(_pu.get("audience"), list):
         _pu["audience"] = _dedup_preserve_order(_pu["audience"])
 
-    # A7: attach EEE metric_name/unit as human labels in the provenance sidecar, keyed by the
+    # Attach EEE metric_name/unit as human labels in the provenance sidecar, keyed by the
     # canonical token (unchanged) and the raw id. The card's methodology.metrics is untouched.
     _labels = build_metric_labels(eee_metadata)
     if _labels:
         all_provenance.setdefault("methodology", {})["metrics_labels"] = _labels
 
-    # A4: derive each field's provenance.source from its cited evidence item's doc type.
+    # Derive each field's provenance.source from its cited evidence item's doc type.
     _normalize_provenance_sources(all_provenance, evidence_items)
 
     # Re-add every model field exclude_none dropped, so all cards share one key-set.
     enforce_card_shape(benchmark_card_dict)
 
-    # C3: reconciliation backstops (runs after enforce_card_shape so all fields exist as NS).
+    # Coverage reconciliation backstops (runs after enforce_card_shape so all fields exist as NS).
     # Tier-1 lifts a license held in provenance; Tier-2 gives a code benchmark the not-applicable
     # languages shape; Tier-3/4 surface repo code languages and EEE-declared modalities.
-    # Excludes overview/size/size_breakdown so it can never re-lift a C1/C2 drop.
+    # Excludes overview/size/size_breakdown so it can never re-lift a value the subject-conflict
+    # or numeric-consistency guards dropped.
     apply_coverage_backstops(benchmark_card_dict, all_provenance, eee_metadata, hf_metadata)
 
     # Record schema_invalid residuals from the Stage-B validator loop.

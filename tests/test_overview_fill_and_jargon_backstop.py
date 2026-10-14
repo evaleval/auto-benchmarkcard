@@ -1,4 +1,4 @@
-"""F4 (Tier-B): overview fill from EEE description, and the pipeline-jargon prose backstop.
+"""Overview fill from EEE description, and the pipeline-jargon prose backstop.
 Synthetic inputs only (no network, no real cards)."""
 
 from auto_benchmarkcard.tools.composer import composer_tool as C

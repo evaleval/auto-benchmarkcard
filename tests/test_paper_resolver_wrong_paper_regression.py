@@ -1,7 +1,7 @@
-"""FINISH-4 Mode-A residue: bfcl must not re-resolve to the wrong paper.
+"""Regression: bfcl must not resolve to the wrong paper.
 
 Network-free. Drives resolve_paper with the search/metadata/LLM boundaries mocked
-(the robustness-suite pattern) to prove the wrong paper is not re-resolved.
+(the robustness-suite pattern) to prove the wrong paper is not resolved.
 """
 
 import pytest
@@ -31,10 +31,10 @@ def _mock_resolver(monkeypatch, candidates, llm_result, *, full_name):
     monkeypatch.setattr(pr, "_batch_verify_with_llm", lambda *a, **k: llm_result)
 
 
-# bfcl: removal must not re-resolve to the wrong (robot-trust) paper
+# bfcl must not resolve to the wrong (robot-trust) paper
 def test_bfcl_does_not_resolve_to_robot_trust_paper(monkeypatch):
-    # After removal bfcl flows through search; a confident-none verdict leaves it unresolved.
-    # Even with the old wrong paper as the only candidate, it must not be returned.
+    # bfcl flows through search; a confident-none verdict leaves it unresolved.
+    # Even with the wrong paper as the only candidate, it must not be returned.
     wrong = _cand("Towards a Participatory and Social Justice-Oriented Measure of Human-Robot Trust",
                   "2402.15671", 60.0, ["Raj Korpan"])
     _mock_resolver(monkeypatch, [wrong],

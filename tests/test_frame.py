@@ -2,8 +2,8 @@
 
 Synthetic fixtures mirror the real cached shapes: EEE metadata with contains/
 appears_in/metrics/evaluation_summary, HF json whose card_data is {} and whose
-configs and pretty_name live in the README frontmatter (the shape of every
-cached tool_output/hf dump). No network: the LLM pass is exercised with fake
+configs and pretty_name live in the README frontmatter (the shape the HF
+tool caches under tool_output/hf). No network: the LLM pass is exercised with fake
 handler objects only.
 """
 
@@ -214,9 +214,8 @@ def test_bare_split_verbs_do_not_count():
 def test_version_and_split_found_beyond_the_llm_prompt_window():
     """The deterministic scans read the whole paper, not the first HEAD_CHARS.
 
-    Capping them cost real nodes: over the 11 papered phase 2 gate cards, widening
-    took splits 8 -> 21 and versions 0 -> 2. HEAD_CHARS now bounds only the LLM
-    sibling prompt, where the window is a token-cost decision.
+    Capping them would miss split and version mentions late in a paper. HEAD_CHARS
+    bounds only the LLM sibling prompt, where the window is a token-cost decision.
     """
     filler = "Prior work on evaluation has explored many directions. " * 200
     assert len(filler) > F.HEAD_CHARS
@@ -374,7 +373,7 @@ def test_scrape_source_labels_are_not_siblings():
     assert names == {"helm_lite"}
 
 
-# ------------------------- WP1.1: ranked excerpts, extra sources, subset pass ----
+# ------------------------------- ranked excerpts, extra sources, subset pass ----
 
 class SeqHandler:
     """Per-call responses: first call gets responses[0], second responses[1], ..."""
@@ -392,7 +391,7 @@ class SeqHandler:
 
 
 def _sectioned_paper():
-    """A paper whose related-work content lies beyond the old 4000-char head."""
+    """A paper whose related-work content lies beyond the 4000-char head (HEAD_CHARS)."""
     from auto_benchmarkcard.tools.composer import docstructure
     md = (
         "FibbleBench: a benchmark for fibbling.\n\n"
@@ -406,8 +405,8 @@ def _sectioned_paper():
 
 
 def test_sibling_prompt_reads_ranked_excerpts_beyond_head():
-    # Failure class: the 4000-char head starved the sibling pass; a related-work
-    # sibling past the head was invisible even though the section index knew where
+    # Failure class: a head-only prompt starves the sibling pass; a related-work
+    # sibling past the head is invisible even though the section index knows where
     # related work lives.
     md, index = _sectioned_paper()
     assert md.find("DeepMindWordle") > F.HEAD_CHARS

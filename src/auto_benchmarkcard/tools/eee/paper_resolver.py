@@ -4,9 +4,10 @@ For benchmarks without a known paper URL (especially composite suites like HELM)
 searches OpenAlex and Semantic Scholar for candidate papers and uses an LLM to
 verify the match by comparing the paper's abstract against EEE metadata.
 
-Results are cached in .paper_cache.json to avoid repeated API calls.
-Each verification decision is logged to output/<benchmark>/paper-verification.json
-for auditability.
+Search results, LLM metadata, display names and author lookups are cached in
+in-process dicts for the lifetime of the process. When the caller passes output_dir,
+each verification decision is written to <output_dir>/paper-verification.json; the
+pipeline worker passes <session>/tool_output/paper_resolver/.
 """
 
 from __future__ import annotations
@@ -95,7 +96,7 @@ def _openalex_status_for(resp) -> Optional[str]:
 ENTITY_REGISTRY_URL = "https://evaleval-entity-registry.hf.space/api/v1"
 _display_name_cache: Dict[str, Optional[str]] = {}
 _metadata_cache: Dict[str, Dict[str, Any]] = {}
-# Author/title fetched per known paper URL (arXiv id / DOI), cached for the 500-card batch.
+# Author/title fetched per known paper URL (arXiv id / DOI), cached for the process lifetime.
 _author_cache: Dict[str, Dict[str, Any]] = {}
 # OpenAlex search results / DOI lookups, cached for the batch (same lifetime as _author_cache).
 _openalex_search_cache: Dict[str, List[Dict[str, Any]]] = {}
@@ -410,7 +411,7 @@ def _fetch_paper_authors(url: str) -> Dict[str, Any]:
 
     General mechanism for URL-only bindings: derive the
     author list and proper-cased title from the paper's own metadata so the display-only
-    authors field (and the A3 name normalizer) have a real source. Keyed purely on URL
+    authors field (and the author-name normalizer) have a real source. Keyed purely on URL
     structure (arXiv id / DOI), never on the benchmark name. Timeout-guarded, fail-soft
     (-> empty). Only successful fetches are cached: a transient miss must not be
     negative-cached, or it would poison every same-URL card in the batch.
@@ -603,8 +604,8 @@ def _batch_verify_with_llm(
     try:
         # Use the engine's configured composer model, not FACTREASONER_MODEL:
         # the latter is an HF-style id (meta-llama/...) that is NOT a valid route
-        # under non-HF engines (e.g. RITS 404s on it), which previously made every
-        # verification silently fail. Verification is a composition-time judgement
+        # under non-HF engines (e.g. RITS 404s on it), so every verification would
+        # fail silently. Verification is a composition-time judgement
         # and already shares the composer model with the metadata pre-query above.
         llm = get_llm_handler(Config.COMPOSER_MODEL)
         prompt = BATCH_VERIFICATION_PROMPT.format(
@@ -713,8 +714,8 @@ def verify_paper_binding(
     """Verify a paper_url bound by a NON-resolver path (EEE/UnitXT pre-set or HF arxiv-tag extraction)
     is the paper that INTRODUCES this benchmark, parity with the HF binding verifier.
 
-    Reuses _batch_verify_with_llm as a single-candidate call (so the strengthened DOMAIN /
-    same-name-different-domain prompt applies) plus the deterministic _introduces_other_benchmark
+    Reuses _batch_verify_with_llm as a single-candidate call (so the DOMAIN / same-name-
+    different-domain prompt rules apply) plus the deterministic _introduces_other_benchmark
     name guard. Fetches the paper's title/abstract from the URL when the caller did not supply them
     (the bypass paths carry only a URL). Returns a normalized verdict:
 
@@ -733,7 +734,7 @@ def verify_paper_binding(
             paper_abstract = fetched.get("abstract", "")
 
     # Deterministic name guard first (0 LLM): a plainly different declared benchmark name is a reject
-    # no matter what the LLM says (the beyond-aime discriminator, reused on the bound title).
+    # no matter what the LLM says (_introduces_other_benchmark, applied to the bound title).
     declared_other = _introduces_other_benchmark(paper_title or "", suite_name, full_name)
     if declared_other:
         return {"is_match": False, "confidence": 1.0,
@@ -997,8 +998,8 @@ def _declared_benchmark_name(title: str) -> Optional[str]:
 def _introduces_other_benchmark(title: str, *identities: Optional[str]) -> Optional[str]:
     """The declared name of a paper that plainly introduces a DIFFERENT benchmark, or None.
 
-    Subject-coherence guard for the beyond-aime defect: the verifier accepted 'MATH-Beyond: ...'
-    for the 'Beyond AIME' benchmark because the titles overlap. Returns the paper's declared name
+    Subject-coherence guard: without it the verifier can accept 'MATH-Beyond: ...' for the
+    'Beyond AIME' benchmark because the titles overlap. Returns the paper's declared name
     only when it parses, is long enough to judge, and is contiguously disjoint from every identity
     distinctive base (neither contains the other) -- so 'MATH-Beyond' vs 'Beyond AIME' rejects
     (disjoint as strings though they share the token 'beyond'), while 'CharXiv' vs 'charxiv-d' and
@@ -1138,9 +1139,8 @@ def _parent_only_binding(suite_name: Optional[str], full_name: Optional[str],
     CharXiv paper, which documents the descriptive split), a trailing qualifier is shorter
     than 3 chars (metric suffixes _EM/_SR), the qualifier or the whole parent is generic
     benchmark vocabulary, or the parent base is shorter than 4 chars. Split-suffix slugs with
-    multi-char qualifiers (the MathVerse-Mini class) abstain to no-paper by design when the
-    parent paper does not name the variant, consistent with the helm_lite policy: a measured
-    recall cost, not a defect."""
+    multi-char qualifiers (e.g. MathVerse-Mini) abstain to no-paper by design when the
+    parent paper does not name the variant; this trades some recall for precision."""
     identities = [n for n in (full_name, suite_name) if n]
     if not identities:
         return None
@@ -1165,7 +1165,7 @@ def _parent_only_binding(suite_name: Optional[str], full_name: Optional[str],
             if all(t in _GENERIC_NAME_TOKENS for t in parent_tokens):
                 continue
             # 'Expansion (Acronym)' identities: the qualifier is the parent's own acronym,
-            # not a variant marker (the ifeval false positive).
+            # not a variant marker (e.g. IFEval).
             if _is_acronym_of(qualifier, parent_tokens):
                 continue
             parent_base = _distinctive_base(" ".join(parent_tokens))
@@ -1188,8 +1188,8 @@ def _parent_only_binding(suite_name: Optional[str], full_name: Optional[str],
 def _subject_veto_overlap(abstract, identity_text, identity_names):
     """Name-blind content-word overlap between a full paper abstract and the benchmark identity.
 
-    Comparator for the accept-time subject veto (calibrated 2026-07-04 on the ten regen
-    fixtures). Differs from the composer's _subject_overlap on purpose: the abstract is NOT
+    Comparator for the accept-time subject veto. Differs from the composer's
+    _subject_overlap on purpose: the abstract is NOT
     lead-truncated (the 600-char cut hides a correct paper's subject vocabulary), and the
     identity's own name tokens are excluded from both sides (in a same-name collision the
     shared name is exactly what caused the wrong accept, so it is not subject evidence).
@@ -1345,7 +1345,7 @@ def resolve_paper(
     }
     # When the search path runs as the fall-through after a pre-set paper binding was REJECTED by the
     # gate, carry that rejection forward so the sidecar still records why the bypassed paper was
-    # dropped ("sidecar for every binding" -- the bypass is never silent even on fall-through).
+    # dropped: the bypass is never silent, even on fall-through.
     if prior_binding:
         verification_log["binding"] = prior_binding
 
@@ -1497,8 +1497,8 @@ def resolve_paper(
                         )
 
         # Subject-coherence guard: a verified candidate must not introduce a plainly
-        # differently-named benchmark than the identity (the beyond-aime defect, where the LLM
-        # accepted "MATH-Beyond" for "Beyond AIME"). Deterministic post-verify override to
+        # differently-named benchmark than the identity (e.g. an LLM accept of "MATH-Beyond"
+        # for "Beyond AIME"). Deterministic post-verify override to
         # confident-none; covers all three accept paths (batch / title-sim / name-token).
         if accepted_idx is not None:
             other = _introduces_other_benchmark(
@@ -1533,8 +1533,8 @@ def resolve_paper(
         # Universal near-disjoint subject veto, applied to ALL THREE accept paths
         # (batch_verification, title_similarity_fallback, name_token_fallback): a paper whose
         # abstract shares no subject vocabulary with the benchmark identity is a same-name
-        # collision, not a match (the echo defect: a graph-propagation "ECHO" accepted for an
-        # image-generation benchmark at conf 0.95). The overlap is name-blind (the shared name
+        # collision, not a match (e.g. a graph-propagation "ECHO" paper accepted for an
+        # image-generation benchmark). The overlap is name-blind (the shared name
         # is what caused the collision, so it is not subject evidence) and computed over the
         # full abstract. Thin abstract or thin identity abstains, never vetoes: an outage or a
         # sparse search record must not strip a correct binding. Overlap and action are

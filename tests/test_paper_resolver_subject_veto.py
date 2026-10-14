@@ -1,14 +1,14 @@
 """Accept-time subject veto: a same-name paper from a plainly different domain must not
 survive ANY accept path (batch_verification, title_similarity_fallback, name_token_fallback).
 
-The ten replay fixtures in tests/data/subject_veto_fixtures.json are the real 2026-06-25
-broad_run accepts (titles, abstracts, identities from the shipped sidecars and cards), pinned
-by ACTION (kept / vetoed / abstained) with floor-inequality asserts, never exact floats:
+The ten replay fixtures in tests/data/subject_veto_fixtures.json are real resolver accepts
+(titles, abstracts, identities from generated sidecars and cards), pinned by ACTION
+(kept / vetoed / abstained) with floor-inequality asserts, never exact floats:
 - echo replays the defining defect (a graph-propagation "ECHO" accepted at conf 0.95 for an
   image-generation benchmark) -> vetoed on the batch path.
 - covost2 replays the Zenodo model-record accept on the title-similarity path -> vetoed
-  (reclassified 2026-07-04: a model card is not the introducing paper; honest-none is the
-  intended outcome, logged as recall cost).
+  (a model card is not the introducing paper; honest-none is the intended outcome, at a
+  recall cost).
 - screenspot / studiogan / vip-bench replay correct-domain fallback accepts -> kept.
 - hard-problems / disinformation replay thin-identity fallback accepts -> abstained (kept).
 - charxiv / mgsm / gsm8k replay known-correct confident batch accepts -> kept.
@@ -92,7 +92,7 @@ def test_replayed_accept_action(monkeypatch, tmp_path, slug):
 
 
 def test_covost2_veto_is_on_title_similarity_path(monkeypatch, tmp_path):
-    # The exact path that produced the historical Zenodo accept must now be covered.
+    # The exact path that produced the Zenodo model-record accept must be covered.
     case, result, log = _run(monkeypatch, tmp_path, "covost2")
     assert log["subject_overlap"]["resolved_via"] == "title_similarity_fallback"
     assert log["subject_overlap"]["action"] == "vetoed"

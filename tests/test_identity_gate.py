@@ -211,8 +211,8 @@ class TestAggregatorOnlyDetection:
         assert _is_aggregator_only(_inputs(nmos_metadata())) is True
 
     def test_alphaxiv_entry_with_search_resolved_repo_is_still_aggregator_only(self):
-        # Search binding is name-derived, not evidence (the HF verifier later
-        # rejected exactly this binding in the real run).
+        # Search binding is name-derived, not evidence (the HF verifier rejects
+        # exactly this kind of binding).
         inputs = _inputs(researchpulse_metadata(), hf_repo="ResearchPulse/ResearchPulse-Bench")
         assert _is_aggregator_only(inputs) is True
 

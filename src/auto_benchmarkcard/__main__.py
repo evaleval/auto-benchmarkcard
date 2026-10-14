@@ -1,7 +1,9 @@
-"""Entry point for running benchmarkcard as a module.
+"""Entry point for running auto_benchmarkcard as a module.
 
 This allows the package to be run as:
-    python -m benchmarkcard process <benchmark_name>
+    python -m auto_benchmarkcard <command> [options]
+
+Commands: generate, generate-unitxt, list, show, validate.
 """
 
 import sys

@@ -1,9 +1,9 @@
-"""Source-bundle replay (WP1.5): worker nodes read their inputs from a prior run's
-tool_output instead of fetching live, so two conditions compose from byte-identical
+"""Source-bundle replay: worker nodes read their inputs from a prior run's
+tool_output instead of fetching live, so two runs compose from byte-identical
 sources.
 
 Failure classes pinned here:
-  1. Source drift between conditions: with a bundle active, no node may fetch live
+  1. Source drift between runs: with a bundle active, no node may fetch live
      (the live functions are patched to raise).
   2. Attachment drift: a card whose bundle run bound NO paper must get no paper in the
      replay, never a fresh live resolution.
@@ -168,8 +168,8 @@ def test_croissant_replay_helper(bundle):
 
 
 def test_exact_slug_dir_layout_is_a_bundle(bundle):
-    # eval/s150/rundirs/<slug>/tool_output/... has no run stamp; it is the frozen corpus's
-    # own source set and the natural bundle for the paired read.
+    # A bare <slug>/tool_output/... dir has no run stamp; it still counts as a bundle
+    # (an unstamped copy of a finished run's sources).
     d = bundle / "x" / "tool_output" / "docling"
     d.mkdir(parents=True)
     (d / "x.json").write_text(json.dumps({"v": "frozen"}))
@@ -180,7 +180,7 @@ def test_exact_slug_dir_layout_is_a_bundle(bundle):
 
 
 def test_bundle_hf_repo_reads_the_bundle_run_binding(bundle):
-    # Failure class: repo-binding drift. The frozen run bound mme by live search; a replay
+    # Failure class: repo-binding drift. The bundle run bound mme by live search; a replay
     # must reuse that repo id (or none), never search again.
     _write(bundle, "mme", "2026-01-01_00-00", "hf", "mme.json", {"id": "lmms-lab/MME", "tags": []})
     assert W.bundle_hf_repo("mme") == "lmms-lab/MME"

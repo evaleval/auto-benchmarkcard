@@ -138,11 +138,10 @@ def _coerce_to_text(obj: Any) -> str:
 
 
 # Rate-limit handling for the OpenRouter engine. A 429 storm must degrade the run to
-# SLOW, never to zero-emission cards: the 2026-08-23 night regens shipped cards with 2
-# quotes each because the client's 3 internal retries exhausted within seconds and every
-# extraction call then failed soft to zero items. The outer schedule below waits through
-# a burst (~4.6 min total) before giving up; a storm longer than that is the documented
-# run-abort condition, not something to ride out silently.
+# SLOW, never to zero-emission cards: the client's 3 internal retries exhaust within
+# seconds, after which every extraction call fails soft to zero items and cards ship
+# with almost no quotes. The outer schedule below waits through a burst (~4.6 min
+# total) before giving up; a longer storm raises, so the run fails loudly instead.
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 529})
 _BACKOFF_SCHEDULE = (5, 10, 20, 40, 80, 120)
 
@@ -153,8 +152,8 @@ class OpenRouterEngine:
     input_tokens, output_tokens; `parameters` is a mutable dict (per-call token override);
     `client` is an openai client.
 
-    Serving substitute for a retired RITS deployment (2026-07-04: DeepSeek-V4-Flash left
-    RITS before the regen). The model IDENTITY stays the caller's model name, so
+    Serving substitute for models the RITS engine no longer offers (e.g.
+    DeepSeek-V4-Flash). The model IDENTITY stays the caller's model name, so
     card_info.llm is unchanged; OPENROUTER_MODEL_ID names the checkpoint on OpenRouter and
     OPENROUTER_PROVIDER_ORDER pins the serving provider(s) with fallbacks disabled, keeping
     provider and quantization constant across a run. Every output carries serving, provider,

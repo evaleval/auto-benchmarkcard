@@ -1,5 +1,5 @@
-"""Tests for EEE metric canonicalization (#3, contract S4.5) and the S10 deterministic
-provenance no-op invariant (canonical names in the value, raw EEE ids in provenance).
+"""Tests for EEE metric canonicalization and the deterministic provenance no-op
+invariant (canonical names in the value, raw EEE ids in provenance).
 Network-free.
 """
 
@@ -17,13 +17,13 @@ def test_pass_at_k_from_id():
 
 
 def test_pass_at_k_with_at_separator():
-    # forward-looking for the 500-batch: the "pass_at_1" spelling folds to pass@1, not other:
+    # the "pass_at_1" spelling folds to pass@1, not other:
     assert _canonicalize_metric("pass_at_1", {}) == "pass@1"
     assert _canonicalize_metric("pass_1", {}) == "pass@1"
 
 
 def test_continuous_score_id_stays_other_with_prefix_stripped():
-    # the batchA reality: .score ids are continuous -> not Accuracy, kept as other:
+    # EEE .score ids are continuous -> not Accuracy, kept as other:
     assert _canonicalize_metric(
         "llm_stats.aa-lcr.score", {"score_type": "continuous"}) == "other:aa-lcr.score"
 
@@ -47,21 +47,21 @@ def test_unmapped_id_other_fallback_no_guess():
 
 
 def test_metric_from_kind_pass_rate():
-    # F4: pass_rate kind + "Pass@1" in description -> pass@1 (livecodebenchpro/apex-agents)
+    # pass_rate kind + "Pass@1" in description -> pass@1 (livecodebenchpro/apex-agents)
     cfg = {"metric_kind": "pass_rate", "evaluation_description": "Pass@1 on Medium Problems",
            "score_type": "continuous", "metric_unit": "proportion"}
     assert _canonicalize_metric("pass_at_k", cfg) == "pass@1"
 
 
 def test_metric_from_desc_win_rate():
-    # F4: a degenerate wrapper whose description states a length-controlled win-rate (alpacaeval)
+    # a degenerate wrapper whose description states a length-controlled win-rate (alpacaeval)
     cfg = {"metric_kind": "benchmark_score", "metric_unit": "proportion", "score_type": "continuous",
            "evaluation_description": "A length-controlled automatic evaluator using length-controlled win-rates."}
     assert _canonicalize_metric("llm_stats.alpacaeval-2.0.score", cfg) == "win-rate"
 
 
 def test_proportion_answer_correctness_maps_to_accuracy():
-    # F4: proportion unit + answer-correctness signal -> Accuracy (arc "exactly correct", blink MCQ)
+    # proportion unit + answer-correctness signal -> Accuracy (arc "exactly correct", blink MCQ)
     arc = {"metric_unit": "proportion", "score_type": "continuous",
            "evaluation_description": "produce exactly correct output grids for all test inputs to solve it"}
     assert _canonicalize_metric("llm_stats.arc.score", arc) == "Accuracy"
@@ -71,7 +71,7 @@ def test_proportion_answer_correctness_maps_to_accuracy():
 
 
 def test_coding_benchmark_never_accuracy():
-    # F4 coding guard: proportion + correctness words BUT code/execution markers -> stays other:
+    # coding guard: proportion + correctness words BUT code/execution markers -> stays other:
     # (aider-polyglot's true metric is a pass-rate; mislabelling it Accuracy is a silent error)
     aider = {"metric_kind": "benchmark_score", "metric_unit": "proportion", "score_type": "continuous",
              "evaluation_description": ("A coding benchmark evaluating LLMs on 225 Exercism programming "
@@ -84,7 +84,7 @@ def test_coding_benchmark_never_accuracy():
 
 
 def test_proportion_without_signal_stays_other():
-    # F4: proportion unit but no metric word and no answer-correctness signal -> honest other:
+    # proportion unit but no metric word and no answer-correctness signal -> honest other:
     # (chexpert: AUC/F1 is not stated in the source, so we never guess it)
     chex = {"metric_unit": "proportion", "score_type": "continuous",
             "evaluation_description": "a large dataset of chest radiographs for automated interpretation"}
@@ -117,7 +117,7 @@ def test_provenance_keeps_full_raw_ids_when_override_won():
 
 
 def test_provenance_no_op_invariant_suppresses_when_value_differs():
-    # S10: emission stays gated on card_value == det_facts value (LLM kept its own metrics);
+    # emission stays gated on card_value == det_facts value (LLM kept its own metrics);
     # only the stored evidence changed, never the emit/suppress decision.
     card = {"methodology": {"metrics": ["something the LLM wrote"]}}
     det = {"methodology.metrics": ["pass@1"]}

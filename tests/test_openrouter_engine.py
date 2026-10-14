@@ -1,4 +1,4 @@
-"""OpenRouterEngine: OpenAI-compatible serving substitute for a retired RITS deployment.
+"""OpenRouterEngine: OpenAI-compatible serving substitute for the RITS engine.
 
 The engine must mirror the ai-atlas-nexus surface (list outputs with prediction /
 stop_reason / token counts), pin the provider with fallbacks disabled, map the pipeline's
@@ -165,9 +165,8 @@ def _rate_limit_error():
 
 
 def test_429_storm_degrades_to_slow_not_zero(engine, monkeypatch):
-    # Failure class: the 2026-08-23 night regens turned a 429 burst into zero-emission
-    # cards because retries exhausted in seconds. A burst must instead slow the run down
-    # and then succeed.
+    # Failure class: a 429 burst turned into zero-emission cards because retries
+    # exhausted in seconds. A burst must instead slow the run down and then succeed.
     monkeypatch.setattr(OpenRouterEngine, "_cooldown_until", 0.0)
     sleeps = []
     monkeypatch.setattr(lh.time, "sleep", sleeps.append)

@@ -1,10 +1,11 @@
-"""Phase-2 screen deterministic-channel fixes (synthetic fixtures only; no network).
+"""Deterministic-channel checks for authors, code languages and data_type (synthetic fixtures
+only; no network).
 
-Four defects from the regen-20 screen: OpenAlex authors garbled by entity disambiguation
-(artifactsbench), code-benchmark programming languages invisible behind the not-applicable
-languages shape (repobench / swe-bench-multimodal), and a multimodal benchmark stuck at
-data_type=text because its images are URL strings (swe-bench-multimodal). Fixture values are
-taken from the real run sidecars but encode no name-keyed logic.
+Covers OpenAlex authors garbled by entity disambiguation (artifactsbench), code-benchmark
+programming languages invisible behind the not-applicable languages shape (repobench /
+swe-bench-multimodal), and a multimodal benchmark stuck at data_type=text because its images
+are URL strings (swe-bench-multimodal). Fixture values mirror real benchmark metadata but
+encode no name-keyed logic.
 """
 
 from auto_benchmarkcard.card_utils import extract_code_languages, extract_hf_tags
@@ -13,7 +14,7 @@ from auto_benchmarkcard.tools.eee.paper_resolver import _natural_author_order, _
 
 
 # ---------------------------------------------------------------------------------------------
-# Item 1 -- OpenAlex authors: raw byline beats the disambiguated entity name
+# OpenAlex authors: raw byline beats the disambiguated entity name
 
 
 def _work(authorships):
@@ -43,7 +44,7 @@ def test_natural_author_order():
 
 
 # ---------------------------------------------------------------------------------------------
-# Item 2 -- programming-language harvest and the data.format surface
+# Programming-language harvest and the data.format surface
 
 
 def test_code_languages_from_repo_id_and_tags():
@@ -75,7 +76,7 @@ def test_code_languages_empty_without_signals():
     assert extract_code_languages(hf) == []
 
 
-def test_c3_tier3_appends_code_languages_to_format():
+def test_tier3_appends_code_languages_to_format():
     card = {"benchmark_details": {"languages": ["not-applicable"], "overview": "software engineering"},
             "methodology": {"metrics": [], "methods": []},
             "data": {"format": "parquet (HuggingFace hosting format)"}}
@@ -89,7 +90,7 @@ def test_c3_tier3_appends_code_languages_to_format():
     assert card["data"]["format"].count("code in") == 1
 
 
-def test_c3_tier3_fills_empty_format():
+def test_tier3_fills_empty_format():
     card = {"benchmark_details": {"languages": ["not-applicable"], "overview": "code completion"},
             "methodology": {"metrics": ["pass@1"], "methods": []},
             "data": {"format": "Not specified"}}
@@ -98,7 +99,7 @@ def test_c3_tier3_fills_empty_format():
     assert card["data"]["format"] == "Code in Python"
 
 
-def test_c3_tier3_noop_without_signals_or_off_code():
+def test_tier3_noop_without_signals_or_off_code():
     # code benchmark, no PL signals: byte-identical.
     card = {"benchmark_details": {"languages": ["not-applicable"], "overview": "code completion"},
             "methodology": {"metrics": ["pass@1"], "methods": []},
@@ -115,7 +116,7 @@ def test_c3_tier3_noop_without_signals_or_off_code():
 
 
 # ---------------------------------------------------------------------------------------------
-# Item 4 -- EEE-declared modalities extend data_type
+# EEE-declared modalities extend data_type
 
 
 def _eee(raw_modality, raw_categories):
@@ -123,7 +124,7 @@ def _eee(raw_modality, raw_categories):
         "raw_modality": raw_modality, "raw_categories": raw_categories}}}}
 
 
-def test_c3_tier4_eee_multimodal_adds_image():
+def test_tier4_eee_multimodal_adds_image():
     # swe-bench-multimodal: HF modality tags say text (images are URL strings), EEE says
     # multimodal with a vision category.
     card = {"benchmark_details": {"data_type": "text", "languages": ["not-applicable"],
@@ -134,7 +135,7 @@ def test_c3_tier4_eee_multimodal_adds_image():
     assert card["benchmark_details"]["data_type"] == "image, text"
 
 
-def test_c3_tier4_video_subsumes_vision():
+def test_tier4_video_subsumes_vision():
     # perceptiontest: audio/text/video already present; the ambiguous vision category must
     # not add a still-image claim.
     card = {"benchmark_details": {"data_type": "audio, text, video", "languages": ["English"],
@@ -144,7 +145,7 @@ def test_c3_tier4_video_subsumes_vision():
     assert card["benchmark_details"]["data_type"] == "audio, text, video"
 
 
-def test_c3_tier4_noop_without_multimodal_signal():
+def test_tier4_noop_without_multimodal_signal():
     # repobench: raw_modality text, category code -> no modality claim.
     card = {"benchmark_details": {"data_type": "text", "languages": ["not-applicable"],
                                   "overview": "code completion"},
@@ -153,7 +154,7 @@ def test_c3_tier4_noop_without_multimodal_signal():
     assert card["benchmark_details"]["data_type"] == "text"
 
 
-def test_c3_tier4_never_fills_ns():
+def test_tier4_never_fills_ns():
     card = {"benchmark_details": {"data_type": "Not specified", "languages": ["Not specified"],
                                   "overview": "captioning"},
             "methodology": {"metrics": [], "methods": []}, "data": {}}
@@ -162,8 +163,9 @@ def test_c3_tier4_never_fills_ns():
 
 
 def test_extract_hf_tags_output_unchanged():
-    # frozen instruments consume extract_hf_tags: the harvest lives outside it, so a repo
-    # with code + PL signals still yields the exact S4.3 shape and untouched data.format.
+    # other callers rely on extract_hf_tags as is: the harvest lives outside it, so a repo with
+    # code + PL signals still yields the code shape (data_type=code, languages=not-applicable)
+    # and untouched data.format.
     out = extract_hf_tags({"id": "tianyang/repobench_python_v1.1",
                            "tags": ["code", "modality:text", "format:parquet"]})
     assert out["benchmark_details.data_type"] == "code"

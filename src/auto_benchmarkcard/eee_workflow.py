@@ -4,10 +4,19 @@ Alternative pipeline entry point that starts from Every Eval Ever (EEE)
 evaluation data instead of UnitXT. Scans EEE evaluation JSONs, resolves
 HuggingFace repos, then feeds into the standard composition pipeline.
 
-Flow:
-  EEE data → scan & aggregate → resolve HF repos
-    → [HF Worker] → [Docling Worker] → [Composer Worker]
-    → [Risk Worker] → [RAG Worker] → [FactReasoner Worker]
+Flow (run_eee_pipeline):
+  EEE data -> scan & aggregate -> optional benchmark filter -> resolve HF repos
+  each single benchmark: identity gate (aggregator-only entries; a confident
+    not-a-benchmark verdict skips the entry) -> process_single_benchmark
+  each composite suite: process_single_benchmark
+
+process_single_benchmark:
+  UnitXT paper lookup (when EEE gives no paper_url) -> LangGraph workflow:
+    [HF?] -> [HF_Extractor?] -> [PaperResolver?] -> [Docling?] -> [HTML?]
+    -> [GitHub] -> [Composer] -> [Risk] -> [RAG] -> [FactReasoner]
+  -> finalize_eee_card (human-baseline relocation, EEE baseline_results /
+     benchmark_type / interpretation / judge injections, provenance, card_info,
+     shape and missing_fields) -> save the card
 """
 
 from __future__ import annotations
@@ -136,7 +145,7 @@ def _enrich_baseline_results(
     top = eval_summary.get("top_performers", [])
     stats = eval_summary.get("score_statistics", {})
     # Display the metric's human name, not the raw EEE id, so a baseline like "mean
-    # llm_stats.<slug>.score = ..." reads as "mean <Benchmark> score = ..." (F4 prose hygiene).
+    # llm_stats.<slug>.score = ..." reads as "mean <Benchmark> score = ...".
     metric = eval_summary.get("primary_metric", "score")
     _mcfg = (eee_metadata.get("metrics") or {}).get(metric)
     if isinstance(_mcfg, dict) and _mcfg.get("metric_name"):
@@ -219,8 +228,8 @@ def _extract_human_clause(text: Any) -> Optional[str]:
 
     Used to lift a human baseline buried in a baseline_results / overview that ALSO reports model
     scores (so the whole-field relocation below does not apply). The returned clause is a verbatim
-    substring of the source field, so the refresh merge can ground it against the card's own field
-    without paper evidence_ids. Conservative: requires the human-performance phrasing and a number
+    substring of the source field, so it can be grounded against the card's own field without
+    paper evidence_ids. Conservative: requires the human-performance phrasing and a number
     in one clause, and a substantive length."""
     if not isinstance(text, str) or not text.strip():
         return None
@@ -288,8 +297,8 @@ def _lift_mixed_human_clause(
 
     Fires only when human_baseline is empty and a conservative human-performance clause with a
     number is found (see _extract_human_clause). The clause is a verbatim substring of its source
-    field, so the refresh merge grounds it cross-field; the live pipeline also records a derived
-    provenance entry so its grounding gate scores the field grounded. Returns True when it lifted.
+    field; a derived provenance entry is recorded so the grounding gate scores the field
+    grounded. Returns True when it lifted.
     """
     if not _is_not_specified(methodology.get("human_baseline")):
         return False
@@ -361,9 +370,8 @@ def compose_interp_prose(
 
     Restates the direction and the already-grounded numbers only; it invents no thresholds. Returns
     None when there is nothing grounded to say (no direction signal, or neither a baseline nor a
-    human reference point is present), so the caller abstains and keeps whatever was there. Shared
-    by the live finalize (_inject_eee_interpretation) and the refresh registry's recompute so both
-    paths produce byte-identical prose.
+    human reference point is present), so the caller abstains and keeps whatever was there. Used
+    by the finalize step (_inject_eee_interpretation).
     """
     if direction not in ("higher_is_better", "lower_is_better"):
         return None
@@ -398,11 +406,11 @@ def _clip_for_prose(text: str, limit: int = 220) -> str:
 def _inject_eee_interpretation(
     card: Dict[str, Any], eee_metadata: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
-    """Set methodology.interpretation from EEE, post-composition (contract S4.6).
+    """Set methodology.interpretation from EEE, post-composition.
 
     interpretation is an enum derived from structured EEE data, but Stage-B sees no text
     evidence for it and forces "Not specified". This mirrors the benchmark_type/appears_in
-    injection: [0] writes it after composition, not via Stage-B. Only overwrites a
+    injection: this step writes it after composition, not via Stage-B. Only overwrites a
     Not-specified/empty value so a genuine Stage-B interpretation is preserved. Returns the
     provenance entry to record (source=eee, derived) when it injects, else None.
     """
@@ -532,7 +540,7 @@ def _inject_eee_judge_llm(
 
     methodology["judge_uses_llm"] = True
     _clear_stale_bookkeeping(card, "methodology.judge_uses_llm")
-    # J2: a single named judge fills judge_models + judge_num (left Not specified before).
+    # A single named judge fills judge_models + judge_num (left Not specified before).
     if named_model is not None:
         methodology["judge_models"] = [named_model]
         methodology["judge_num"] = 1
@@ -647,10 +655,9 @@ def finalize_eee_card(
     recording the matching provenance sidecar entries. Mutates final_card in place and returns
     the reordered card (re-wrapped if it carried a benchmark_card key).
 
-    Extracted verbatim from process_single_benchmark so the refresh-from-cache harness can run
-    the identical finalize offline; the live pipeline calls it on the same path. safe_name is
-    derived from output_manager (idempotent re-sanitize of the name it was built with), so it
-    equals the value the caller passed inline before this extraction.
+    Kept separate from process_single_benchmark so the same finalize can also run offline on
+    cached tool outputs. safe_name is derived from output_manager (idempotent re-sanitize of the
+    name it was built with).
     """
     safe_name = output_manager.benchmark_name
     # Move human-performance text mis-filed in baseline_results into human_baseline so
@@ -664,9 +671,8 @@ def finalize_eee_card(
     # Write back to card in case get() created a detached empty dict.
     details = card.get("benchmark_details", {})
     raw_btype = eee_metadata.get("benchmark_type", "single")
-    # Map onto the Tier-1 enum (S4.2); the raw value still drives the composite
-    # contains-injection below. Fixes the all-"single" bug (composite was injected
-    # raw instead of as composite_suite).
+    # Map onto the benchmark_type enum (EEE's raw "composite" becomes composite_suite);
+    # the raw value still drives the composite contains-injection below.
     details["benchmark_type"] = map_benchmark_type(raw_btype)
     # benchmark_type and appears_in are EEE-derived and injected here, not by Stage-B,
     # so they carry no text evidence. Record them as structured (eee) derivations in
@@ -702,7 +708,7 @@ def finalize_eee_card(
         )
     card["benchmark_details"] = details
 
-    # interpretation is an EEE-derived enum (S4.6) injected post-composition like
+    # interpretation is an EEE-derived enum injected post-composition like
     # benchmark_type/appears_in above; Stage-B leaves it "Not specified" with no text
     # evidence. Record it as a structured (eee) derivation in the provenance sidecar
     # so the grounding gate does not score it as a hallucination.
