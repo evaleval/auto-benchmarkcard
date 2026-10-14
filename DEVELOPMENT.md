@@ -2,56 +2,51 @@
 
 ## Setup
 
-Use Python 3.11 or newer for current development on `main`. Use the `v0.2.0`
-checkout or release archive for the frozen paper evaluation; Python 3.12.10
-is required when byte-identical reproduction of its score JSON files matters.
-
 ```bash
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-Do not commit `.env`, generated cards, source caches, participant raw returns,
-or local agent state.
+Python 3.11 or newer is required. Credentials go into `.env`, which is
+ignored by Git; never commit generated cards, source caches or run output.
 
-## Manual checks
+## Tests
 
-Choose checks relevant to the change. For example, a composer schema change
-can be checked with:
+The test suite is offline. Run it with the Hugging Face cache disabled so
+that no test reaches the network:
 
 ```bash
-python -m pytest tests/test_card_schema.py
+HF_HUB_OFFLINE=1 python -m pytest
 ```
 
-For packaging changes, `python -m build` builds the wheel and source archive.
-Tests are discovered under `tests/`; historical checks under `scripts/` are
-invoked separately when needed. Maintenance is manual: do not add GitHub
-Actions workflows, automatic test or scanning jobs, Git hooks, required CI,
-or branch-protection gates.
+`tests/conftest.py` puts this checkout's `src/` first on the import path, so
+the suite always exercises the code in the working tree.
 
-## Main entry points
+## Where things are
 
-- `src/auto_benchmarkcard/cli.py`: command-line interface
-- `src/auto_benchmarkcard/workflow.py`: LangGraph workflow
-- `src/auto_benchmarkcard/workers.py`: workflow workers
-- `src/auto_benchmarkcard/tools/composer/`: card composition and validation
-- `src/auto_benchmarkcard/tools/eee/`: Every Eval Ever input and source binding
-- `scripts/batch_generate.py`: corpus batch runner
-- `scripts/score_calibration.py`: three-rater judge validation scorer
-- `scripts/score_screen_verification.py`: public-source screen scorer
+- `src/auto_benchmarkcard/cli.py`: the `benchmarkcard` command
+- `src/auto_benchmarkcard/workflow.py`: the LangGraph graph and the
+  orchestrator
+- `src/auto_benchmarkcard/workers.py`: one worker per stage
+- `src/auto_benchmarkcard/eee_workflow.py`: the record-driven run, the
+  identity gate and the finalisation step
+- `src/auto_benchmarkcard/config.py`: configuration from the environment
+- `src/auto_benchmarkcard/tools/composer/`: evidence extraction, referent
+  frame, card generation and validation
+- `src/auto_benchmarkcard/tools/eee/`: record parsing, dataset binding and
+  paper resolution
+- `src/auto_benchmarkcard/tools/rag/` and `tools/factreasoner/`: claim
+  atomisation, retrieval and factuality scoring
+- `scripts/`: batch runners and the field-status report
 
-## Frozen evaluation
+## Conventions
 
-The files in `eval/` and the instrument baseline in
-`eval/corpus/frozen_code_hashes_md5.json` describe the `v0.2.0` paper release.
-Run its evaluation commands, including `python scripts/check_frozen.py`, from
-that tag or the release archive. Current runtime helpers have evolved, so
-the historical instrument check on `main` refuses to treat them as the
-evaluated instrument. Do not update the baseline to make that check pass.
-An evaluation of changed instruments needs its own version and sample.
-
-The current public artifact map and exact reproduction commands are in
-`eval/README.md`. Private source snapshots and raw participant returns are
-inputs to `scripts/build_public_evaluation.py`, not repository content.
+- Comments and docstrings describe behaviour, not history. A comment that
+  explains a rule should state the rule.
+- Line length is 100 columns (`pyproject.toml` configures black and ruff).
+- A change to the card schema lives in `tools/composer/field_spec.py` and
+  the section models in `composer_tool.py`; `tests/test_card_schema.py` and
+  `tests/test_card_shape.py` cover it.
+- Packaging changes are checked with `python -m build`.

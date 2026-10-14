@@ -3,23 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
-MANIFEST
 
 # Virtual environments
 .venv/
@@ -27,12 +14,20 @@ venv/
 ENV/
 env/
 
-# IDEs
+# IDE and editor state
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# Local assistant state
+.claude/
+.codex/
+.agents/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
 
 # Environment variables
 .env
@@ -41,27 +36,21 @@ env/
 !.env.example
 !.env.*.example
 
-# Output directories
+# Run output and caches
 output/
+runs/
 bundles/
 tool_output/
 batch_output/
-test_batch/
-cards_for_avijit/
-hf-eee-dataset/
+manual_output/
 factreasoner_cache/
+*.cache.json
 external/merlin
 external/FactReasoner/
 external/every_eval_ever/
-.paper_cache.json
-
-# Local scratch / external experiments (not part of the package)
-.firecrawl/
-multitasking-benchmarks-experiments/
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb_checkpoints
 
 # OS
 .DS_Store
@@ -70,62 +59,12 @@ Thumbs.db
 # Logs
 *.log
 
-# Testing
+# Testing and linting
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Temporary files
-*.tmp
-*.cache.json
-to_be_reviewed/
-notebooks/
-
-# Generated output
-batch_output/
-test_output*/
-manual_output/
-missing_output/
-
-# pip install artifacts
-=*
-
-# ChromaDB files
-src/auto_benchmarkcard/tools/rag/chroma_db/
-
-# Ruff / mypy
 .ruff_cache/
 .mypy_cache/
 
-# Pip artifacts
+# pip install artifacts
 =*
-
-# Internal/private scripts
-scripts/_internal/
-
-# merge-gate receipts, kept local only
-gold_set/reapply_*.json
-gold_set/revalidate
-
-# Local agent state and private workspace links
-.claude/
-.agents/
-.codex/
-.codex_work/
-memory
-vault
-.obsidian/
-CLAUDE.local.md
-!CLAUDE.md
-
-# Private evaluation inputs and incomplete returns
-eval/**/_private/
-eval/**/raw/
-eval/**/sources/
-eval/**/*_raw_copy.csv
-eval/**/*_to_complete.csv
-
-# Additional local evaluation and experiment files stay private.
-# The released eval snapshot is already tracked and remains published.
-/eval/
-/gold_set/

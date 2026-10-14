@@ -1,188 +1,237 @@
-# Auto-BenchmarkCards
+# Auto-BenchmarkCard
 
-Auto-BenchmarkCards produces structured documentation for AI benchmarks from
-evaluation records, papers, dataset repositories, and linked web sources. It
-records source provenance, composes a structured BenchmarkCard, and checks
-eligible claims against the collected evidence.
+Auto-BenchmarkCard writes structured documentation for AI benchmarks. Given a
+benchmark name and its evaluation records, the pipeline finds the benchmark's
+paper, dataset repository and web pages, extracts verbatim evidence from them,
+composes a card with a fixed schema, and checks the card's claims against the
+collected sources. Every filled field carries provenance back to the quote it
+was built from, and a field the pipeline cannot support is recorded as
+"Not specified" rather than guessed.
 
-The `main` branch contains the current development package and a reusable card
-composer. The research code and evaluation artifacts for
-*Auto-BenchmarkCards: Automated Documentation for AI Benchmarks* are frozen at
-`v0.2.0`. The Python package and command retain the singular name
-`auto_benchmarkcard` and `benchmarkcard` for compatibility.
+The pipeline reads evaluation records in the format of
+[Every Eval Ever](https://github.com/evaleval/every_eval_ever) and can also
+start from a [Unitxt](https://github.com/IBM/unitxt) catalog entry. Cards
+produced with it are published in the
+[evaleval/auto-benchmarkcards](https://huggingface.co/datasets/evaleval/auto-benchmarkcards)
+dataset.
 
-![Four-stage Auto-BenchmarkCards pipeline from benchmark identification through extraction, composition, and warnings to 530 published cards](docs/figures/pipeline.png)
+## What a card contains
 
-*Research-release pipeline. A benchmark enters as a name and an evaluation record and
-leaves as a published card. Red marks a field recorded as "Not specified"; the
-triangle marks a field that shipped with a warning.*
+A card is one JSON document with five sections and a few top-level keys.
 
-## Paper release
-
-The paper evaluates the 40-field cards and configuration frozen in `v0.2.0`.
-Its results do not evaluate subsequent changes on `main`.
-
-| Resource | Role |
+| Section | Fields |
 |---|---|
-| [GitHub release `v0.2.0`](https://github.com/evaleval/auto-benchmarkcard/releases/tag/v0.2.0) | Versioned research code and evaluation release |
-| [Hugging Face revision `0a86cea5…`](https://huggingface.co/datasets/evaleval/auto-benchmarkcards/tree/0a86cea5b55d6070bd7f1f020f01281e1631adba) | Frozen evaluated corpus of 530 JSON cards |
-| `Auto-BenchmarkCards-code-and-data.zip` attached to the GitHub release and the arXiv submission | Frozen paper artifact with the code, all 530 cards, provenance, and replay inputs |
-| [Evaluation Cards](https://evalcards.evalevalai.com/) | Live community deployment; dynamic and not used to compute the paper's results |
+| `benchmark_details` | name, overview, data type, domains, languages, similar benchmarks, resources, authors, organisation, benchmark type, and the suites the benchmark appears in |
+| `purpose_and_intended_users` | goal, audience, tasks, limitations, out-of-scope uses |
+| `data` | source, size, size breakdown, format, annotation, collection date, contamination controls |
+| `methodology` | methods, metrics, calculation, interpretation, baseline results, validation, human baseline, judge model details, validity justification |
+| `ethical_and_legal_considerations` | privacy and anonymity, data licensing, consent procedures, compliance with regulations |
 
-The frozen corpus is a research snapshot with known defects, not a
-human-verified reference database. Subsequent corrections to the living corpus
-do not change the inputs analyzed in the paper.
+`possible_risks` lists candidate risks from the IBM AI Risk Atlas with a
+justification each. `flagged_fields` holds the fields whose support in the
+sources was weak, and `missing_fields` the fields left as "Not specified".
+`card_info` records the model, schema version and run metadata. A provenance
+sidecar maps every field to the evidence items behind it, and the evidence
+items carry the exact quote, its character offsets and the source document.
 
-## Important interpretation limits
+## How the pipeline works
 
-- In the stratified sample, an estimated 47.80% of cards had at least one
-  screen-detected and verifier-confirmed material finding. This is not an
-  estimate of overall defect prevalence because the screen's recall is unknown.
-- In the overlapping filled-field universe, post-composition warnings had
-  3.03% weighted precision and 1.86% recall for source-unsupported content.
-  They are review cues, not correctness certificates.
-- Each card contains a `possible_risks` list produced by a separate risk
-  identifier. In the sampled cards, the automated source judge classified 547
-  of 761 candidate risk assertions as relevant and grounded in the collected
-  evidence and 214 as not. These judgements were not human-validated and are
-  excluded from the headline field-support results. Treat every item as a
-  prompt for human review, not as a verified property of a benchmark.
+The pipeline is a [LangGraph](https://github.com/langchain-ai/langgraph)
+graph. An orchestrator node decides which worker runs next from the state
+produced so far, and each worker writes its raw output to the run directory
+before the next one starts.
 
-No headline result in the paper depends on the candidate risk assignments.
+**Identification.** Evaluation records are grouped by dataset name. Subject
+variants of one benchmark, such as the subjects of MMLU, are collapsed into a
+single benchmark, and a folder that holds several benchmarks is treated as a
+composite suite whose members are documented first. Entries that reach the
+pipeline only through an aggregator, without a repository or paper of their
+own, pass an identity gate before any source is fetched.
 
-## Repository contents
+**Source binding.** The benchmark is bound to a Hugging Face dataset, taken
+from the record when it names one and otherwise searched on the Hub with a
+strict name match. The binding is verified in three tiers, deterministic
+reject, deterministic accept, and one model call for the ambiguous cases.
+The paper is found through the record, the dataset card, or an open search
+over OpenAlex, Semantic Scholar and arXiv, and every candidate passes a
+verification step that checks that the paper introduces this benchmark and
+not a sibling or a derivative. The paper is converted to text with Docling,
+web pages with trafilatura, the GitHub README through the GitHub API, and
+structural facts such as row counts and licence come from the dataset's
+Croissant metadata.
 
-- `src/auto_benchmarkcard/`: package and command-line application
-- `src/auto_benchmarkcard/tools/composer/`: reusable extraction, composition,
-  and schema validation library
-- `scripts/`: batch generation, corpus assembly, and evaluation programs
-- `tests/`: offline and artifact-backed regression tests
-- `eval/`: frozen evaluation sample, results, public human-label projections,
-  manifests, and checksums
-- `docs/`: architecture notes and figure sources
-- `spaces/benchmarkcard-webhook/`: optional Hugging Face Space integration
+**Composition.** The composer works in two stages. Stage A reads each source
+in isolation and extracts candidate evidence as verbatim quotes assigned to
+card fields. A quote survives only if it is an exact substring of its source
+after whitespace normalisation. A referent frame, built from the document
+structure and the benchmark's metadata, records which names in the paper
+denote the target benchmark and which denote siblings, subsets, versions or
+splits, so that evidence about a neighbouring benchmark can be demoted before
+it reaches the card. An entity-attribution pass re-checks the surviving
+quotes against that frame. Stage B then produces the card sections in three
+grouped structured-output calls from the evidence digest alone, validates
+each group against the schema and the evidence links, and repairs
+violations for up to three rounds. Values that can be derived
+deterministically from metadata, such as languages, size and licence,
+override the model's output.
 
-The public evaluation snapshot is based on 531 attempted entries and 530
-published cards. See [`eval/README.md`](eval/README.md) for result scopes,
-artifact locations, sanitization policy, and offline reproduction commands.
-The complete corpus and per-field provenance ship in the release archive.
+**Risks.** A retriever proposes candidate risks from the IBM AI Risk Atlas,
+and one model call selects at most five with a justification each.
 
-## Composer library
+**Factuality check.** The card's prose fields are split into atomic claims.
+Each claim is scored by [FactReasoner](https://github.com/IBM/FactReasoner)
+against passages retrieved from the bound sources, with the probabilistic
+inference done by the Merlin engine. Fields whose claims fall below the
+support threshold are listed in `flagged_fields`, with an exception for
+identity fields whose cited evidence passed the attribution check.
 
-The composer accepts a `CardSchema` describing the card's sections, fields, and
-allowed values. It uses that schema for evidence extraction, Stage B (formatting
-the selected evidence into card fields), and validation and repair. The
-benchmark schema is the default; other applications can supply their own.
+**Finalisation.** For runs that started from evaluation records, the final
+step adds the recorded scores as baseline results, maps the benchmark type,
+records the suites the benchmark appears in, and recomputes the list of
+missing fields.
 
-The library in this integration comes from `composer-library` commit
-[`94c7713`](https://github.com/evaleval/auto-benchmarkcard/commit/94c7713d1df00730d8c43a35e618de35cf0589bd).
-[Modelcards](https://github.com/evaleval/model-cards) uses it with a separate
-model-card schema and records its exact composer revision in `composer-pin.json`.
-That pin remains valid independently of subsequent work on `main`.
+A more detailed walk through the stages, with the module that implements
+each one, is in [`docs/architecture.md`](docs/architecture.md).
 
-## Install
+## Installation
 
-Auto-BenchmarkCards requires Python 3.11 or newer.
+Python 3.11 or newer is required.
 
 ```bash
-git clone --branch main https://github.com/evaleval/auto-benchmarkcard.git
+git clone https://github.com/evaleval/auto-benchmarkcard.git
 cd auto-benchmarkcard
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-Copy `.env.example` to `.env` and add only the credentials required by your
-chosen backends. `.env` is ignored by Git. The entailment stage also requires a
-separately built Merlin solver binary. Set `MERLIN_BIN` to its executable path;
-the default is `external/merlin/bin/merlin` in the checkout. Merlin source and
-build instructions are available in the
-[Merlin repository](https://github.com/arishofmann/merlin).
+The install pulls FactReasoner from a pinned commit of its repository. The
+factuality check additionally needs the Merlin binary. Build it from the
+[Merlin repository](https://github.com/arishofmann/merlin) and point
+`MERLIN_BIN` at the executable, or place it at `external/merlin/bin/merlin`
+inside the checkout. Without Merlin, `generate` still writes a card but skips
+the factuality check, while `generate-unitxt` reports the run as failed.
 
-`pyproject.toml` is the dependency specification. It pins a compatible
-FactReasoner fork; the current adapter supplies Mellea-backed extraction and
-entailment components. `requirements-lock.txt` is a compatibility shim for
-older install commands and contains `-e .`; it does not lock transitive
-dependencies.
+## Configuration
 
-## Run
+Copy `.env.example` to `.env` and fill in what you use. The file documents
+every variable; the ones that matter most are listed here.
 
-Generate from an Every Eval Ever export:
+- `LLM_ENGINE_TYPE` selects the model backend for all calls. Supported values
+  are `hf` (Hugging Face inference, the default), `ollama`, `vllm`, `wml`,
+  `rits` and `openrouter`. The composer model is read from
+  `<ENGINE>_COMPOSER_MODEL`, for example `HF_COMPOSER_MODEL`.
+- `COMPOSER_ENGINE_TYPE` reroutes only the composer calls to another backend,
+  which is useful when the factuality model and the composer model are served
+  in different places.
+- `FACTREASONER_MODEL` and `FACTREASONER_ENGINE_TYPE` configure the factuality
+  model. It must be served by an endpoint that returns token log
+  probabilities; any OpenAI-compatible endpoint can be given with
+  `FACTREASONER_API_BASE` and `FACTREASONER_API_KEY`.
+- `OPENALEX_API_KEY`, `S2_API_KEY` and `GITHUB_TOKEN` are optional and raise
+  the rate limits of the source search.
 
-```bash
-benchmarkcard generate ./external/eee_samples \
-  -b "MMLU,TruthfulQA" \
-  -o ./output
-```
+`benchmarkcard validate` checks that the variables required by the selected
+engine are set, that the core imports work and that Merlin is executable.
+With `--live` it also makes one model call.
 
-Generate from Unitxt:
+## Running the pipeline
 
-```bash
-benchmarkcard generate-unitxt glue -o ./output
-```
-
-Inspect the available commands:
-
-```bash
-benchmarkcard --help
-benchmarkcard validate
-```
-
-Each run writes the final card, collected source artifacts, provenance, and
-factuality outputs to a timestamped directory.
-
-## Reproduce the reported statistics
-
-The GitHub release attaches the same code-and-data archive distributed with
-the arXiv version. Its `REPRODUCIBILITY.md` gives seven offline commands for
-recomputing the reported summaries from frozen model outputs and annotations.
-Those commands require no credentials or new hosted-model calls.
-
-Use the release archive or a separate checkout of `v0.2.0` for those commands.
-Some runtime helpers on `main` have changed since the evaluated version, so the
-historical instrument check correctly rejects them. The frozen evaluation
-files and their checksum baseline are retained unchanged.
-
-Fresh generation is not byte-reproducible because it depends on changing web
-sources and hosted models. The archive records the evaluated configuration,
-software environment, frozen outputs, and checksums so the reported numerical
-analysis can be replayed independently of those services.
-
-## Development
-
-Development checks are run manually. For example, after installing the `dev`
-extra, check the composer's schema interface with:
+The repository ships a few evaluation records under `external/eee_samples`
+so a first run needs no other input:
 
 ```bash
-python -m pytest tests/test_card_schema.py
+benchmarkcard generate ./external/eee_samples -b "TruthfulQA,GPQA" -o runs
 ```
 
-Additional setup and frozen-artifact rules are documented in
-[`DEVELOPMENT.md`](DEVELOPMENT.md). This code follows URLs found in input
-records and has not been hardened as a public network service. Run it in an
-isolated environment when processing untrusted inputs; see
-[`SECURITY.md`](SECURITY.md).
+`-b` restricts the run to the named benchmarks; without it every benchmark
+found in the records is documented. A run from a Unitxt catalog entry looks
+like this:
+
+```bash
+benchmarkcard generate-unitxt glue -o runs
+```
+
+Each run creates one session directory per benchmark. With `-o runs` the
+layout is
+
+```
+runs/output/<slug>_<YYYY-MM-DD_HH-MM>/
+  benchmarkcard/benchmark_card_<slug>.json   the card
+  tool_output/
+    composer/provenance_<slug>.json          field to evidence map
+    composer/frame_<slug>.json               referent frame
+    paper_resolver/, hf/, docling/, html/, github/, rag/, factreasoner/, ...
+```
+
+The `output/` level is always inserted under the directory given with `-o`.
+Sessions can be listed and inspected:
+
+```bash
+benchmarkcard list -o runs/output
+benchmarkcard show runs/output/<session> --detailed
+```
+
+For larger jobs, `scripts/batch_generate.py` runs a backlog of benchmark
+names, `scripts/run_sharded.sh` runs such a backlog in parallel shards with
+a per-card timeout, and `scripts/generate_manual.py` documents benchmarks
+that have neither evaluation records nor a Unitxt entry from a small JSON
+input file. `scripts/field_status.py` summarises, for a finished batch, how
+many fields were filled from quotes, from metadata, or left empty.
+
+## Using the composer as a library
+
+The composer's building blocks are independent of the benchmark schema.
+`field_spec.CardSchema` describes a schema's sections, fields and allowed
+values, `evidence.build_extraction_prompt` and `evidence.verify_items` run
+Stage A against it, `docstructure.build_index` indexes a source document,
+and `validator.run_group_with_repair` runs Stage B with the repair loop.
+The pipeline's own entry point, `compose_benchmark_card`, is bound to the
+benchmark schema. The [model-cards](https://github.com/evaleval/model-cards)
+project uses the same building blocks with a model-card schema.
+
+## Limitations
+
+- Sources are fetched live, so two runs of the same benchmark can differ, and
+  a card is only as good as the sources that were reachable when it ran.
+- Only the dataset binding and the paper binding are verified for subject
+  agreement. Web pages and GitHub READMEs enter the composer unverified.
+- The factuality check measures support in the collected sources, not truth.
+  Flags are cues for a reviewer, and an unflagged field is not a verified one.
+- The risk list is a set of candidates for human review.
+- The pipeline follows URLs found in its inputs. Run it in an isolated
+  environment when the inputs are untrusted; see [`SECURITY.md`](SECURITY.md).
+
+## Repository layout
+
+- `src/auto_benchmarkcard/`: the package, with the CLI in `cli.py`, the graph
+  in `workflow.py` and `workers.py`, and the record-driven entry point in
+  `eee_workflow.py`
+- `src/auto_benchmarkcard/tools/`: one package per stage, with the composer
+  under `tools/composer/`
+- `scripts/`: batch runners and the field-status report
+- `tests/`: offline tests, run with `python -m pytest`
+- `external/eee_samples/`: sample evaluation records
+- `spaces/benchmarkcard-webhook/`: a Hugging Face Space that regenerates
+  cards when new evaluation records arrive
+- `docs/architecture.md`: the stages in order, with their modules
 
 ## Citation
 
-Please cite the accompanying paper. The arXiv identifier will be added to
-[`CITATION.cff`](CITATION.cff) after arXiv assigns it.
+If you use this software, please cite the paper that introduced it:
 
-> Aris Hofmann, Inge Vejsbjerg, Jan Batzner, Leshem Choshen, Jenny Chim,
-> Avijit Ghosh, and Elizabeth M. Daly. “Auto-BenchmarkCards: Automated
-> Documentation for AI Benchmarks.” 2026.
+```bibtex
+@article{hofmann2025autobenchmarkcard,
+  title   = {Auto-BenchmarkCard: Automated Synthesis of Benchmark Documentation},
+  author  = {Hofmann, Aris and Vejsbjerg, Inge and Salwala, Dhaval and Daly, Elizabeth M.},
+  journal = {arXiv preprint arXiv:2512.09577},
+  year    = {2025}
+}
+```
 
-## Licenses
+## License
 
-| Material | License |
-|---|---|
-| Source code and repository documentation | [MIT](LICENSE) |
-| Generated 530-card corpus | [CDLA-Permissive-2.0](CDLA-Permissive-2.0.txt) |
-| Author-created evaluation instruments, reports, aggregates, and derived outputs | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
-| Sanitized participant label projections | Published as consented research records; no separate copyright license is asserted over participant-authored expression |
-| Third-party sources, excerpts, dependencies, and benchmark content | Their original terms; see [third-party notices](THIRD_PARTY_NOTICES.md) |
-
-[`DATA-LICENSE.md`](DATA-LICENSE.md) defines the file-level boundary. The
-licenses apply only to rights held by the relevant providers and do not grant
-rights over the benchmarks described by the cards.
+The code is released under the [MIT License](LICENSE). Papers, dataset
+cards, web pages and benchmark content fetched at run time remain under their
+own terms; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
